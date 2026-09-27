@@ -1,0 +1,1 @@
+<view class="state"><view class="symbol">○</view><view class="title">{{title}}</view><view class="sub">{{subtitle}}</view><button wx:if="{{action}}" class="action" bindtap="act">{{action}}</button></view>

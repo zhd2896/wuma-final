@@ -1,0 +1,8 @@
+<view class="page coach-page"><view class="topbar"><text class="topbar-back" bindtap="back">‹</text>AI 教练<text class="topbar-tag">UI 演示</text></view>
+  <view class="coach-hero"><image class="coach-art" src="../../assets/coach-master.jpg" mode="aspectFill" /><view class="hero-copy"><view class="hero-kicker">弈智棋师</view><view class="hero-title">一步一悟，<view>以棋明心。</view></view></view></view>
+  <view class="page-inner"><view class="speech card"><view class="quote-mark">“</view><view>这一手虽然加强了中央控制，但右侧防守需要注意。</view><view class="speech-source">— 棋师的演示讲解</view></view>
+  <section-title title="分级提示" subtitle="由浅入深" /><view class="coach-intro">先独立观察，再按需要展开提示。以下内容均为 UI 演示。</view>
+  <coach-card wx:for="{{hints}}" wx:key="level" hint="{{item}}" expanded="{{selectedLevel == item.level}}" bind:select="selectHint" />
+  <view class="review-entry ink-card" bindtap="openReview"><view><view>从复盘中继续学习</view><text>回顾关键节点 · 发现不同思路</text></view><view>›</view></view></view>
+  <bottom-nav current="coach" />
+</view>

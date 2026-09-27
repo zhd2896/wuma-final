@@ -1,0 +1,11 @@
+node_modules/
+.npm-cache/
+backend/.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+backend/.mysql-test/
+.env
+backend/.env
+deploy/nginx/conf.d/tls.conf
+deploy/nginx/certs/

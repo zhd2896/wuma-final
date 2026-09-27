@@ -1,0 +1,27 @@
+{
+  "name": "yizhi-wuma-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "弈智五马微信原生小程序 UI 演示",
+  "scripts": {
+    "test": "node --test tests/*.test.mts",
+    "typecheck": "tsc --noEmit",
+    "check": "node scripts/check.cjs",
+    "test:e2e:wechat": "node scripts/phase20-devtool-e2e.cjs",
+    "test:e2e:review": "node scripts/phase21-devtool-e2e.cjs",
+    "test:e2e:llm-review": "node scripts/phase22-devtool-e2e.cjs",
+    "test:e2e:coach": "node scripts/phase23-devtool-e2e.cjs",
+    "test:e2e:training": "node scripts/phase24-devtool-e2e.cjs",
+    "test:e2e:docker": "node scripts/phase27-docker-e2e.mjs",
+    "benchmark:ai": "node scripts/benchmark-ai.mts",
+    "benchmark:selfplay": "node scripts/self-play.mts",
+    "benchmark:verify": "node scripts/verify-benchmark.mts",
+    "test:e2e:wechat:game": "node scripts/phase19-devtool-e2e.cjs",
+    "test:e2e:wechat:remote": "node scripts/phase18-devtool-e2e.cjs"
+  },
+  "devDependencies": {
+    "@types/wechat-miniprogram": "^3.4.9",
+    "miniprogram-automator": "^0.12.1",
+    "typescript": "^5.9.2"
+  }
+}

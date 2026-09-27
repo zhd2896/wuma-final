@@ -1,0 +1,1 @@
+<view class="feature {{feature.theme}}" bindtap="open"><view class="seal">{{feature.icon}}</view><view class="copy"><view class="title">{{feature.title}}</view><view class="subtitle">{{feature.subtitle}}</view></view><view class="arrow">›</view></view>

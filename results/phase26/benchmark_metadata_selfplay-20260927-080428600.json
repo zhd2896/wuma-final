@@ -1,0 +1,48 @@
+{
+  "timestamp": "2026-09-27T08:04:31.766Z",
+  "kind": "selfplay",
+  "gitCommit": null,
+  "os": "win32 10.0.26200",
+  "cpu": "AMD Ryzen 7 6800H with Radeon Graphics         ",
+  "cores": 16,
+  "ramBytes": 16312721408,
+  "nodeVersion": "v24.16.0",
+  "benchmarkConfig": {
+    "allocatedGames": [
+      2,
+      2,
+      2,
+      2
+    ],
+    "drawRule": "none",
+    "firstPlayer": "A",
+    "fixedDepth": 1,
+    "gamesTotal": 8,
+    "maxPlies": 24,
+    "profile": "smoke",
+    "seed": 25,
+    "selectedMatchups": [
+      "random-minimax",
+      "random-tt",
+      "minimax-ab",
+      "ab-tt"
+    ],
+    "sideSwap": "adjacent paired games",
+    "timeBudgetMs": 100
+  },
+  "configHash": "02185f212f29a430f5f35ee246b17062470b962b2a71e1f1fa4aa9c6ca72fb6a",
+  "evaluationConfig": {
+    "materialWeight": 100,
+    "reserveWeight": 12,
+    "mobilityWeight": 2,
+    "templeControlWeight": 2,
+    "captureOpportunityWeight": 16,
+    "vulnerabilityWeight": -12,
+    "trapRiskWeight": -20,
+    "mateScore": 1000000
+  },
+  "positionSuiteVersion": "phase25_v1",
+  "nodeSemantics": "visited positions including root; iterative totals every completed/partial iteration",
+  "mcts": "NOT_IMPLEMENTED",
+  "drawRule": "NO_GENERAL_DRAW_RULE"
+}

@@ -1,0 +1,1 @@
+<view class="heading"><view class="bar"></view><text>{{title}}</text><text wx:if="{{subtitle}}" class="sub">{{subtitle}}</text></view>

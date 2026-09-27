@@ -1,0 +1,6 @@
+<view class="page history-page"><view class="topbar"><text class="topbar-back" bindtap="back">‹</text>历史对局<text class="topbar-tag">演示数据</text></view>
+  <view class="page-inner"><view class="history-head"><view>棋路有迹，弈路可循</view><text>回顾每一次对弈的思路</text></view><view class="history-toggle" bindtap="showEmpty">{{state == 'empty' ? '查看演示记录' : '预览空状态'}} ›</view>
+  <loading-state wx:if="{{state == 'loading'}}" message="正在读取对局记录..." /><error-state wx:elif="{{state == 'error'}}" message="对局记录暂不可用" bind:retry="retry" /><empty-state wx:elif="{{state == 'empty'}}" title="还没有完成的对局" subtitle="从第一场棋局开始记录你的成长" action="开始第一场对弈" bind:action="startGame" />
+  <view wx:else><section-title title="近期对局" subtitle="Mock 记录" /><view wx:for="{{records}}" wx:key="id" class="record card" data-id="{{item.id}}" bindtap="openReview"><view class="record-icon">棋</view><view class="record-main"><view class="record-name">{{item.opponent}}<text>{{item.result}}</text></view><view class="record-meta">{{item.date}} · {{item.mode}} · {{item.turns}} 回合</view><view class="record-review">{{item.reviewed ? '已有演示复盘' : '尚未生成复盘 · 可预览界面'}}</view></view><view class="chevron">›</view></view></view>
+  </view>
+</view>

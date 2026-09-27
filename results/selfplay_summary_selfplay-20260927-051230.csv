@@ -1,0 +1,5 @@
+matchup,gamesStarted,gamesFinished,winsAsA,winsAsB,winsByAlgorithm,lossesByAlgorithm,winnerReasonCounts,averagePlies,medianPlies,averageTimeMs,maxTimeMs,averageNodes,averageDepth,ttHits,maxPliesReached,ruleAmbiguity,engineError,draws
+ALPHA_BETA_VS_ALPHA_BETA_TT,2,0,0,0,"{""ALPHA_BETA"":0,""ALPHA_BETA_TT"":0}","{""ALPHA_BETA"":0,""ALPHA_BETA_TT"":0}",{},24,24,595.2526499999999,711.9307999999996,27,1,0,2,0,0,0
+MINIMAX_VS_ALPHA_BETA,2,0,0,0,"{""MINIMAX"":0,""ALPHA_BETA"":0}","{""MINIMAX"":0,""ALPHA_BETA"":0}",{},24,24,420.85469999999987,426.29659999999967,27,1,0,2,0,0,0
+RANDOM_VS_ALPHA_BETA_TT,2,1,1,0,"{""RANDOM"":0,""ALPHA_BETA_TT"":1}","{""RANDOM"":1,""ALPHA_BETA_TT"":0}","{""LONE_PIECE_IMMOBILIZED"":1}",17.5,17.5,489.44640000000004,608.2513000000001,38.833333333333336,1,0,1,0,0,0
+RANDOM_VS_MINIMAX,2,0,0,0,"{""RANDOM"":0,""MINIMAX"":0}","{""RANDOM"":0,""MINIMAX"":0}",{},24,24,454.4159,508.94280000000003,44,1,0,2,0,0,0

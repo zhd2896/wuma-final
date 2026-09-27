@@ -1,0 +1,96 @@
+{
+  "diagnostic": "TT probe depth classification; not a timed benchmark",
+  "positionSuiteVersion": "phase25_v1",
+  "depth": 3,
+  "positions": 8,
+  "byRequestedDepth": {
+    "0": {
+      "probes": 18399,
+      "hits": 3558,
+      "exact": 561,
+      "bound": 2997,
+      "cutoffs": 2669,
+      "depthMismatch": 0,
+      "sameDepthMiss": 113,
+      "moveHints": 0
+    },
+    "1": {
+      "probes": 4178,
+      "hits": 0,
+      "exact": 0,
+      "bound": 0,
+      "cutoffs": 0,
+      "depthMismatch": 0,
+      "sameDepthMiss": 0,
+      "moveHints": 0
+    },
+    "2": {
+      "probes": 195,
+      "hits": 0,
+      "exact": 0,
+      "bound": 0,
+      "cutoffs": 0,
+      "depthMismatch": 0,
+      "sameDepthMiss": 0,
+      "moveHints": 0
+    }
+  },
+  "scores": [
+    {
+      "positionId": "opening",
+      "score": 22,
+      "nodes": 3225,
+      "ttHits": 447,
+      "ttCutoffs": 316
+    },
+    {
+      "positionId": "capture",
+      "score": 216,
+      "nodes": 2148,
+      "ttHits": 238,
+      "ttCutoffs": 182
+    },
+    {
+      "positionId": "defensive",
+      "score": 8,
+      "nodes": 2107,
+      "ttHits": 335,
+      "ttCutoffs": 257
+    },
+    {
+      "positionId": "midgame",
+      "score": 30,
+      "nodes": 2768,
+      "ttHits": 323,
+      "ttCutoffs": 286
+    },
+    {
+      "positionId": "tactical",
+      "score": 292,
+      "nodes": 5559,
+      "ttHits": 1094,
+      "ttCutoffs": 866
+    },
+    {
+      "positionId": "temple",
+      "score": 20,
+      "nodes": 2627,
+      "ttHits": 378,
+      "ttCutoffs": 232
+    },
+    {
+      "positionId": "lone-piece",
+      "score": -820.5,
+      "nodes": 737,
+      "ttHits": 216,
+      "ttCutoffs": 127
+    },
+    {
+      "positionId": "forced-win",
+      "score": 999999,
+      "nodes": 3609,
+      "ttHits": 527,
+      "ttCutoffs": 403
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_DATABASE: wuma
+      MYSQL_USER: wuma
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in your environment}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD in your environment}
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    command: ["--character-set-server=utf8mb4", "--collation-server=utf8mb4_0900_ai_ci"]
+volumes:
+  mysql_data:

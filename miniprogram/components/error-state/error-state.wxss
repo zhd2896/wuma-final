@@ -1,0 +1,1 @@
+.state{text-align:center;padding:60rpx;color:#74554b;font-size:24rpx}.symbol{font-size:57rpx;color:#ac4937}button{width:220rpx;margin-top:20rpx;background:#a8392d;color:white;font-size:23rpx}button::after{border:0}

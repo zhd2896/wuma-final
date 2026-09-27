@@ -1,0 +1,60 @@
+{
+  "timestamp": "2026-09-27T06:41:40.047Z",
+  "kind": "search",
+  "gitCommit": null,
+  "os": "win32 10.0.26200",
+  "cpu": "AMD Ryzen 7 6800H with Radeon Graphics         ",
+  "cores": 16,
+  "ramBytes": 16312721408,
+  "nodeVersion": "v24.16.0",
+  "benchmarkConfig": {
+    "baselineRunId": "search-20260927-044020",
+    "budgetRepetitions": 3,
+    "budgetsMs": [
+      100,
+      250,
+      500,
+      1000
+    ],
+    "depths": [
+      3
+    ],
+    "fixedAlgorithms": [
+      "ALPHA_BETA_TT"
+    ],
+    "maxDepth": 4,
+    "optimizationVersion": "phase26-preopt",
+    "positionOrder": [
+      "forced-win",
+      "tactical",
+      "lone-piece",
+      "opening",
+      "defensive",
+      "temple",
+      "midgame",
+      "capture"
+    ],
+    "positionSuiteVersion": "phase25_v1",
+    "profile": "standard",
+    "repetitions": 5,
+    "seed": 25,
+    "seedPurpose": "position execution order",
+    "timedAlgorithm": "ITERATIVE_DEEPENING",
+    "warmups": 1
+  },
+  "configHash": "6376510e24771681c7589bcf7d49cedcb388b21acdebb61d3088223b47e2d17d",
+  "evaluationConfig": {
+    "materialWeight": 100,
+    "reserveWeight": 12,
+    "mobilityWeight": 2,
+    "templeControlWeight": 2,
+    "captureOpportunityWeight": 16,
+    "vulnerabilityWeight": -12,
+    "trapRiskWeight": -20,
+    "mateScore": 1000000
+  },
+  "positionSuiteVersion": "phase25_v1",
+  "nodeSemantics": "visited positions including root; iterative totals every completed/partial iteration",
+  "mcts": "NOT_IMPLEMENTED",
+  "drawRule": "NO_GENERAL_DRAW_RULE"
+}

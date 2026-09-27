@@ -1,0 +1,1 @@
+<view class="card" bindtap="open"><view class="top"><view class="step">{{hint.level}}</view><view class="title">{{hint.title}}</view><view class="chevron">›</view></view><view wx:if="{{expanded}}" class="body">{{hint.body}}<view class="tag">演示提示</view></view></view>

@@ -1,0 +1,1 @@
+<view class="state"><view class="symbol">!</view><view>{{message}}</view><button bindtap="retry">重试</button></view>

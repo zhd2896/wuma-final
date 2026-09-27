@@ -1,0 +1,1 @@
+<view class="player"><view class="avatar {{side}}">{{avatar}}</view><view class="meta"><view class="name">{{name}}</view><view class="sub">{{level}}</view><view class="pieces">{{pieces}}</view></view></view>

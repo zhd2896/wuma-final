@@ -1,0 +1,1 @@
+.panel{border-radius:18rpx;background:#edf6f7;border:1rpx solid #b5d5de;padding:22rpx;color:#234b5d}.panel-head{display:flex;justify-content:space-between;font-weight:700}.demo{font-size:20rpx;color:#267b9c;font-weight:400}.body{font-size:25rpx;margin:14rpx 0}.foot{font-size:20rpx;color:#708b91}

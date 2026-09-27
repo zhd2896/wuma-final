@@ -1,0 +1,15 @@
+page {
+  --paper: #f5efe3;
+  --paper-light: #fff9ed;
+  --ink: #17242b;
+  --ink-soft: #34454b;
+  --cinnabar: #a9342a;
+  --cinnabar-light: #c74a39;
+  --gold: #bd8c42;
+  --gold-light: #f3d7a1;
+  --line: #e3d7c3;
+  --muted: #7d817b;
+  --ai: #327da2;
+  --shadow: 0 12rpx 32rpx rgba(39, 36, 28, .09);
+  --radius: 24rpx;
+}

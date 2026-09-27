@@ -1,0 +1,1 @@
+.state{text-align:center;padding:70rpx 24rpx;color:#66706d}.symbol{font-size:75rpx;color:#c6a36c}.title{font-size:28rpx;font-weight:700;color:#2a3938;margin-top:10rpx}.sub{font-size:22rpx;margin-top:10rpx}.action{margin:24rpx auto 0;background:#a7392e;color:#fff6e8;font-size:23rpx;width:290rpx}.action::after{border:0}
