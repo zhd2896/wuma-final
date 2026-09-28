@@ -1,6 +1,8 @@
 """Run with WUMA_TEST_DATABASE_URL set to a dedicated migrated MySQL 8 database."""
 
 import os
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from unittest.mock import patch
 
 import pytest
@@ -15,7 +17,7 @@ from backend.app.core.errors import ApiError
 from backend.app.db.models import (AiAnalysisModel, CoachHintModel, TrainingItemModel,
                                     TrainingRecordModel, GameModel, GameMoveModel,
                                     GameReviewModel, MoveReviewModel,
-                                    ReviewExplanationModel, UserModel)
+                                    ReviewExplanationModel, RemoteRoomModel, UserModel)
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.db.repositories.mysql_store import MySQLGameStore
 from backend.app.main import create_app
@@ -42,6 +44,7 @@ def db():
         session.execute(delete(GameReviewModel))
         session.execute(delete(AiAnalysisModel))
         session.execute(delete(GameMoveModel))
+        session.execute(delete(RemoteRoomModel))
         session.execute(delete(GameModel))
         session.execute(delete(UserModel))
     yield engine
@@ -51,6 +54,8 @@ def db():
 @pytest.fixture
 def client(db):
     with TestClient(create_app(Settings(database_url=DB_URL))) as test_client:
+        token = test_client.post("/api/v1/auth/device").json()["data"]["token"]
+        test_client.headers["Authorization"] = "Bearer " + token
         yield test_client
         test_client.app.state.store.close()
 
@@ -62,6 +67,85 @@ def create_game(client, mode="LOCAL", first_player="A", ai_player=None):
     response = client.post("/api/v1/game", json=body)
     assert response.status_code == 200, response.text
     return response.json()["data"]["game_id"]
+
+
+def test_personal_accounts_filter_mysql_history_and_survive_restart(client, db):
+    first_auth = client.headers["Authorization"]
+    first_ids = [create_game(client, mode="AI") for _ in range(3)]
+    first_page = client.get("/api/v1/me/games?limit=2").json()["data"]
+    assert len(first_page["items"]) == 2 and first_page["nextCursor"]
+    next_page = client.get("/api/v1/me/games", params={
+        "limit": 2, "cursor": first_page["nextCursor"]}).json()["data"]
+    assert {row["gameId"] for row in first_page["items"] + next_page["items"]} == set(first_ids)
+    second_token = client.post("/api/v1/auth/device").json()["data"]["token"]
+    client.headers["Authorization"] = "Bearer " + second_token
+    second_id = create_game(client, mode="AI")
+    assert [row["gameId"] for row in client.get("/api/v1/me/games").json()["data"]["items"]] == [second_id]
+    assert client.get(f"/api/v1/game/{first_ids[0]}").status_code == 403
+    assert client.post(f"/api/v1/game/{first_ids[0]}/move", json={
+        "from_node": "P01", "to_node": "P02"}).status_code == 403
+    with Session(db) as session:
+        first_owner = session.get(GameModel, first_ids[0]).user_id
+        second_owner = session.get(GameModel, second_id).user_id
+        assert first_owner != second_owner and first_owner and second_owner
+    client.headers["Authorization"] = first_auth
+    with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
+        restarted.headers["Authorization"] = first_auth
+        assert restarted.get("/api/v1/me/profile").json()["data"]["games"] == 3
+        assert restarted.get(f"/api/v1/game/{first_ids[0]}").status_code == 200
+        restarted.app.state.store.close()
+
+
+def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
+    host_response = client.post("/api/v1/remote/rooms", json={
+        "device_id": "mysql-host-device", "public": False})
+    assert host_response.status_code == 200, host_response.text
+    host = host_response.json()["data"]
+    game_id = host["game_id"]
+    guest_response = client.post("/api/v1/remote/join", json={
+        "invite_code": host["invite_code"], "device_id": "mysql-guest-device"})
+    assert guest_response.status_code == 200, guest_response.text
+    guest = guest_response.json()["data"]
+    assert guest["game_id"] == game_id and guest["seat"] == "B"
+    with Session(db) as session:
+        room = session.get(RemoteRoomModel, game_id)
+        assert room.host_token_hash != host["token"]
+        assert room.guest_token_hash != guest["token"]
+        assert room.status == "PLAYING"
+    body = {"from_node": "P01", "to_node": "P02", "expected_version": 0,
+            "client_request_id": "mysql-request-0001"}
+    headers = {"X-Room-Token": host["token"]}
+    path = f"/api/v1/remote/rooms/{game_id}/move"
+    moved = client.post(path, json=body, headers=headers)
+    assert moved.status_code == 200, moved.text
+    assert client.post(path, json=body, headers=headers).json()["data"] == moved.json()["data"]
+    row, moves = game_and_moves(db, game_id)
+    assert row.mode == "REMOTE" and row.version == 1 and len(moves) == 1
+    assert moves[0].client_request_id == "mysql-request-0001"
+    with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
+        restarted.headers["Authorization"] = client.headers["Authorization"]
+        fetched = restarted.get(f"/api/v1/remote/rooms/{game_id}",
+                                headers={"X-Room-Token": guest["token"]})
+        assert fetched.status_code == 200, fetched.text
+        assert fetched.json()["data"]["seat"] == "B"
+        assert fetched.json()["data"]["version"] == 1
+        restarted.app.state.store.close()
+
+
+def test_simultaneous_public_match_pairs_two_devices(client, db):
+    barrier = Barrier(2)
+
+    def match(device_id):
+        barrier.wait()
+        response = client.post("/api/v1/remote/match", json={"device_id": device_id})
+        assert response.status_code == 200, response.text
+        return response.json()["data"]
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(match, f"match-device-{number}") for number in (1, 2)]
+        rooms = [future.result() for future in futures]
+    assert rooms[0]["game_id"] == rooms[1]["game_id"]
+    assert {room["seat"] for room in rooms} == {"A", "B"}
 
 
 def seed_position(client, db, pieces, reserve_a=4, mode="LOCAL", ai_player=None):
@@ -144,7 +228,7 @@ def test_create_get_and_json_roundtrip(client, db):
     state = client.get(f"/api/v1/game/{game_id}").json()["data"]["state"]
     assert row.initial_state == row.current_state == state
     assert row.version == 0 and moves == []
-    assert row.user_id is None and row.state_schema_version == 1
+    assert row.user_id is not None and row.state_schema_version == 1
     assert row.finished_at is None and row.duration_ms is None
     assert client.get(f"/api/v1/game/{game_id}/legal-moves").json()["data"]["moves"]
     assert client.get("/api/v1/game/missing").status_code == 404
@@ -168,6 +252,7 @@ def test_move_invalid_move_replay_and_restart_continue(client, db):
     assert client.portal.call(client.app.state.service.replay_game, game_id)[-1].model_dump() == row.current_state
 
     with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
+        restarted.headers["Authorization"] = client.headers["Authorization"]
         assert restarted.get(f"/api/v1/game/{game_id}").json()["data"]["state"] == row.current_state
         legal = restarted.get(f"/api/v1/game/{game_id}/legal-moves").json()["data"]["moves"]
         assert legal
@@ -227,6 +312,7 @@ def test_two_human_ai_rounds_persist_contiguous_moves_and_resume(client, db):
             "ORDER BY turn_number"), {"game_id": game_id}).scalars().all()
     assert raw_nulls == [1, 0, 1, 0]
     with TestClient(create_app(Settings(database_url=DB_URL))) as reopened:
+        reopened.headers["Authorization"] = client.headers["Authorization"]
         restored = reopened.get(f"/api/v1/game/{game_id}").json()["data"]
         assert restored["human_player"] == "A" and restored["ai_player"] == "B"
         assert restored["state"] == row.current_state
@@ -603,8 +689,16 @@ def test_training_real_history_answer_records_and_source_game_unchanged(client, 
             TrainingRecordModel.training_item_id == training_id)).all()
         assert len(records) == 2
         assert {row.result for row in records} == {"CORRECT", "SUBOPTIMAL"}
-        assert all(row.user_id is None and row.legal for row in records)
+        assert all(row.user_id == before.user_id and row.legal for row in records)
         assert all(row.submitted_move and row.search_depth == 2 for row in records)
+    own_auth = client.headers["Authorization"]
+    second_token = client.post("/api/v1/auth/device").json()["data"]["token"]
+    client.headers["Authorization"] = "Bearer " + second_token
+    assert client.get("/api/v1/training").json()["data"]["total"] == 0
+    assert client.get(f"/api/v1/training/{training_id}").status_code == 403
+    assert client.post(path, json={**first_body,
+                                   "client_attempt_id": "mysql-other-account-0001"}).status_code == 403
+    client.headers["Authorization"] = own_auth
     after, after_moves = game_and_moves(db, game_id)
     assert after.current_state == before.current_state and after.version == before.version
     assert [row.id for row in after_moves] == [row.id for row in before_moves]

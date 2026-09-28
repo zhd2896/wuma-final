@@ -3,10 +3,12 @@ const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const automator = require('miniprogram-automator');
+const { createDeviceAccount, seedMiniAccount } = require('./device-account-e2e.cjs');
 
 const endpoint = process.env.WUMA_WECHAT_AUTO_ENDPOINT || 'ws://127.0.0.1:9420';
 const apiBase = process.env.WUMA_REVIEW_E2E_API || 'http://127.0.0.1:8000';
 const python = process.env.WUMA_PYTHON || path.resolve('backend/.venv/Scripts/python.exe');
+let accountToken;
 const fixture = [
   ['P01', 'P19'], ['P05', 'P01'], ['P16', 'P18'], ['P01', 'P07'],
   ['P18', 'P13'], ['P07', 'P03'], ['P11', 'P17'], ['P10', 'P07'],
@@ -24,7 +26,7 @@ function timed(promise, label, ms) {
 
 async function api(method, route, body) {
   const response = await fetch(`${apiBase}${route}`, { method,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', Authorization: `Bearer ${accountToken}` },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(180000),
   });
@@ -59,6 +61,8 @@ async function main() {
     'DevTools connection', 15000);
   console.log('[1] DevTools connected');
   try {
+    accountToken = await createDeviceAccount(apiBase);
+    await seedMiniAccount(mini, apiBase, accountToken);
     console.log('[2] Creating real finished game via existing move API');
     const game = await timed(api('POST', '/api/v1/game',
       { first_player: 'A', mode: 'LOCAL' }), 'create game', 10000);

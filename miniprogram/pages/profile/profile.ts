@@ -1,11 +1,37 @@
-import { profileService } from '../../services/index';
+import { createAccountApi } from '../../services/account-api';
+import { createApiClient, messageForApiError } from '../../services/api-client';
+import { createWxDeviceHistoryStore } from '../../services/device-history';
 import { openPage, backHome } from '../../utils/navigation';
-const labels = ['进攻', '防守', '布局', '残局', '战术', '稳定性'];
-const profile = profileService.getProfile();
 Page({
-  data: { profile, showDemo: false, ratings: (profile.demoRating || []).map((value, index) => ({ label: labels[index], value })) },
+  data: {
+    state: 'loading', errorMessage: '', name: '本机棋手',
+    cloudGames: 0, localGames: 0, finishedGames: 0, training: 0,
+    wins: 0, losses: 0, reviewedGames: 0,
+    accuracy: '数据不足',
+  },
+  onShow() { void this.load(); },
+  async load() {
+    this.setData({ state: 'loading', errorMessage: '' });
+    try {
+      const profile = await createAccountApi(createApiClient()).profile();
+      const localGames = createWxDeviceHistoryStore().list().filter(item =>
+        item.mode === 'local' || item.mode === 'online').length;
+      this.setData({
+        state: 'success', name: profile.nickname || '本机棋手',
+        cloudGames: profile.games, localGames,
+        finishedGames: profile.finishedGames,
+        wins: profile.wins, losses: profile.losses,
+        reviewedGames: profile.reviewedGames,
+        training: profile.training,
+        accuracy: profile.training > 0
+          ? `${Math.round(profile.correct / profile.training * 100)}%` : '数据不足',
+      });
+    } catch (error) {
+      this.setData({ state: 'error', errorMessage: messageForApiError(error) });
+    }
+  },
+  retry() { void this.load(); },
   back() { backHome(); },
-  toggleDemo() { this.setData({ showDemo: !this.data.showDemo }); },
   openHistory() { openPage('/pages/history/history'); },
   openGame() { openPage('/pages/game/game'); }
 });

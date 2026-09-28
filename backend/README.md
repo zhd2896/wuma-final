@@ -1,6 +1,6 @@
 # FastAPI + MySQL
 
-`miniprogram/domain` and `miniprogram/ai` remain the only rule and AI implementation. FastAPI calls the existing Node worker, then persists its canonical `GameState` and `TurnResult` through SQLAlchemy 2. The API contract from Phase 16 is unchanged.
+`miniprogram/domain` and `miniprogram/ai` remain the only rule and AI implementation. FastAPI calls the existing Node worker, then persists its canonical `GameState` and `TurnResult` through SQLAlchemy 2.
 
 ## Setup
 
@@ -23,7 +23,19 @@ Run `backend/.venv/Scripts/python -m pytest backend/tests -q`. For real MySQL in
 
 `games.initial_state` and `games.current_state` hold full canonical JSON snapshots. `game_moves` stores every full turn, its before and after states, capture details, reserve counts, and actual AI search output when applicable. The service reads a state and version, calls the TypeScript engine, then the repository commits a version checked game update and move insert in one short transaction. An older version returns `GAME_STATE_CONFLICT`. The service's `replay_game(game_id)` reads ordered saved snapshots, validates continuity and the final snapshot, and does not run old moves through today's rules.
 
-The `users` table is ready for later authentication; `games.user_id` is nullable for current guest games. `ai_analysis` stores a versioned current-position analysis. Migration `0005_game_reviews` adds `game_reviews` and `move_reviews` for finished-game review. Migration `0006_review_explanations` adds separate versioned explanations. Training and rating tables remain deferred.
+The existing `users` table now stores anonymous device accounts. New API games and training answer records contain their owner `user_id`; old anonymous rows remain unclaimed. `ai_analysis` stores versioned position analysis. Migration `0005_game_reviews` adds finished-game reviews and `0006_review_explanations` adds explanations.
+
+## Anonymous device account
+
+Call `POST /api/v1/auth/device` once and save `data.token` on the device. Send `Authorization: Bearer <token>` for `/api/v1/game`, `/api/v1/ai`, `/api/v1/training`, `/api/v1/me/profile`, and `/api/v1/me/games`. The server stores only the token digest. The token is persistent and has no cross-device recovery; clearing local storage loses access to that anonymous account. Use HTTPS outside local development. `/api/v1/me/games` accepts `limit`, `cursor`, and optional `status=FINISHED` for stable owner-filtered pagination. Remote rooms continue to use their separate `X-Room-Token` until that deferred stage is revisited. Migration `0010_personal_history_indexes` indexes owner-filtered history and training totals.
+
+The supplied Nginx configs limit new device registrations to five requests per minute per source IP with a burst of three. Deploy the API behind this proxy or apply equivalent registration throttling at the public edge; direct public access to Uvicorn bypasses that limit.
+
+## Remote multiplayer rooms
+
+Migration `0009_remote_rooms` adds room seats and a nullable idempotency key to `game_moves`. `POST /api/v1/remote/rooms` creates a private room, `POST /api/v1/remote/join` joins by the eight-character code, and `POST /api/v1/remote/match` pairs two devices in a public room. The host can cancel while waiting. Room-specific reads, legal-move queries and moves require the issued `X-Room-Token`; only the server stores its SHA-256 digest. The generic game read, legal-move, move, analysis and review endpoints reject `REMOTE` games. A move supplies `expected_version` and `client_request_id`; the database commits the state and full turn in one transaction. Repeating the same request ID and move returns the saved result. This device token is a bearer credential, not a user login; losing local storage loses the seat.
+
+Use a migrated isolated `*_test` MySQL database for `backend/tests/test_mysql_persistence.py`. Its remote tests cover restart, duplicate requests and simultaneous public matching. The application development database is not a safe substitute for that test database.
 
 ## Finished-game review
 

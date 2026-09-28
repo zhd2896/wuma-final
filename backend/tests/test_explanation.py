@@ -35,7 +35,7 @@ def make_client():
 
     def make(provider=None, settings=None):
         settings = settings or Settings(llm_api_key="", llm_base_url="", llm_model="")
-        context = TestClient(create_app(settings=settings, store=InMemoryGameStore(),
+        context = TestClient(create_app(settings=settings, store=InMemoryGameStore(), require_auth=False,
                                         llm_provider=provider))
         client = context.__enter__()
         clients.append(context)

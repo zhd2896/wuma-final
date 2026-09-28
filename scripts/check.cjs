@@ -5,11 +5,11 @@ const root = path.resolve(__dirname, '..');
 const mini = path.join(root, 'miniprogram');
 const app = JSON.parse(fs.readFileSync(path.join(mini, 'app.json'), 'utf8'));
 const errors = [];
-const expectedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile'];
+const expectedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online'];
 const seenPages = app.pages.map(route => route.split('/').pop());
 for (const name of expectedPages) if (!seenPages.includes(name)) errors.push(`missing page: ${name}`);
 
-const knownNative = new Set(['view', 'text', 'image', 'button', 'canvas', 'scroll-view', 'block', 'switch']);
+const knownNative = new Set(['view', 'text', 'image', 'button', 'canvas', 'scroll-view', 'block', 'switch', 'input']);
 const sourceDirs = [path.join(mini, 'pages'), path.join(mini, 'components')];
 let checked = 0;
 for (const parent of sourceDirs) {

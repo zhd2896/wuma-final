@@ -9,7 +9,7 @@
   </view>
   <view class="home-content">
     <section-title title="开启棋局" subtitle="选择你的修习之路" />
-    <feature-card wx:for="{{features}}" wx:key="id" feature="{{item}}" />
+    <feature-card wx:for="{{features}}" wx:key="id" id="feature-{{item.id}}" feature="{{item}}" />
     <view class="history-link" bindtap="openHistory"><view><view class="history-title">历史对局</view><view class="history-sub">回顾走过的每一步</view></view><text>查看记录 ›</text></view>
     <view class="home-footer">弈智五马 · UI 演示阶段</view>
   </view>

@@ -29,7 +29,7 @@ def finished_review(client):
 
 
 def test_real_review_generates_hidden_questions_and_scores_repeatable_attempts():
-    with TestClient(create_app(store=InMemoryGameStore())) as client:
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as client:
         game_id, review = finished_review(client)
         before = client.get(f"/api/v1/game/{game_id}").json()["data"]
         before_moves = client.portal.call(client.app.state.store.list_moves, game_id)
@@ -92,7 +92,7 @@ def test_real_review_generates_hidden_questions_and_scores_repeatable_attempts()
 
 
 def test_same_score_different_move_is_correct_without_string_matching():
-    with TestClient(create_app(store=InMemoryGameStore())) as client:
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as client:
         game_id, _ = finished_review(client)
         question = client.post(f"/api/v1/game/{game_id}/training", json={}).json()["data"]["items"][0]
         item = client.portal.call(client.app.state.store.get_training_item, question["id"])

@@ -73,8 +73,10 @@ class TrainingService:
         return TrainingList(items=public, total=len(public))
 
     async def list(self, limit: int, offset: int, category: str | None,
-                   training_type: str | None) -> TrainingList:
-        items, total = await self.store.list_training_items(limit, offset, category, training_type)
+                   training_type: str | None,
+                   user_id: str | None = None) -> TrainingList:
+        items, total = await self.store.list_training_items(limit, offset, category, training_type,
+                                                              user_id)
         return TrainingList(items=[TrainingQuestion.from_item(item) for item in items], total=total)
 
     async def get(self, training_id: str) -> TrainingQuestion:
@@ -88,10 +90,11 @@ class TrainingService:
         return TrainingLegalMoves(moves=moves)
 
     async def answer(self, training_id: str,
-                     request: TrainingAnswerRequest) -> TrainingAnswerResult:
+                     request: TrainingAnswerRequest,
+                     user_id: str | None = None) -> TrainingAnswerResult:
         item = await self.store.get_training_item(training_id)
         submitted = Move(from_node=request.from_node, to_node=request.to_node)
-        existing = await self.store.get_training_attempt(request.client_attempt_id)
+        existing = await self.store.get_training_attempt(request.client_attempt_id, user_id)
         if existing is not None:
             if existing.trainingId != training_id or existing.submittedMove != submitted:
                 raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used for another answer")
@@ -125,4 +128,4 @@ class TrainingService:
             searchDepth=score.searchDepth, timedOut=score.timedOut,
             answeredAt=datetime.now(timezone.utc),
         )
-        return await self.store.commit_training_record(result)
+        return await self.store.commit_training_record(result, user_id)

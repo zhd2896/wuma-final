@@ -21,15 +21,24 @@ test('existing game page renders remote server state, saves ID, restores and kee
   const turn = RuleEngine.executeTurn(initial, { from: 'P01', to: 'P02' });
   let serverState = initial;
   let storedId: string | null = null;
+  const otherStorage = new Map<string, unknown>();
+  otherStorage.set('wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64));
   let creates = 0;
   const requests: Array<{ method: string; url: string; data?: unknown }> = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
-    getStorageSync: () => storedId,
-    setStorageSync: (_key: string, id: string) => { storedId = id; },
-    removeStorageSync: () => { storedId = null; },
+    getStorageSync: (key: string) => key === 'activeRemoteGameId'
+      ? storedId : otherStorage.get(key) ?? '',
+    setStorageSync: (key: string, value: unknown) => {
+      if (key === 'activeRemoteGameId') storedId = value as string;
+      else otherStorage.set(key, structuredClone(value));
+    },
+    removeStorageSync: (key: string) => {
+      if (key === 'activeRemoteGameId') storedId = null;
+      else otherStorage.delete(key);
+    },
     showToast: () => {},
     request: (options: any) => {
       requests.push(options);

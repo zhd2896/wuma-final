@@ -16,11 +16,12 @@ class GameRepository:
         self.session = session
 
     def create_game(self, state: GameState, mode: str,
-                    ai_player: str | None, ai_level: str | None) -> str:
+                    ai_player: str | None, ai_level: str | None,
+                    user_id: str | None = None) -> str:
         game_id = uuid4().hex
         now = utc_now()
         self.session.add(GameModel(
-            id=game_id, user_id=None, mode=mode, ai_level=ai_level, ai_player=ai_player,
+            id=game_id, user_id=user_id, mode=mode, ai_level=ai_level, ai_player=ai_player,
             first_player=state.first_player, current_player=state.current_player,
             winner=state.winner, winner_reason=state.winner_reason,
             status=state.game_status, initial_state=state.model_dump(mode="json"),
@@ -40,7 +41,7 @@ class GameRepository:
         row = self.get_game(game_id)
         return StoredGame(row.id, GameState.model_validate(row.initial_state),
                           GameState.model_validate(row.current_state), row.version,
-                          row.mode, row.ai_player, row.ai_level)
+                          row.mode, row.ai_player, row.ai_level, row.user_id)
 
     def update_game_state(self, row: GameModel, expected_version: int, state: GameState) -> None:
         now = utc_now()

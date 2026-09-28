@@ -50,14 +50,16 @@ export class AiGameController {
   private readonly storage: GameIdStorage;
   private readonly onChange: (snapshot: AiGameSnapshot) => void;
   private readonly preferredAiPlayer: Player;
+  private readonly createOnMissing: boolean;
 
   constructor(api: GameApi, storage: GameIdStorage,
               onChange: (snapshot: AiGameSnapshot) => void,
-              options: { aiPlayer?: Player } = {}) {
+              options: { aiPlayer?: Player; createOnMissing?: boolean } = {}) {
     this.api = api;
     this.storage = storage;
     this.onChange = onChange;
     this.preferredAiPlayer = options.aiPlayer ?? 'B';
+    this.createOnMissing = options.createOnMissing ?? true;
   }
 
   get snapshot(): AiGameSnapshot { return this.state; }
@@ -106,12 +108,19 @@ export class AiGameController {
       if (saved) {
         try { game = await this.api.getGame(saved); }
         catch (error) {
-          if (!(error instanceof ApiError) || error.code !== 'GAME_NOT_FOUND') throw error;
+          const canReplaceSavedGame = error instanceof ApiError &&
+            (error.code === 'GAME_NOT_FOUND' ||
+              (this.createOnMissing && error.code === 'AUTH_FORBIDDEN'));
+          if (!canReplaceSavedGame) throw error;
           if (!this.current(generation)) return;
           this.storage.clear();
+          if (!this.createOnMissing) throw error;
           game = await this.create(firstPlayer);
         }
-      } else game = await this.create(firstPlayer);
+      } else {
+        if (!this.createOnMissing) throw new ApiError('GAME_NOT_FOUND', 404);
+        game = await this.create(firstPlayer);
+      }
       if (!this.current(generation)) return;
       this.accept(game);
       await this.maybePlayAi(generation);

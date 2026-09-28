@@ -11,6 +11,7 @@ export interface GameIdStorage {
 
 export interface RemoteGameSnapshot {
   readonly gameId: string | null;
+  readonly gameVersion: number | null;
   readonly gameState: GameState | null;
   readonly selectedNode: NodeId | null;
   readonly legalTargets: readonly NodeId[];
@@ -25,7 +26,7 @@ export interface RemoteGameSnapshot {
 }
 
 const emptySnapshot: RemoteGameSnapshot = {
-  gameId: null, gameState: null, selectedNode: null, legalTargets: [],
+  gameId: null, gameVersion: null, gameState: null, selectedNode: null, legalTargets: [],
   lastMove: null, lastCapture: null,
   isLoadingGame: false, isLoadingLegalMoves: false, isSubmittingMove: false,
   needsResync: false,
@@ -40,15 +41,18 @@ export class RemoteGameController {
   private disposed = false;
   private requestGeneration = 0;
   private legalGeneration = 0;
+  private readonly createOnMissing: boolean;
 
   constructor(
     api: GameApi,
     storage: GameIdStorage,
     onChange: (snapshot: RemoteGameSnapshot) => void,
+    options: { createOnMissing?: boolean } = {},
   ) {
     this.api = api;
     this.storage = storage;
     this.onChange = onChange;
+    this.createOnMissing = options.createOnMissing ?? true;
   }
 
   get snapshot(): RemoteGameSnapshot { return this.state; }
@@ -76,17 +80,23 @@ export class RemoteGameController {
         try {
           game = await this.api.getGame(saved);
         } catch (error) {
-          if (!(error instanceof ApiError) || error.code !== 'GAME_NOT_FOUND') throw error;
+          const canReplaceSavedGame = error instanceof ApiError &&
+            (error.code === 'GAME_NOT_FOUND' ||
+              (this.createOnMissing && error.code === 'AUTH_FORBIDDEN'));
+          if (!canReplaceSavedGame) throw error;
           if (!this.current(generation)) return;
           this.storage.clear();
+          if (!this.createOnMissing) throw error;
           game = await this.api.createGame();
         }
       } else {
+        if (!this.createOnMissing) throw new ApiError('GAME_NOT_FOUND', 404);
         game = await this.api.createGame();
       }
       if (!this.current(generation)) return;
       this.storage.write(game.game_id);
-      this.publish({ gameId: game.game_id, gameState: game.state,
+      this.publish({ gameId: game.game_id, gameVersion: game.version ?? null,
+        gameState: game.state,
         lastMove: null, lastCapture: null, isLoadingGame: false, needsResync: false });
     } catch (error) {
       if (this.current(generation)) this.publish({ isLoadingGame: false,
@@ -104,7 +114,8 @@ export class RemoteGameController {
       const game = await this.api.createGame();
       if (!this.current(generation)) return;
       this.storage.write(game.game_id);
-      this.publish({ gameId: game.game_id, gameState: game.state,
+      this.publish({ gameId: game.game_id, gameVersion: game.version ?? null,
+        gameState: game.state,
         lastMove: null, lastCapture: null, notice: null, isLoadingGame: false,
         needsResync: false });
     } catch (error) {
@@ -152,7 +163,9 @@ export class RemoteGameController {
     try {
       const { turn } = await this.api.move(gameId, { from_node: from, to_node: to });
       if (!this.current(generation) || this.state.gameId !== gameId) return;
-      this.publish({ gameState: turn.state, lastMove: turn.move, lastCapture: turn.capture,
+      this.publish({ gameState: turn.state,
+        gameVersion: this.state.gameVersion === null ? null : this.state.gameVersion + 1,
+        lastMove: turn.move, lastCapture: turn.capture,
         selectedNode: null, legalTargets: [],
         notice: turn.capture.failure_reason === 'INSUFFICIENT_RESERVE'
           ? '备用棋不足，本次吃子未生效' : null });
@@ -180,13 +193,15 @@ export class RemoteGameController {
     try {
       const game = await this.api.getGame(gameId);
       if (!this.current(generation)) return;
-      this.publish({ gameState: game.state, selectedNode: null, legalTargets: [],
+      this.publish({ gameState: game.state, gameVersion: game.version ?? null,
+        selectedNode: null, legalTargets: [],
         lastMove: null, lastCapture: null, errorMessage, notice, needsResync: false });
     } catch (error) {
       if (!this.current(generation)) return;
       if (error instanceof ApiError && error.code === 'GAME_NOT_FOUND') {
         this.storage.clear();
-        this.publish({ gameId: null, gameState: null, selectedNode: null, legalTargets: [],
+        this.publish({ gameId: null, gameVersion: null, gameState: null,
+          selectedNode: null, legalTargets: [],
           errorMessage: messageForApiError(error), needsResync: false });
       } else {
         this.publish({ selectedNode: null, legalTargets: [],

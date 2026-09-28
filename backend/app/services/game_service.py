@@ -20,13 +20,13 @@ class GameService:
         self.store = store
         self.settings = settings
 
-    async def create(self, request: CreateGameRequest) -> GameResponse:
+    async def create(self, request: CreateGameRequest, user_id: str | None = None) -> GameResponse:
         if request.mode == "LOCAL" and (request.ai_player is not None or request.ai_level is not None):
             raise ApiError("INVALID_REQUEST", "AI options require AI mode")
         ai_player = (request.ai_player or "B") if request.mode == "AI" else None
         ai_level = "STANDARD" if request.mode == "AI" else None
         state = await self.adapter.initialize(request.first_player)
-        game_id = await self.store.create(state, request.mode, ai_player, ai_level)
+        game_id = await self.store.create(state, request.mode, ai_player, ai_level, user_id)
         return GameResponse(game_id=game_id, version=0, state=state, mode=request.mode,
                             human_player=self._human(ai_player), ai_player=ai_player,
                             ai_level=ai_level)
@@ -37,6 +37,8 @@ class GameService:
 
     async def get(self, game_id: str) -> GameResponse:
         snapshot = await self.store.get_snapshot(game_id)
+        if snapshot.mode == "REMOTE":
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
         return GameResponse(game_id=game_id, version=snapshot.version,
                             state=snapshot.state, mode=snapshot.mode,
                             human_player=self._human(snapshot.ai_player),
@@ -45,7 +47,10 @@ class GameService:
     async def legal_moves(self, game_id: str, from_node: str | None) -> LegalMovesResponse:
         lock = await self.store.lock_for(game_id)
         async with lock:
-            state = (await self.store.get_snapshot(game_id)).state
+            snapshot = await self.store.get_snapshot(game_id)
+            if snapshot.mode == "REMOTE":
+                raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+            state = snapshot.state
             moves = await self.adapter.legal_moves(state)
             if from_node is not None:
                 moves = [move for move in moves if move.from_node == from_node]
@@ -55,6 +60,8 @@ class GameService:
         lock = await self.store.lock_for(game_id)
         async with lock:
             snapshot = await self.store.get_snapshot(game_id)
+            if snapshot.mode == "REMOTE":
+                raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room move endpoint")
             if snapshot.state.game_status == "FINISHED":
                 raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
             if snapshot.mode == "AI" and snapshot.state.current_player != self._human(snapshot.ai_player):
@@ -95,6 +102,8 @@ class GameService:
     async def analyze(self, game_id: str, expected_version: int | None = None) -> AnalyzeResponse:
         # Reading and saving are short independent transactions; the worker runs between them.
         snapshot = await self.store.get_snapshot(game_id)
+        if snapshot.mode == "REMOTE":
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
         if expected_version is not None and snapshot.version != expected_version:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
         analysis = await self.adapter.analyze_position(
@@ -107,6 +116,8 @@ class GameService:
 
     @staticmethod
     def _reviewed_player(snapshot, requested: str | None) -> str:
+        if snapshot.mode == "REMOTE":
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Remote room review requires a seat token")
         human = GameService._human(snapshot.ai_player)
         if snapshot.mode == "AI":
             if requested is not None and requested != human:
@@ -126,6 +137,8 @@ class GameService:
                             reviewed_player: str | None = None) -> GameReview:
         config = ReviewConfig()
         snapshot, moves = await self.store.read_replay(game_id)
+        if snapshot.mode == "REMOTE":
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Remote room review requires a seat token")
         if snapshot.state.game_status != "FINISHED":
             raise ApiError("GAME_NOT_FINISHED", "Game has not finished")
         player = self._reviewed_player(snapshot, reviewed_player)

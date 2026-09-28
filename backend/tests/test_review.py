@@ -13,7 +13,7 @@ from backend.app.services.game_store import InMemoryGameStore
 
 @pytest.fixture
 def client():
-    with TestClient(create_app(store=InMemoryGameStore())) as value:
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as value:
         yield value
 
 

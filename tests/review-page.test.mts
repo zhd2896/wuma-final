@@ -31,6 +31,8 @@ test('review page reads or creates review, explains it, and keeps structured fie
   (globalThis as any).Page = (value: Record<string, any>) => { definition = value; };
   (globalThis as any).wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
+      ? 'a'.repeat(64) : '',
     request: (options: any) => {
       requests.push(`${options.method} ${new URL(options.url).pathname}`);
       const explain = new URL(options.url).pathname.endsWith('/explain');

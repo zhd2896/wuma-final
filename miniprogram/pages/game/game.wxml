@@ -2,10 +2,11 @@
   <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>{{mode == 'local' ? '本地双人模式' : mode == 'remote' ? '远程双人模式' : 'AI 对弈'}}<text class="topbar-tag">{{mode == 'local' ? '本地双人' : mode == 'remote' ? 'API 对局' : '标准 AI'}}</text></view>
   <view class="game-inner">
     <view class="versus ink-card"><player-card name="{{mode == 'ai' ? aiAName : '玩家 A'}}" level="{{mode == 'ai' ? '标准对弈' : mode == 'remote' ? '云端对局' : '本地对弈'}}" pieces="黑方 · 五马" avatar="{{mode == 'ai' && aiState.aiPlayer == 'A' ? '✦' : '棋'}}" side="{{mode == 'ai' && aiState.aiPlayer == 'A' ? 'ai' : 'human'}}" /><view class="vs">VS</view><player-card name="{{mode == 'ai' ? aiBName : '玩家 B'}}" level="{{mode == 'ai' ? '标准对弈' : mode == 'remote' ? '云端对局' : '本地对弈'}}" pieces="红方 · 五马" avatar="{{mode == 'ai' && aiState.aiPlayer == 'B' ? '✦' : '友'}}" side="{{mode == 'ai' && aiState.aiPlayer == 'B' ? 'ai' : 'human'}}" /></view>
-    <view wx:if="{{mode == 'local'}}" class="reserve-row"><text>玩家 A · 备用棋 {{localSession.gameState.players.A.reserve_count}}</text><text>玩家 B · 备用棋 {{localSession.gameState.players.B.reserve_count}}</text></view>
+    <view wx:if="{{mode == 'local' && localSession}}" class="reserve-row"><text>玩家 A · 备用棋 {{localSession.gameState.players.A.reserve_count}}</text><text>玩家 B · 备用棋 {{localSession.gameState.players.B.reserve_count}}</text></view>
     <view wx:if="{{mode == 'remote' && remoteReady}}" class="reserve-row"><text>玩家 A · 备用棋 {{remoteView.reserve.A}}</text><text>玩家 B · 备用棋 {{remoteView.reserve.B}}</text></view>
     <view wx:if="{{mode == 'ai' && aiReady}}" class="reserve-row"><text>A · 备用棋 {{aiView.reserve.A}}</text><text>B · 备用棋 {{aiView.reserve.B}}</text></view>
-    <view wx:if="{{mode == 'local' || mode == 'remote' && remoteReady || mode == 'ai' && aiReady}}" class="board-area"><chess-board board="{{board}}" bind:node="onNode" /></view>
+    <view wx:if="{{mode == 'local' && localSession || mode == 'remote' && remoteReady || mode == 'ai' && aiReady}}" class="board-area"><chess-board board="{{board}}" bind:node="onNode" /></view>
+    <view wx:if="{{mode == 'local' && localErrorMessage}}" class="remote-info remote-error"><text>{{localErrorMessage}}</text><button size="mini" bindtap="restartLocalGame">重试新局</button></view>
     <view wx:if="{{mode == 'remote' && remoteState.isLoadingGame}}" class="remote-info">正在读取云端棋局…</view>
     <view wx:if="{{mode == 'remote' && remoteState.errorMessage}}" class="remote-info remote-error"><text>{{remoteState.errorMessage}}</text><button size="mini" bindtap="retryRemoteGame">重试</button></view>
     <view wx:if="{{mode == 'remote' && remoteState.notice}}" class="remote-info">{{remoteState.notice}}</view>
@@ -16,9 +17,11 @@
     <view wx:if="{{mode == 'ai' && aiState.isAiThinking}}" class="status-area"><ai-thinking /></view>
     <view wx:else class="turn-status"><view class="status-dot"></view><view>
       <block wx:if="{{mode == 'local'}}">
-        <view wx:if="{{localSession.gameState.game_status == 'FINISHED'}}" class="status-title">玩家 {{localSession.gameState.winner}} 获胜</view>
+        <view wx:if="{{!localSession}}" class="status-title">本地棋局暂不可用</view>
+        <view wx:elif="{{localSession.gameState.game_status == 'FINISHED'}}" class="status-title">玩家 {{localSession.gameState.winner}} 获胜</view>
         <view wx:else class="status-title">当前回合：玩家 {{localSession.gameState.current_player}}</view>
-        <view wx:if="{{localSession.gameState.winner_reason == 'CAPTURE_ALL'}}" class="status-sub">对方棋子已全部被吃</view>
+        <view wx:if="{{!localSession}}" class="status-sub">{{localErrorMessage}}</view>
+        <view wx:elif="{{localSession.gameState.winner_reason == 'CAPTURE_ALL'}}" class="status-sub">对方棋子已全部被吃</view>
         <view wx:elif="{{localSession.gameState.winner_reason == 'TEMPLE_TRAP'}}" class="status-sub">对方孤棋被困于庙宇</view>
         <view wx:elif="{{localSession.gameState.winner_reason == 'LONE_PIECE_IMMOBILIZED'}}" class="status-sub">对方孤棋无路可走</view>
         <view wx:else class="status-sub">点选己方棋子，再点击亮起的合法位置</view>

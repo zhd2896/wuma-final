@@ -26,7 +26,9 @@ class UserModel(Base):
 
 class GameModel(Base):
     __tablename__ = "games"
-    __table_args__ = (Index("ix_games_user_id", "user_id"), Index("ix_games_status", "status"))
+    __table_args__ = (Index("ix_games_user_id", "user_id"),
+                      Index("ix_games_owner_created", "user_id", "created_at", "id"),
+                      Index("ix_games_status", "status"))
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     user_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"))
@@ -49,10 +51,28 @@ class GameModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, onupdate=utc_now, nullable=False)
 
 
+class RemoteRoomModel(Base):
+    __tablename__ = "remote_rooms"
+    __table_args__ = (Index("ix_remote_rooms_match", "public", "status", "expires_at"),)
+
+    game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), primary_key=True)
+    invite_code: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)
+    host_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    guest_token_hash: Mapped[str | None] = mapped_column(String(64))
+    host_device_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    guest_device_id: Mapped[str | None] = mapped_column(String(64))
+    public: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, onupdate=utc_now, nullable=False)
+
+
 class GameMoveModel(Base):
     __tablename__ = "game_moves"
     __table_args__ = (
         UniqueConstraint("game_id", "turn_number", name="uq_game_moves_game_turn"),
+        UniqueConstraint("game_id", "client_request_id", name="uq_game_moves_client_request"),
         Index("ix_game_moves_game_id", "game_id"),
     )
 
@@ -61,6 +81,7 @@ class GameMoveModel(Base):
     turn_number: Mapped[int] = mapped_column(Integer, nullable=False)
     player: Mapped[str] = mapped_column(String(1), nullable=False)
     actor_type: Mapped[str] = mapped_column(String(8), nullable=False)
+    client_request_id: Mapped[str | None] = mapped_column(String(64))
     from_node: Mapped[str] = mapped_column(String(3), nullable=False)
     to_node: Mapped[str] = mapped_column(String(3), nullable=False)
     board_before: Mapped[dict] = mapped_column(JSON, nullable=False)
@@ -231,6 +252,7 @@ class TrainingRecordModel(Base):
     __tablename__ = "training_records"
     __table_args__ = (
         UniqueConstraint("client_attempt_id", name="uq_training_client_attempt"),
+        Index("ix_training_records_user_id", "user_id"),
         Index("ix_training_records_item_answered", "training_item_id", "answered_at"),
     )
 

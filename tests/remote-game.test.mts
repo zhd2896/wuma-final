@@ -169,6 +169,18 @@ test('missing stored game clears ID and creates a fresh game', async () => {
   assert.equal(controller.snapshot.gameId, 'g1');
 });
 
+test('inaccessible stored game from an older device account is replaced', async () => {
+  const f = fixture();
+  f.saved = 'other-account-game';
+  f.api.getGame = async () => { throw new ApiError('AUTH_FORBIDDEN', 403); };
+  const controller = new RemoteGameController(f.api, f.storage, () => {});
+  await controller.enter();
+  assert.equal(f.createCount, 1);
+  assert.equal(f.saved, 'g1');
+  assert.equal(controller.snapshot.gameId, 'g1');
+  assert.equal(controller.snapshot.errorMessage, null);
+});
+
 test('conflict reloads authoritative state and clears stale selection', async () => {
   const f = fixture();
   f.api.move = async () => { throw new ApiError('GAME_STATE_CONFLICT', 409); };

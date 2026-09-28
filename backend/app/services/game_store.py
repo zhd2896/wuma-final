@@ -2,6 +2,7 @@
 
 import asyncio
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import Protocol
 from uuid import uuid4
 
@@ -22,6 +23,7 @@ class StoredGame:
     mode: str = "LOCAL"
     ai_player: str | None = None
     ai_level: str | None = None
+    user_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -33,11 +35,31 @@ class StoredMove:
     game_move_id: int = 0
 
 
+@dataclass(frozen=True)
+class StoredRemoteRoom:
+    game_id: str
+    invite_code: str
+    host_token_hash: str
+    guest_token_hash: str | None
+    host_device_id: str
+    guest_device_id: str | None
+    public: bool
+    status: str
+    expires_at: datetime
+
+
 class GameStore(Protocol):
     async def ping(self) -> None: ...
+    async def register_device(self, token_hash: str) -> str: ...
+    async def resolve_device(self, token_hash: str) -> str | None: ...
+    async def personal_games(self, user_id: str, limit: int,
+                             cursor: tuple[datetime, str] | None,
+                             status: str | None = None) -> tuple[list[dict], bool]: ...
+    async def personal_profile(self, user_id: str) -> dict: ...
 
     async def create(self, state: GameState, mode: str = "LOCAL",
-                     ai_player: str | None = None, ai_level: str | None = None) -> str: ...
+                     ai_player: str | None = None, ai_level: str | None = None,
+                     user_id: str | None = None) -> str: ...
     async def get_snapshot(self, game_id: str) -> StoredGame: ...
     async def commit_turn(self, game_id: str, expected_version: int, turn: TurnResult,
                           actor_type: str, search: SearchResult | None = None) -> None: ...
@@ -57,10 +79,29 @@ class GameStore(Protocol):
     async def commit_training_items(self, review_id: str,
                                     items: list[TrainingItemInternal]) -> list[TrainingItemInternal]: ...
     async def list_training_items(self, limit: int, offset: int, category: str | None,
-                                  training_type: str | None) -> tuple[list[TrainingItemInternal], int]: ...
+                                  training_type: str | None,
+                                  user_id: str | None = None) -> tuple[list[TrainingItemInternal], int]: ...
     async def get_training_item(self, training_id: str) -> TrainingItemInternal: ...
-    async def get_training_attempt(self, client_attempt_id: str) -> TrainingAnswerResult | None: ...
-    async def commit_training_record(self, record: TrainingAnswerResult) -> TrainingAnswerResult: ...
+    async def get_training_attempt(self, client_attempt_id: str,
+                                   user_id: str | None = None) -> TrainingAnswerResult | None: ...
+    async def commit_training_record(self, record: TrainingAnswerResult,
+                                     user_id: str | None = None) -> TrainingAnswerResult: ...
+    async def create_remote_room(self, state: GameState, token_hash: str, code: str,
+                                 device_id: str, public: bool,
+                                 expires_at: datetime) -> StoredRemoteRoom: ...
+    async def join_remote_room(self, code: str, token_hash: str,
+                               device_id: str, now: datetime) -> StoredRemoteRoom: ...
+    async def match_remote_room(self, state: GameState, token_hash: str, code: str,
+                                device_id: str, expires_at: datetime,
+                                now: datetime) -> StoredRemoteRoom: ...
+    async def get_remote_room(self, game_id: str) -> StoredRemoteRoom: ...
+    async def cancel_remote_room(self, game_id: str,
+                                 token_hash: str) -> StoredRemoteRoom: ...
+    async def get_remote_move(self, game_id: str,
+                              request_id: str) -> StoredMove | None: ...
+    async def commit_remote_turn(self, game_id: str, token_hash: str,
+                                 expected_version: int, request_id: str,
+                                 turn: TurnResult) -> StoredMove: ...
 
 
 class InMemoryGameStore:
@@ -78,15 +119,68 @@ class InMemoryGameStore:
         self._training_keys: dict[tuple[str, int, str, int], str] = {}
         self._training_records: dict[str, TrainingAnswerResult] = {}
         self._catalog_lock = asyncio.Lock()
+        self._remote_rooms: dict[str, StoredRemoteRoom] = {}
+        self._remote_requests: dict[tuple[str, str], StoredMove] = {}
+        self._device_users: dict[str, str] = {}
+        self._game_created: dict[str, datetime] = {}
+        self._training_owners: dict[str, str | None] = {}
 
     async def ping(self) -> None:
         return None
 
+    async def register_device(self, token_hash: str) -> str:
+        async with self._catalog_lock:
+            user_id = uuid4().hex
+            self._device_users[token_hash] = user_id
+            return user_id
+
+    async def resolve_device(self, token_hash: str) -> str | None:
+        return self._device_users.get(token_hash)
+
+    async def personal_games(self, user_id: str, limit: int,
+                             cursor: tuple[datetime, str] | None,
+                             status: str | None = None) -> tuple[list[dict], bool]:
+        rows = [(self._game_created[id], game) for id, game in self._games.items()
+                if game.user_id == user_id and game.mode != "REMOTE" and
+                (status is None or game.state.game_status == status)]
+        rows.sort(key=lambda row: (row[0], row[1].game_id), reverse=True)
+        if cursor:
+            rows = [row for row in rows if (row[0], row[1].game_id) < cursor]
+        selected = rows[:limit + 1]
+        return [self._personal_row(date, game) for date, game in selected[:limit]], len(selected) > limit
+
+    def _personal_row(self, date: datetime, game: StoredGame) -> dict:
+        return {"gameId": game.game_id, "mode": game.mode, "status": game.state.game_status,
+                "winner": game.state.winner, "startedAt": date.isoformat(),
+                "finishedAt": None, "turns": game.version,
+                "reviewAvailable": any(key[0] == game.game_id for key in self._reviews),
+                "cursorDate": date.isoformat()}
+
+    async def personal_profile(self, user_id: str) -> dict:
+        games = [game for game in self._games.values()
+                 if game.user_id == user_id and game.mode != "REMOTE"]
+        records = [record for key, record in self._training_records.items()
+                   if self._training_owners.get(key) == user_id]
+        ai_finished = [game for game in games if game.mode == "AI" and
+                       game.state.game_status == "FINISHED"]
+        wins = sum(game.state.winner == ("B" if game.ai_player == "A" else "A")
+                   for game in ai_finished)
+        losses = sum(game.state.winner == game.ai_player for game in ai_finished)
+        return {"id": user_id, "nickname": "本机棋手", "games": len(games),
+                "finishedGames": sum(game.state.game_status == "FINISHED" for game in games),
+                "wins": wins, "losses": losses,
+                "reviewedGames": len({key[0] for key in self._reviews
+                                      if self._games[key[0]].user_id == user_id}),
+                "training": len(records),
+                "correct": sum(record.result == "CORRECT" for record in records)}
+
     async def create(self, state: GameState, mode: str = "LOCAL",
-                     ai_player: str | None = None, ai_level: str | None = None) -> str:
+                     ai_player: str | None = None, ai_level: str | None = None,
+                     user_id: str | None = None) -> str:
         async with self._catalog_lock:
             game_id = uuid4().hex
-            self._games[game_id] = StoredGame(game_id, state, state, 0, mode, ai_player, ai_level)
+            self._games[game_id] = StoredGame(game_id, state, state, 0, mode, ai_player, ai_level, user_id)
+            self._game_created[game_id] = datetime.now(timezone.utc)
             self._moves[game_id] = []
             self._locks[game_id] = asyncio.Lock()
             self._analyses[game_id] = []
@@ -113,7 +207,8 @@ class InMemoryGameStore:
         self._moves[game_id].append(StoredMove(game.version + 1, actor_type, turn, search,
                                                game.version + 1))
         self._games[game_id] = StoredGame(game_id, game.initial_state, turn.state,
-                                          game.version + 1, game.mode, game.ai_player, game.ai_level)
+                                          game.version + 1, game.mode, game.ai_player, game.ai_level,
+                                          game.user_id)
 
     async def list_moves(self, game_id: str) -> list[StoredMove]:
         await self.get_snapshot(game_id)
@@ -130,7 +225,121 @@ class InMemoryGameStore:
         async with lock:
             game = await self.get_snapshot(game_id)
             self._games[game_id] = StoredGame(game_id, state, state, game.version,
-                                              game.mode, game.ai_player, game.ai_level)
+                                              game.mode, game.ai_player, game.ai_level,
+                                              game.user_id)
+
+    def _create_remote_unlocked(self, state: GameState, token_hash: str, code: str,
+                                device_id: str, public: bool,
+                                expires_at: datetime) -> StoredRemoteRoom:
+        if any(room.invite_code == code for room in self._remote_rooms.values()):
+            raise ApiError("REMOTE_CODE_CONFLICT", "Invite code already exists")
+        game_id = uuid4().hex
+        self._games[game_id] = StoredGame(game_id, state, state, 0, "REMOTE")
+        self._game_created[game_id] = datetime.now(timezone.utc)
+        self._moves[game_id] = []
+        self._locks[game_id] = asyncio.Lock()
+        room = StoredRemoteRoom(game_id, code, token_hash, None, device_id,
+                                None, public, "WAITING", expires_at)
+        self._remote_rooms[game_id] = room
+        return room
+
+    async def create_remote_room(self, state: GameState, token_hash: str, code: str,
+                                 device_id: str, public: bool,
+                                 expires_at: datetime) -> StoredRemoteRoom:
+        async with self._catalog_lock:
+            return self._create_remote_unlocked(state, token_hash, code, device_id,
+                                                public, expires_at)
+
+    async def join_remote_room(self, code: str, token_hash: str,
+                               device_id: str, now: datetime) -> StoredRemoteRoom:
+        async with self._catalog_lock:
+            room = next((item for item in self._remote_rooms.values()
+                         if item.invite_code == code), None)
+            if room is None:
+                raise ApiError("REMOTE_ROOM_NOT_FOUND", "Room not found")
+            if room.status != "WAITING" or room.expires_at <= now:
+                raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Room is no longer available")
+            if room.host_device_id == device_id:
+                raise ApiError("REMOTE_SELF_JOIN", "Use another device to join")
+            joined = StoredRemoteRoom(room.game_id, room.invite_code,
+                                      room.host_token_hash, token_hash,
+                                      room.host_device_id, device_id, room.public,
+                                      "PLAYING", room.expires_at)
+            self._remote_rooms[room.game_id] = joined
+            return joined
+
+    async def match_remote_room(self, state: GameState, token_hash: str, code: str,
+                                device_id: str, expires_at: datetime,
+                                now: datetime) -> StoredRemoteRoom:
+        async with self._catalog_lock:
+            candidate = next((item for item in self._remote_rooms.values()
+                              if item.public and item.status == "WAITING"
+                              and item.expires_at > now
+                              and item.host_device_id != device_id), None)
+            if candidate is None:
+                return self._create_remote_unlocked(state, token_hash, code,
+                                                    device_id, True, expires_at)
+            joined = StoredRemoteRoom(candidate.game_id, candidate.invite_code,
+                                      candidate.host_token_hash, token_hash,
+                                      candidate.host_device_id, device_id, True,
+                                      "PLAYING", candidate.expires_at)
+            self._remote_rooms[candidate.game_id] = joined
+            return joined
+
+    async def get_remote_room(self, game_id: str) -> StoredRemoteRoom:
+        room = self._remote_rooms.get(game_id)
+        if room is None:
+            raise ApiError("REMOTE_ROOM_NOT_FOUND", "Room not found")
+        return room
+
+    async def cancel_remote_room(self, game_id: str,
+                                 token_hash: str) -> StoredRemoteRoom:
+        async with self._catalog_lock:
+            room = await self.get_remote_room(game_id)
+            if room.host_token_hash != token_hash:
+                raise ApiError("REMOTE_ACCESS_DENIED", "This seat is unavailable")
+            if room.status != "WAITING":
+                raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Room is no longer waiting")
+            cancelled = StoredRemoteRoom(room.game_id, room.invite_code,
+                                         room.host_token_hash, room.guest_token_hash,
+                                         room.host_device_id, room.guest_device_id,
+                                         room.public, "CANCELLED", room.expires_at)
+            self._remote_rooms[game_id] = cancelled
+            return cancelled
+
+    async def get_remote_move(self, game_id: str,
+                              request_id: str) -> StoredMove | None:
+        return self._remote_requests.get((game_id, request_id))
+
+    async def commit_remote_turn(self, game_id: str, token_hash: str,
+                                 expected_version: int, request_id: str,
+                                 turn: TurnResult) -> StoredMove:
+        room = await self.get_remote_room(game_id)
+        seat = "A" if room.host_token_hash == token_hash else (
+            "B" if room.guest_token_hash == token_hash else None)
+        if seat is None:
+            raise ApiError("REMOTE_ACCESS_DENIED", "This seat is unavailable")
+        existing = await self.get_remote_move(game_id, request_id)
+        if existing is not None:
+            if (existing.turn.before_state.current_player != seat or
+                existing.turn.move != turn.move or
+                existing.turn_number - 1 != expected_version):
+                raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
+            return existing
+        game = await self.get_snapshot(game_id)
+        if room.status != "PLAYING":
+            raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
+        if game.state.current_player != seat:
+            raise ApiError("NOT_YOUR_TURN", "Wait for your turn")
+        if game.version != expected_version or game.state != turn.before_state:
+            raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
+        move = StoredMove(expected_version + 1, "HUMAN", turn, None,
+                          expected_version + 1)
+        self._moves[game_id].append(move)
+        self._remote_requests[(game_id, request_id)] = move
+        self._games[game_id] = StoredGame(game_id, game.initial_state, turn.state,
+                                          expected_version + 1, "REMOTE")
+        return move
 
     async def commit_analysis(self, game_id: str, expected_version: int,
                               analysis: PositionAnalysis) -> None:
@@ -212,10 +421,12 @@ class InMemoryGameStore:
             return saved
 
     async def list_training_items(self, limit: int, offset: int, category: str | None,
-                                  training_type: str | None) -> tuple[list[TrainingItemInternal], int]:
+                                  training_type: str | None,
+                                  user_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         items = [item for item in self._training_items.values()
                  if (category is None or item.sourceCategory == category) and
-                 (training_type is None or item.trainingType == training_type)]
+                 (training_type is None or item.trainingType == training_type) and
+                 (user_id is None or self._games[item.sourceGameId].user_id == user_id)]
         items.sort(key=lambda item: (item.sourceCategory == "BLUNDER", item.createdAt, item.id),
                    reverse=True)
         return items[offset:offset + limit], len(items)
@@ -226,10 +437,14 @@ class InMemoryGameStore:
             raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
         return item
 
-    async def get_training_attempt(self, client_attempt_id: str) -> TrainingAnswerResult | None:
+    async def get_training_attempt(self, client_attempt_id: str,
+                                   user_id: str | None = None) -> TrainingAnswerResult | None:
+        if client_attempt_id in self._training_records and self._training_owners.get(client_attempt_id) != user_id:
+            raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used")
         return self._training_records.get(client_attempt_id)
 
-    async def commit_training_record(self, record: TrainingAnswerResult) -> TrainingAnswerResult:
+    async def commit_training_record(self, record: TrainingAnswerResult,
+                                     user_id: str | None = None) -> TrainingAnswerResult:
         async with self._catalog_lock:
             if record.trainingId not in self._training_items:
                 raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
@@ -239,4 +454,5 @@ class InMemoryGameStore:
                     raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used")
                 return existing
             self._training_records[record.clientAttemptId] = record
+            self._training_owners[record.clientAttemptId] = user_id
             return record

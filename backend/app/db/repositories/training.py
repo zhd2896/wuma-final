@@ -109,15 +109,22 @@ class TrainingRepository:
         return saved
 
     def list_items(self, limit: int, offset: int, category: str | None,
-                   training_type: str | None) -> tuple[list[TrainingItemInternal], int]:
+                   training_type: str | None,
+                   user_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         conditions = []
         if category:
             conditions.append(TrainingItemModel.source_category == category)
         if training_type:
             conditions.append(TrainingItemModel.training_type == training_type)
-        total = self.session.scalar(select(func.count()).select_from(TrainingItemModel)
-                                    .where(*conditions)) or 0
-        rows = self.session.scalars(select(TrainingItemModel).where(*conditions)
+        if user_id is not None:
+            conditions.append(GameModel.user_id == user_id)
+        base = select(TrainingItemModel)
+        count = select(func.count()).select_from(TrainingItemModel)
+        if user_id is not None:
+            base = base.join(GameModel, GameModel.id == TrainingItemModel.source_game_id)
+            count = count.join(GameModel, GameModel.id == TrainingItemModel.source_game_id)
+        total = self.session.scalar(count.where(*conditions)) or 0
+        rows = self.session.scalars(base.where(*conditions)
             .order_by(case((TrainingItemModel.source_category == "BLUNDER", 0), else_=1),
                       TrainingItemModel.created_at.desc(), TrainingItemModel.id.desc())
             .offset(offset).limit(limit)).all()
@@ -129,25 +136,29 @@ class TrainingRepository:
             raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
         return self.item_from_row(row)
 
-    def get_attempt(self, client_attempt_id: str) -> TrainingAnswerResult | None:
+    def get_attempt(self, client_attempt_id: str,
+                    user_id: str | None = None) -> TrainingAnswerResult | None:
         row = self.session.scalar(select(TrainingRecordModel).where(
             TrainingRecordModel.client_attempt_id == client_attempt_id))
         if row is None:
             return None
+        if row.user_id != user_id:
+            raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used")
         return self.record_from_row(row, self.get_item(row.training_item_id))
 
-    def commit_record(self, record: TrainingAnswerResult) -> TrainingAnswerResult:
+    def commit_record(self, record: TrainingAnswerResult,
+                      user_id: str | None = None) -> TrainingAnswerResult:
         parent = self.session.scalar(select(TrainingItemModel).where(
             TrainingItemModel.id == record.trainingId).with_for_update())
         if parent is None:
             raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
-        existing = self.get_attempt(record.clientAttemptId)
+        existing = self.get_attempt(record.clientAttemptId, user_id)
         if existing is not None:
             if existing.trainingId != record.trainingId or existing.submittedMove != record.submittedMove:
                 raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used")
             return existing
         self.session.add(TrainingRecordModel(
-            id=record.id, training_item_id=record.trainingId, user_id=None,
+            id=record.id, training_item_id=record.trainingId, user_id=user_id,
             client_attempt_id=record.clientAttemptId,
             submitted_move=record.submittedMove.model_dump(mode="json", by_alias=True),
             legal=record.legal, best_move_equivalent=record.bestMoveEquivalent,

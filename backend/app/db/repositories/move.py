@@ -14,10 +14,12 @@ class MoveRepository:
         self.session = session
 
     def create_move(self, game_id: str, turn_number: int, turn: TurnResult,
-                    actor_type: str, search: SearchResult | None) -> None:
+                    actor_type: str, search: SearchResult | None,
+                    client_request_id: str | None = None) -> None:
         self.session.add(GameMoveModel(
             game_id=game_id, turn_number=turn_number,
             player=turn.before_state.current_player, actor_type=actor_type,
+            client_request_id=client_request_id,
             from_node=turn.move.from_node, to_node=turn.move.to_node,
             board_before=turn.board_before.model_dump(mode="json"),
             board_after=turn.board_after.model_dump(mode="json"),

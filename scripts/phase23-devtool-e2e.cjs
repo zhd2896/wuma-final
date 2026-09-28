@@ -7,6 +7,7 @@ const automator = require('miniprogram-automator');
 const endpoint = process.env.WUMA_WECHAT_AUTO_ENDPOINT || 'ws://127.0.0.1:9420';
 const apiBase = process.env.WUMA_COACH_E2E_API || 'http://127.0.0.1:8000';
 const python = process.env.WUMA_PYTHON || path.resolve('backend/.venv/Scripts/python.exe');
+let accountToken;
 const storageKey = 'activeAiGameId';
 
 function timed(promise, label, ms = 30000) {
@@ -30,7 +31,7 @@ async function until(page, predicate, label, ms = 30000) {
 
 async function api(method, route, body) {
   const response = await fetch(`${apiBase}${route}`, { method,
-    headers: { 'content-type': 'application/json' },
+    headers: { 'content-type': 'application/json', Authorization: `Bearer ${accountToken}` },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     signal: AbortSignal.timeout(50000) });
   const envelope = await response.json();
@@ -56,6 +57,9 @@ async function main() {
       'AI page', 15000);
     let data = await until(page, value => value.aiReady && value.aiState?.gameId &&
       value.aiState.gameState.current_player === value.aiState.humanPlayer, 'human turn');
+    accountToken = await mini.callWxMethod('getStorageSync',
+      `wuma:device-account-token:v1:${apiBase.replace(/\/$/, '')}`);
+    assert.match(accountToken, /^[0-9a-f]{64}$/);
     const gameId = data.aiState.gameId;
     const before = database(gameId);
     const boardBefore = JSON.stringify(data.board.pieces);

@@ -13,7 +13,7 @@ from backend.app.schemas.game import BoardState, GameState
 
 @pytest.fixture
 def client():
-    with TestClient(create_app(store=InMemoryGameStore())) as test_client:
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as test_client:
         yield test_client
 
 
@@ -335,7 +335,7 @@ def test_capture_with_no_reserve_reports_engine_failure_reason_as_turn_result(cl
 
 def test_engine_process_failure_maps_to_503():
     settings = Settings(engine_command=("definitely-not-a-real-engine-command",))
-    with TestClient(create_app(settings, store=InMemoryGameStore())) as client:
+    with TestClient(create_app(settings, store=InMemoryGameStore(), require_auth=False)) as client:
         for response in [client.get("/health"),
                          client.post("/api/v1/game", json={"first_player": "A"})]:
             assert response.status_code == 503

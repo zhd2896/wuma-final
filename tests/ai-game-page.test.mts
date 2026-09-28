@@ -30,7 +30,8 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
-    getStorageSync: () => stored,
+    getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
+      ? 'a'.repeat(64) : stored,
     setStorageSync: (_key: string, value: string) => { stored = value; },
     removeStorageSync: () => { stored = null; },
     showToast: () => {},

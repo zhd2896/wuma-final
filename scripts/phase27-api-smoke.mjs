@@ -8,6 +8,7 @@ const FINISHING_MOVES = [
   ['P06', 'P11'], ['P15', 'P14'], ['P17', 'P22'], ['P14', 'P04'],
   ['P19', 'P23'], ['P20', 'P17'],
 ];
+let deviceToken = null;
 
 function check(condition, message) {
   if (!condition) throw new Error(message);
@@ -16,7 +17,8 @@ function check(condition, message) {
 export async function requestApi(baseUrl, method, route, body) {
   const response = await fetch(new URL(route, baseUrl), {
     method,
-    headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+    headers: { ...(body === undefined ? {} : { 'content-type': 'application/json' }),
+      ...(deviceToken ? { Authorization: `Bearer ${deviceToken}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
     signal: AbortSignal.timeout(180_000),
   });
@@ -31,6 +33,10 @@ export async function runApiSmoke(baseUrl) {
   const health = await api('GET', '/health');
   const ready = await api('GET', '/ready');
   check(health.engine === 'ok' && ready.engine === 'ok', 'Worker health failed');
+
+  const account = await api('POST', '/api/v1/auth/device');
+  check(/^[0-9a-f]{64}$/.test(account.token), 'Device account creation failed');
+  deviceToken = account.token;
 
   const game = await api('POST', '/api/v1/game', { first_player: 'A', mode: 'LOCAL' });
   check(game.version === 0 && game.state.game_status === 'PLAYING', 'Initial game state invalid');

@@ -31,7 +31,7 @@ class FakeProvider:
 
 @pytest.fixture
 def client():
-    with TestClient(create_app(store=InMemoryGameStore())) as test_client:
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as test_client:
         yield test_client
 
 
@@ -107,7 +107,7 @@ def test_no_key_levels_cache_and_move_are_read_only(client):
 
 def test_provider_leaks_fallback_and_cache_avoids_repeat_calls():
     provider = FakeProvider('{"hintText":"建议走 P06→P07"}')
-    with TestClient(create_app(store=InMemoryGameStore(), llm_provider=provider)) as client:
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False, llm_provider=provider)) as client:
         game_id = create_ai(client)
         first = hint(client, game_id, 1)
         assert first.status_code == 200, first.text
@@ -142,7 +142,7 @@ def test_invalid_level_finished_and_engine_failure(client):
 
 def test_valid_provider_keeps_engine_best_move():
     provider = FakeProvider('{"hintText":"稍后提供解释"}')
-    with TestClient(create_app(store=InMemoryGameStore(), llm_provider=provider)) as client:
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False, llm_provider=provider)) as client:
         game_id = create_ai(client)
         analysis = client.post("/api/v1/ai/analyze", json={"game_id": game_id}).json()["data"]
         best = analysis["bestMove"]
@@ -174,7 +174,7 @@ def test_provider_timeout_falls_back_without_losing_engine_hint():
 
     provider = SlowProvider('{"hintText":"延迟回复"}')
     with TestClient(create_app(settings=Settings(llm_timeout_seconds=0.001),
-                               store=InMemoryGameStore(), llm_provider=provider)) as client:
+                               store=InMemoryGameStore(), require_auth=False, llm_provider=provider)) as client:
         game_id = create_ai(client)
         response = hint(client, game_id, 3)
         assert response.status_code == 200, response.text

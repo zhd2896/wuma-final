@@ -99,6 +99,18 @@ function fixture(aiPlayer: Player = 'B') {
     get analysisCalls() { return analysisCalls; }, get coachCalls() { return coachCalls; } };
 }
 
+test('inaccessible stored game from an older device account is replaced', async () => {
+  const f = fixture();
+  f.storage.write('other-account-game');
+  f.api.getGame = async () => { throw new ApiError('AUTH_FORBIDDEN', 403); };
+  const controller = new AiGameController(f.api, f.storage, () => {});
+  await controller.enter();
+  assert.equal(f.creates, 1);
+  assert.equal(f.saved, 'g1');
+  assert.equal(controller.snapshot.gameId, 'g1');
+  assert.equal(controller.snapshot.errorMessage, null);
+});
+
 test('coach reveals levels progressively, never moves, and clears after human move', async () => {
   const f = fixture();
   const controller = new AiGameController(f.api, f.storage, () => {});
