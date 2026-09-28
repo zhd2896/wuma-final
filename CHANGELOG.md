@@ -1,5 +1,12 @@
 # 更新记录
 
+## 2026-09-28：独立局面分析与 AI 教练
+
+- 独立局面分析页接入真实棋局：本地对局从设备历史读取并在离线状态下分析；云端对局先读取服务端权威棋局，再按相同版本请求分析。评估、关键棋子和推荐行动共用真实分析结果，AI 对弈页也复用同一视图映射。
+- 独立 AI 教练页绑定当前 AI 棋局，按服务端版本逐级请求三级提示；处理版本冲突、重复请求及页面卸载后的迟到响应，并为无棋局、终局和 AI 回合提供明确状态。
+- 更新相关组件、页面入口、测试和验收记录；新增两项功能的设计文档及微信开发者工具验收脚本。
+- 提交前验证：`npm test` 333 项通过；`npm run typecheck` 和 `npm run check` 通过。微信开发者工具端到端验收详情见 `docs/independent-position-analysis-acceptance.md` 和 `docs/independent-ai-coach-acceptance.md`。
+
 ## 2026-09-28：联机对局、设备账号与真实历史
 
 对应提交：[39ca63d](https://github.com/zhd2896/wuma-final/commit/39ca63dd12ef0f1adf66ceca1e892b4a9a341e2d)

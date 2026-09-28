@@ -21,6 +21,7 @@ test('game page records and resumes real local games and indexes server games', 
   storage.set('wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64));
   let failHistoryWrite = false;
   let failActiveWrite = false;
+  const navigations: string[] = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
@@ -38,6 +39,7 @@ test('game page records and resumes real local games and indexes server games', 
     },
     removeStorageSync: (key: string) => { storage.delete(key); },
     showToast: () => {},
+    navigateTo: ({ url }: { url: string }) => { navigations.push(url); },
   };
   await import('../miniprogram/pages/game/game.ts');
   const definition = pageDefinition!;
@@ -59,6 +61,9 @@ test('game page records and resumes real local games and indexes server games', 
   assert.equal(rows[0].id, firstId);
   assert.equal(rows[0].turns, 1);
   assert.equal(rows[0].localState?.board.occupancy.P02, 'A');
+  first.openAnalysis();
+  assert.equal(navigations.at(-1),
+    `/pages/analysis/analysis?mode=local&gameId=${encodeURIComponent(firstId)}`);
   first.onUnload();
 
   const reopened = makePage();
@@ -103,6 +108,9 @@ test('game page records and resumes real local games and indexes server games', 
   oldRemote.onLoad({ mode: 'remote', gameId: 'remote-1' });
   await flush();
   assert.equal(oldRemote.data.remoteState.gameId, 'remote-1');
+  oldRemote.openAnalysis();
+  assert.equal(navigations.at(-1),
+    '/pages/analysis/analysis?mode=remote&gameId=remote-1');
   oldRemote.onUnload();
   assert.deepEqual(loaded, ['GET /api/v1/game/ai-1', 'GET /api/v1/game/remote-1']);
 

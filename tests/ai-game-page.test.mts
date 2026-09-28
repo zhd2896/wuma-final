@@ -18,6 +18,8 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 } });
 
 const { analyzePosition } = await import('../miniprogram/ai/position-analysis.ts');
+const { mapPositionAnalysis } = await import(
+  '../miniprogram/pages/analysis/analysis-view-model.ts');
 
 test('existing AI page displays server game, thinking, AI move and AI-first restart', async () => {
   let state: GameState = createInitialGameState();
@@ -106,7 +108,8 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   assert.equal(analysisCalls, 1);
   assert.deepEqual(page.data.aiState.gameState, beforeAnalysis);
   assert.ok(page.data.aiState.analysis.candidateMoves.length);
-  assert.ok(page.data.aiAnalysisBreakdown.length);
+  assert.deepEqual(page.data.aiAnalysisView,
+    mapPositionAnalysis(page.data.aiState.gameState, page.data.aiState.analysis));
   assert.equal(page.data.board.recommendedFrom, page.data.aiState.lastMove.from);
   assert.equal(page.data.board.recommendedTo, page.data.aiState.lastMove.to);
   page.restartAiFirstGame();
@@ -120,7 +123,7 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   assert.match(wxml, /<chess-board board="{{board}}" bind:node="onNode"/);
   assert.match(wxml, /<ai-thinking \/>/);
   assert.match(wxml, /正在分析局面/);
-  assert.match(wxml, /aiState\.analysis\.candidateMoves/);
+  assert.match(wxml, /aiAnalysisView\.candidates/);
   assert.match(wxml, /side="{{mode == 'ai' && aiState\.aiPlayer == 'A' \? 'ai' : 'human'}}"/);
   assert.match(wxml, /side="{{mode == 'ai' && aiState\.aiPlayer == 'B' \? 'ai' : 'human'}}"/);
   const thinking = readFileSync(new URL('../miniprogram/components/ai-thinking/ai-thinking.wxml', import.meta.url), 'utf8');

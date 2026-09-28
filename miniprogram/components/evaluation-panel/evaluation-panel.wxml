@@ -1,1 +1,1 @@
-<view class="panel"><view class="head"><text>局面评分</text><text class="demo">演示数据</text></view><view class="score">{{score}}</view><view class="adv">{{advantage}}</view><view class="track"><view class="marker"></view></view><view class="trend">优势趋势 · {{trend}}</view></view>
+<view class="panel"><view class="head"><text>局面评分</text><text>{{perspective}} 方视角</text></view><view class="score">{{score}}</view><view class="adv">最佳搜索评分 {{bestScore}}</view><view class="track"><view class="marker"></view></view><view class="trend">正分有利于 {{perspective}} 方，负分有利于对手</view></view>

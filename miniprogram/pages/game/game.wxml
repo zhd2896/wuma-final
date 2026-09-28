@@ -58,17 +58,17 @@
     </view>
     <view wx:if="{{mode == 'ai' && aiState.isAnalyzing}}" class="analysis-status">正在分析局面...</view>
     <view wx:if="{{mode == 'ai' && aiState.analysisErrorMessage}}" class="analysis-status analysis-error">{{aiState.analysisErrorMessage}}</view>
-    <view wx:if="{{mode == 'ai' && aiState.analysis}}" class="analysis-card">
-      <view class="analysis-title">当前局面分析 · {{aiState.analysis.analyzedPlayer}} 视角</view>
-      <view class="analysis-line">推荐走法：<text wx:if="{{aiState.analysis.bestMove}}">{{aiState.analysis.bestMove.from}} → {{aiState.analysis.bestMove.to}}</text><text wx:else>终局，无可走棋步</text></view>
-      <view class="analysis-line">局面评分：{{aiState.analysis.bestScore}} · 当前静态评分：{{aiState.analysis.evaluationBefore.score}}</view>
-      <view class="analysis-line">搜索深度：{{aiState.analysis.searchDepth}} · 思考时间：{{aiState.analysis.thinkingTimeMs}} ms</view>
+    <view wx:if="{{mode == 'ai' && aiAnalysisView}}" class="analysis-card">
+      <view class="analysis-title">当前局面分析 · {{aiAnalysisView.perspective}} 视角</view>
+      <view class="analysis-line">推荐走法：<text wx:if="{{aiAnalysisView.bestMove}}">{{aiAnalysisView.bestMove.notation}}</text><text wx:else>终局，无可走棋步</text></view>
+      <view class="analysis-line">局面评分：{{aiAnalysisView.bestScore}} · 当前静态评分：{{aiAnalysisView.score}}</view>
+      <view class="analysis-line">搜索深度：{{aiAnalysisView.searchDepth}} · 思考时间：{{aiAnalysisView.thinkingTimeMs}} ms</view>
       <view class="analysis-subtitle">候选走法</view>
-      <view wx:for="{{aiState.analysis.candidateMoves}}" wx:key="rank" class="analysis-line">{{item.rank}}. {{item.move.from}} → {{item.move.to}} · 评分 {{item.score}}</view>
+      <view wx:for="{{aiAnalysisView.candidates}}" wx:key="id" class="analysis-line">{{item.rank}}. {{item.notation}} · 评分 {{item.score}}</view>
       <view class="analysis-subtitle">评分分项</view>
-      <view wx:for="{{aiAnalysisBreakdown}}" wx:key="label" class="analysis-line">{{item.label}}：{{item.score}}</view>
-      <view wx:if="{{aiAnalysisThreats.length}}" class="analysis-subtitle">局面信号</view>
-      <view wx:for="{{aiAnalysisThreats}}" wx:key="id" class="analysis-line">{{item.label}} {{item.move}}</view>
+      <view wx:for="{{aiAnalysisView.breakdown}}" wx:key="key" class="analysis-line">{{item.label}}：{{item.weightedScore}}</view>
+      <view wx:if="{{aiAnalysisView.threats.length}}" class="analysis-subtitle">局面信号</view>
+      <view wx:for="{{aiAnalysisView.threats}}" wx:key="id" class="analysis-line">{{item.label}} {{item.move}}</view>
     </view>
     <button wx:if="{{mode == 'ai' && aiReady && aiView.gameOver || mode == 'remote' && remoteReady && remoteView.gameOver}}" class="review-button" data-action="review" bindtap="onAction">查看复盘</button>
     <view wx:if="{{showSettings}}" class="settings-area"><view class="settings-title">{{mode == 'local' ? '本地对局设置' : mode == 'remote' ? '远程对局设置' : 'AI 对弈设置'}}</view><view>当前模式：{{mode == 'local' ? '本地双人' : mode == 'remote' ? '云端双人' : '标准 AI'}}</view><view wx:if="{{mode == 'ai'}}" class="ai-first-options"><button size="mini" bindtap="restartAiGame">我先手新局</button><button size="mini" bindtap="restartAiFirstGame">AI 先手新局</button></view></view>

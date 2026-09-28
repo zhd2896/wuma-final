@@ -52,7 +52,7 @@ async function main() {
     assert.deepEqual(analysis.bestMove, analysis.candidateMoves.find(item => item.isBest)?.move);
     assert.equal(JSON.stringify(data.aiState.gameState), before);
     assert.equal(JSON.stringify(data.board.pieces), boardBefore);
-    assert.ok(data.aiAnalysisBreakdown.length >= 7);
+    assert.ok(data.aiAnalysisView.breakdown.length >= 7);
     console.log(`ANALYSIS game_id=${gameId} player=${analysis.analyzedPlayer} static=${analysis.evaluationBefore.score} best=${analysis.bestMove.from}->${analysis.bestMove.to} candidates=${analysis.candidateMoves.length} depth=${analysis.searchDepth} nodes=${analysis.nodesSearched} ms=${analysis.thinkingTimeMs} ttHits=${analysis.ttHits} timedOut=${analysis.timedOut} board_unchanged=true`);
 
     const board = await page.$('chess-board');

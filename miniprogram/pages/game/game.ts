@@ -13,28 +13,15 @@ import type { RemoteGameSnapshot } from './remote-game';
 import { AiGameController } from './ai-game';
 import type { AiGameSnapshot } from './ai-game';
 import type { Player } from '../../domain/index';
-import type { EvaluationBreakdown } from '../../ai/evaluation';
-import type { ThreatType } from '../../ai/position-analysis';
 import { createWxDeviceHistoryStore } from '../../services/device-history';
 import type { GameIdStorage } from './remote-game';
+import { mapPositionAnalysis } from '../analysis/analysis-view-model';
+import type { AnalysisViewModel } from '../analysis/analysis-view-model';
 
 const activeGameIdKey = 'activeRemoteGameId';
 const activeAiGameIdKey = 'activeAiGameId';
 const activeLocalGameIdKey = 'activeLocalGameId';
 const emptyBoard: BoardState = { nodes: boardNodes, lines: boardLines, pieces: [] };
-const breakdownLabels: readonly { key: keyof EvaluationBreakdown; label: string }[] = [
-  { key: 'material', label: '子力' }, { key: 'reserve', label: '备用子' },
-  { key: 'mobility', label: '机动性' }, { key: 'templeControl', label: '庙宇控制' },
-  { key: 'captureOpportunity', label: '捕获机会' },
-  { key: 'vulnerability', label: '易受攻击' }, { key: 'trapRisk', label: '孤棋风险' },
-];
-const threatLabels: Readonly<Record<ThreatType, string>> = {
-  IMMEDIATE_WIN_AVAILABLE: '存在直接获胜走法',
-  CAPTURE_AVAILABLE: '存在直接捕获机会',
-  CAPTURE_THREAT: '存在后续捕获威胁',
-  VULNERABILITY: '对手捕获行动较多',
-  LONE_PIECE_MOBILITY_RISK: '孤棋机动性较低',
-};
 
 const gameIdStorage = {
   read: (): string | null => {
@@ -76,8 +63,7 @@ Page({
     aiView: null as GameViewModel | null, aiReady: false,
     aiAName: '玩家 A', aiBName: '标准 AI · B',
     aiCaptureText: '',
-    aiAnalysisBreakdown: [] as { label: string; score: number }[],
-    aiAnalysisThreats: [] as { id: number; label: string; move: string }[],
+    aiAnalysisView: null as AnalysisViewModel | null,
     mode: 'ai', showHint: false, thinking: false,
     showResign: false, showSettings: false, resigned: false },
   remoteController: null as RemoteGameController | null,
@@ -136,15 +122,10 @@ Page({
       lastMove: snapshot.lastMove,
       lastCapture: snapshot.lastCapture,
     }) : null;
+    const analysisView = snapshot.analysis && snapshot.gameState
+      ? mapPositionAnalysis(snapshot.gameState, snapshot.analysis) : null;
     this.setData({ aiState: snapshot, aiView: view,
-      aiAnalysisBreakdown: snapshot.analysis
-        ? breakdownLabels.map(({ key, label }) => ({ label,
-          score: snapshot.analysis!.evaluationBreakdown[key].weightedScore })) : [],
-      aiAnalysisThreats: snapshot.analysis?.threats.map((threat, id) => ({
-        id,
-        label: threatLabels[threat.type],
-        move: threat.relatedMove ? `${threat.relatedMove.from} → ${threat.relatedMove.to}` : '',
-      })) ?? [],
+      aiAnalysisView: analysisView,
       aiCaptureText: snapshot.lastCapture?.was_applied
         ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚`
         : '',
@@ -291,8 +272,17 @@ Page({
     this.setData({ showHint: !this.data.showHint });
   },
   openAnalysis() {
-    if (this.data.mode === 'ai') void this.aiController?.analyze();
-    else openPage('/pages/analysis/analysis');
+    if (this.data.mode === 'ai') {
+      void this.aiController?.analyze();
+      return;
+    }
+    const gameId = this.data.mode === 'local'
+      ? this.data.localGameId : this.data.remoteState?.gameId;
+    if (!gameId) {
+      wx.showToast({ title: '当前没有可分析的棋局', icon: 'none' });
+      return;
+    }
+    openPage(`/pages/analysis/analysis?mode=${this.data.mode}&gameId=${encodeURIComponent(gameId)}`);
   },
   openReview() {
     const gameId = this.data.mode === 'ai'
