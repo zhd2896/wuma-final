@@ -9,3 +9,4 @@ backend/.mysql-test/
 backend/.env
 deploy/nginx/conf.d/tls.conf
 deploy/nginx/certs/
+.worktrees/
