@@ -1,0 +1,41 @@
+<view class="page review-page">
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>棋局复盘<text class="topbar-tag">引擎分析</text></view>
+  <view class="page-inner">
+    <view wx:if="{{state == 'loading'}}" class="review-status card">正在生成或读取复盘，请稍候…</view>
+    <view wx:elif="{{state == 'error'}}" class="review-status card"><text>{{errorMessage}}</text><button size="mini" bindtap="retry">重试</button></view>
+    <block wx:else>
+      <view class="match-summary card">
+        <view class="match-title">玩家 {{review.reviewedPlayer}} · 棋局复盘</view>
+        <view class="match-meta"><text>胜方 {{review.winner}}</text><text>终局 {{review.winnerReason}}</text><text>{{rows.length}} 手已分析</text></view>
+      </view>
+      <section-title title="整体统计" />
+      <view class="review-stats card"><view>GOOD {{review.goodMoves}}</view><view>NORMAL {{review.normalMoves}}</view><view>MISTAKE {{review.mistakes}}</view><view>BLUNDER {{review.blunders}}</view></view>
+      <view class="review-metric card">同分最佳走法比例：{{bestMoveRateText}}</view>
+      <view class="review-metric card">关键转折：{{turningText}}</view>
+      <button id="generate-training" class="gold-btn" loading="{{isGeneratingTraining}}" disabled="{{isGeneratingTraining}}" bindtap="generateTraining">从本局生成训练题</button>
+      <view wx:if="{{trainingError}}" class="review-metric card">{{trainingError}}</view>
+      <view wx:if="{{explanationState == 'loading'}}" class="review-metric card">正在生成复盘解释…</view>
+      <view wx:elif="{{explanationState == 'error'}}" class="review-metric card">解释暂不可用，复盘数据仍可查看。<button size="mini" bindtap="retryExplanation">重试解释</button></view>
+      <view wx:elif="{{explanationState == 'success'}}" class="review-natural card">
+        <view class="review-natural-title">整局解释<text wx:if="{{gameExplanation.fallbackUsed}}"> · 规则化解释</text></view>
+        <view>{{gameExplanation.overall_summary}}</view>
+        <view wx:for="{{gameExplanation.strengths}}" wx:for-item="strength" wx:key="*this">值得保留：{{strength}}</view>
+        <view wx:for="{{gameExplanation.main_problems}}" wx:for-item="problem" wx:key="*this">重点：{{problem}}</view>
+        <view wx:for="{{gameExplanation.practice_suggestions}}" wx:for-item="tip" wx:key="*this">建议：{{tip}}</view>
+      </view>
+      <section-title title="逐步复盘" subtitle="以实际落子方为评分视角" />
+      <view wx:for="{{rows}}" wx:key="turn" class="review-move card">
+        <view class="review-move-head">第 {{item.turn}} 手 · 玩家 {{item.player}}<text class="category">{{item.category}}</text></view>
+        <view>实际：{{item.actualText}}</view><view>最佳：{{item.bestText}}</view>
+        <view>搜索分损失：{{item.scoreLoss}}</view>
+        <view class="review-explanation">{{item.engineExplanation}}</view>
+        <view wx:if="{{item.naturalExplanation}}" class="review-natural-move">
+          <view>{{item.explanationFallbackUsed ? '规则化解释' : 'AI解释'}}：{{item.naturalExplanation}}</view>
+          <view>建议：{{item.naturalSuggestion}}</view>
+        </view>
+        <view class="review-detail">走前静态分 {{item.scoreBefore}} · 走后静态分 {{item.scoreAfter}} · 搜索深度 {{item.searchDepth}}</view>
+      </view>
+      <view class="disclaimer">评分与分类使用固定引擎规则和启发式阈值，不代表胜率或官方棋力等级。</view>
+    </block>
+  </view>
+</view>

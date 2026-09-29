@@ -1,0 +1,1 @@
+.state{display:flex;flex-direction:column;align-items:center;gap:19rpx;padding:78rpx;color:#556a6b;font-size:23rpx}.spinner{height:48rpx;width:48rpx;border-radius:50%;border:5rpx solid #d9e8e7;border-top-color:#3584a6;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}

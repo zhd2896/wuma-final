@@ -1,0 +1,1 @@
+.heading{display:flex;align-items:center;gap:11rpx;font-size:28rpx;font-weight:700;margin:28rpx 0 17rpx;color:#25322f}.bar{height:30rpx;width:6rpx;border-radius:6rpx;background:#a4392e}.sub{margin-left:auto;font-size:20rpx;color:#9c845f;font-weight:400}

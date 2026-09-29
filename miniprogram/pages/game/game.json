@@ -1,0 +1,1 @@
+{"usingComponents":{"chess-board":"../../components/chess-board/chess-board","player-card":"../../components/player-card/player-card","ai-thinking":"../../components/ai-thinking/ai-thinking","ai-panel":"../../components/ai-panel/ai-panel","confirm-dialog":"../../components/confirm-dialog/confirm-dialog","bottom-nav":"../../components/bottom-nav/bottom-nav"}}

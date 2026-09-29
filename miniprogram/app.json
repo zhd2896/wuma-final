@@ -1,0 +1,11 @@
+{
+  "pages": [
+    "pages/index/index", "pages/game/game", "pages/analysis/analysis",
+    "pages/review/review", "pages/coach/coach", "pages/training/training",
+    "pages/history/history", "pages/profile/profile", "pages/online/online"
+  ],
+  "window": { "navigationStyle": "custom", "backgroundColor": "#f4efe4", "backgroundTextStyle": "dark" },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

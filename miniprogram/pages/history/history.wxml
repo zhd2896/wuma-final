@@ -1,0 +1,23 @@
+<view class="page history-page">
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>历史对局<text class="topbar-tag">个人记录</text></view>
+  <view class="page-inner">
+    <view class="history-head"><view>棋路有迹，弈路可循</view><text>回顾云端与本机保存的对局</text></view>
+    <view wx:if="{{errorMessage && state == 'success'}}" class="history-notice">{{errorMessage}}</view>
+    <loading-state wx:if="{{state == 'loading'}}" message="正在读取对局记录..." />
+    <error-state wx:elif="{{state == 'error'}}" message="{{errorMessage}}" bind:retry="retry" />
+    <empty-state wx:elif="{{state == 'empty'}}" title="{{emptyTitle}}" subtitle="{{emptySubtitle}}" action="{{emptyAction}}" bind:action="startGame" />
+    <view wx:else>
+      <section-title title="近期对局" subtitle="云端账号与本机记录" />
+      <view wx:for="{{records}}" wx:key="id" class="record card" data-id="{{item.id}}" bindtap="openRecord">
+        <view class="record-icon">棋</view>
+        <view class="record-main">
+          <view class="record-name">{{item.title}}<text>{{item.result}}</text></view>
+          <view class="record-meta">{{item.date}} · {{item.turns}} 手</view>
+          <view class="record-review">{{item.action}}</view>
+        </view>
+        <view class="chevron">›</view>
+      </view>
+      <view wx:if="{{nextCursor}}" class="link-card card" bindtap="more">加载更多云端对局 ›</view>
+    </view>
+  </view>
+</view>

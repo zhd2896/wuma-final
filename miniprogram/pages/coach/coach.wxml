@@ -1,0 +1,42 @@
+<view class="page coach-page">
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>AI 教练<text class="topbar-tag">真实棋局</text></view>
+  <view class="coach-hero"><image class="coach-art" src="../../assets/coach-master.jpg" mode="aspectFill" /><view class="hero-copy"><view class="hero-kicker">弈智棋师</view><view class="hero-title">观察局面，<view>逐级思考。</view></view></view></view>
+  <view class="page-inner">
+    <loading-state wx:if="{{state == 'loading'}}" message="正在读取当前 AI 棋局..." />
+    <view wx:elif="{{state == 'empty'}}" class="state-card card">
+      <view class="state-title">当前没有可指导的 AI 棋局</view>
+      <view class="state-detail">开始一局 AI 对弈，轮到你落子时即可获取分级提示。</view>
+      <view class="state-actions"><button bindtap="startAiGame">开始 AI 对弈</button><button bindtap="openHistory">查看历史对局</button></view>
+    </view>
+    <error-state wx:elif="{{state == 'error'}}" message="{{errorMessage}}" bind:retry="retry" />
+    <block wx:else>
+      <view class="game-meta card">
+        <view><text>棋局</text><text>{{gameId}}</text></view>
+        <view><text>版本</text><text>{{gameVersion}}</text></view>
+        <view><text>当前行棋</text><text>{{currentPlayer}} 方</text></view>
+        <view><text>玩家执子</text><text>{{humanPlayer}} 方</text></view>
+      </view>
+      <view class="board-preview"><chess-board board="{{board}}" compact="{{true}}" /></view>
+      <view wx:if="{{notice}}" class="notice-card card">{{notice}}</view>
+      <view wx:if="{{terminalText}}" class="notice-card card">{{terminalText}}</view>
+      <view wx:if="{{state == 'conflict'}}" class="state-card card">
+        <view class="state-title">提示所用棋局已经变化</view>
+        <view class="state-detail">页面已读取最新棋盘，请重新同步后从一级提示开始。</view>
+        <button bindtap="retry">重新开始提示</button>
+      </view>
+      <view wx:elif="{{state == 'unavailable'}}" class="state-card card"><button bindtap="continueAiGame">继续当前 AI 对弈</button></view>
+      <block wx:elif="{{state == 'ready'}}">
+        <section-title title="分级提示" subtitle="与当前版本局面一致" />
+        <view class="coach-intro">先独立观察，再按顺序查看真实提示。</view>
+        <view wx:if="{{errorMessage}}" class="inline-error">{{errorMessage}}</view>
+        <coach-card wx:for="{{cards}}" wx:key="level"
+          level="{{item.level}}" title="{{item.title}}" body="{{item.body}}"
+          detail="{{item.detail}}" expanded="{{item.expanded}}"
+          locked="{{item.locked}}" loading="{{item.loading}}" bind:select="selectHint" />
+        <button class="continue-button" bindtap="continueAiGame">继续当前 AI 对弈</button>
+      </block>
+      <view class="review-entry ink-card" bindtap="openReview"><view><view>从复盘中继续学习</view><text>回顾关键节点 · 发现不同思路</text></view><view>›</view></view>
+    </block>
+  </view>
+  <bottom-nav current="coach" />
+</view>

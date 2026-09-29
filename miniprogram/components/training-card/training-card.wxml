@@ -1,0 +1,1 @@
+<view class="card" bindtap="open"><view class="mini-board"><view class="mini-lines"><view>◇</view><view>╳</view><view>◇</view></view></view><view class="copy"><view class="title">{{level.title}}</view><view class="sub">{{level.subtitle}}</view><view class="stars">{{stars}}</view></view><view class="status">{{level.completed ? '已完成' : '开始'}}</view></view>

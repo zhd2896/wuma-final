@@ -1,0 +1,1 @@
+<view class="item" bindtap="select"><view class="turn">{{moment.turn}}</view><view class="body"><view class="notation">{{moment.notation}}</view><view class="detail">{{moment.detail}}</view></view><view class="right"><view class="badge {{moment.tone}}">{{moment.label}}</view><view class="score">{{moment.score}}</view></view></view>

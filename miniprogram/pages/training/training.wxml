@@ -1,0 +1,38 @@
+<view class="page training-page">
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>{{question ? '训练答题' : '复盘训练'}}<text class="topbar-tag">真实棋局</text></view>
+  <view class="page-inner">
+    <view wx:if="{{!question}}">
+      <view class="training-banner ink-card"><view class="banner-kicker">以局为题 · 步步为营</view><view class="banner-title">复盘训练</view><view class="banner-copy">从已结束棋局的失误中练习最佳走法。</view><view class="banner-art">◇</view></view>
+      <view wx:if="{{isLoading}}" class="training-status card">正在读取训练题…</view>
+      <view wx:elif="{{errorMessage}}" class="training-status card">{{errorMessage}}<button size="mini" bindtap="retry">重试</button></view>
+      <view wx:elif="{{!items.length}}" class="training-status card">暂无训练题。完成一局并生成复盘后，可在复盘页创建题目。</view>
+      <block wx:else>
+        <section-title title="训练题" subtitle="来自真实棋局的失误" />
+        <view wx:for="{{items}}" wx:key="id" class="training-item card" data-id="{{item.id}}" bindtap="openQuestion">
+          <view>第 {{item.sourceTurn}} 手 · 玩家 {{item.player}}<text class="category">{{item.sourceCategory}}</text></view>
+          <text>{{item.tagsText || '寻找最佳走法'}}</text>
+        </view>
+        <button wx:if="{{items.length < total}}" class="load-more" loading="{{isLoadingMore}}" disabled="{{isLoadingMore}}" bindtap="loadMore">加载更多（{{items.length}} / {{total}}）</button>
+      </block>
+    </view>
+    <view wx:else class="challenge">
+      <view class="challenge-heading card"><view>第 {{question.sourceTurn}} 手 · 玩家 {{question.player}}</view><text>{{question.sourceCategory}} · 请在棋盘上选择最佳走法</text></view>
+      <view class="training-reserve card">备用棋：玩家 A {{question.stateSnapshot.players.A.reserve_count}} 枚 · 玩家 B {{question.stateSnapshot.players.B.reserve_count}} 枚</view>
+      <view class="challenge-board"><chess-board board="{{board}}" bind:node="onNode" /></view>
+      <view wx:if="{{isLoadingLegalMoves}}" class="training-status card">正在读取合法走法…</view>
+      <view wx:elif="{{isSubmittingAnswer}}" class="training-status card">正在用引擎评分…</view>
+      <view wx:elif="{{errorMessage}}" class="training-status card">{{errorMessage}}<button size="mini" bindtap="retry">重试</button></view>
+      <view wx:elif="{{answer}}" class="training-result card">
+        <view class="training-result-title">{{resultText}}</view>
+        <view>你的走法：{{submittedMoveText}}</view><view>最佳走法：{{bestMoveText}}</view>
+        <view>最佳评分：{{answer.bestScore}} · 本次评分：{{answer.submittedMoveScore}}</view>
+        <view>评分损失：{{answer.scoreLoss}} · 搜索深度：{{answer.searchDepth}}</view>
+        <view>{{answer.feedback}}</view>
+      </view>
+      <view wx:else class="training-status card">{{selectedNode ? '选择高亮的合法落点' : '点击己方棋子，再选择落点'}}</view>
+      <view wx:if="{{answer}}" class="training-actions"><button class="gold-btn" bindtap="retryQuestion">再试一次</button><button class="gold-btn" bindtap="nextQuestion">下一题</button></view>
+      <button class="exit-btn" bindtap="back">返回题目列表</button>
+    </view>
+  </view>
+  <bottom-nav current="training" />
+</view>

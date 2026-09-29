@@ -1,0 +1,6 @@
+<view class="card {{locked ? 'locked' : ''}}" bindtap="open">
+  <view class="top"><view class="step">{{level}}</view><view class="title">{{title}}</view><view class="chevron">{{loading ? '…' : expanded ? '⌄' : '›'}}</view></view>
+  <view wx:if="{{loading}}" class="state">正在获取当前局面的提示...</view>
+  <view wx:elif="{{expanded}}" class="body"><view>{{body}}</view><view wx:if="{{detail}}" class="detail">{{detail}}</view></view>
+  <view wx:else class="state">{{locked ? detail : body}}</view>
+</view>

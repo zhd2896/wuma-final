@@ -1,0 +1,1 @@
+<view class="state"><view class="spinner"></view><view>{{message}}</view></view>

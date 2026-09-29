@@ -1,0 +1,1 @@
+<view class="panel"><view class="panel-head"><text>✦ 智能提示</text><text class="demo">演示内容</text></view><view class="body">{{message}}</view><view class="foot">可前往局面分析查看推荐行动</view></view>

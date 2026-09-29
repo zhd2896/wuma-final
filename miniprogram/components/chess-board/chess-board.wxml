@@ -1,0 +1,21 @@
+<view class="board-wrap {{compact ? 'compact' : ''}}">
+  <view class="board-frame">
+    <image class="board-landscape" src="../../assets/ink-landscape.jpg" mode="aspectFill" />
+    <view class="grain"></view>
+    <view class="temple-label apex">南天寿<text>（宝顶）</text></view>
+    <view class="temple-label left-wing">和<text>（左翼）</text></view>
+    <view class="temple-label right-wing">唐<text>（右翼）</text></view>
+    <view class="corner top-left"></view><view class="corner top-right"></view>
+    <view class="corner bottom-left"></view><view class="corner bottom-right"></view>
+    <view wx:for="{{board.lines}}" wx:key="id" class="line" style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.width}}%;transform:rotate({{item.angle}}deg)"></view>
+    <view wx:if="{{board.recommendLine}}" class="recommend-line" style="left:{{board.recommendLine.x}}%;top:{{board.recommendLine.y}}%;width:{{board.recommendLine.width}}%;transform:rotate({{board.recommendLine.angle}}deg)"><view class="arrow-head"></view></view>
+    <block wx:for="{{board.nodes}}" wx:key="id">
+      <view wx:if="{{!item.visualOnly}}" class="node-hit {{item.id == board.recommendedTo ? 'last-target' : ''}} {{item.captured || item.replacement ? 'capture-spot' : ''}}" style="left:{{item.x}}%;top:{{item.y}}%" data-id="{{item.id}}" bindtap="onNode">
+        <view class="node-dot {{item.id == board.recommendedTo ? 'target' : ''}} {{item.id == board.recommendedFrom ? 'source' : ''}} {{item.legalTarget ? 'legal-target' : ''}} {{item.captured ? 'capture-hit' : ''}} {{item.replacement ? 'replacement-hit' : ''}}"></view>
+      </view>
+    </block>
+    <view wx:for="{{board.pieces}}" wx:key="id" class="piece-position" style="left:{{item.x}}%;top:{{item.y}}%" data-id="{{item.nodeId}}" bindtap="onNode"><chess-piece side="{{item.side}}" state="{{item.nodeId == board.selectedId ? 'selected' : item.state}}" /></view>
+    <view class="board-plaque">五 马 棋</view>
+  </view>
+  <view class="board-caption"><text>五马棋 · 标准棋盘</text><text>宝顶 · 左右翼</text></view>
+</view>
