@@ -106,6 +106,13 @@ class GameService:
         if frames[-1] == snapshot.state:
             return frames
         event = await self.store.get_terminal_event(snapshot.game_id)
+        resigned_state = None
+        if event is not None:
+            resigned_state = event.state_before.model_copy(update={
+                "game_status": "FINISHED",
+                "winner": event.winner,
+                "winner_reason": "RESIGN",
+            })
         if not (
             snapshot.state.game_status == "FINISHED"
             and snapshot.state.winner is not None
@@ -115,8 +122,12 @@ class GameService:
             and event.revision == snapshot.version
             and event.winner == snapshot.state.winner
             and event.actor == ("B" if snapshot.state.winner == "A" else "A")
+            and event.state_before.game_status == "PLAYING"
+            and event.state_before.winner is None
+            and event.state_before.winner_reason is None
             and event.state_before == frames[-1]
-            and event.state_after == snapshot.state
+            and event.state_after == resigned_state
+            and snapshot.state == resigned_state
         ):
             raise ApiError("REPLAY_INTEGRITY_ERROR", "Final state differs from move history")
         frames.append(snapshot.state)

@@ -192,3 +192,57 @@ def test_resignation_replay_rejects_winner_as_terminal_event_actor(client):
         client.portal.call(client.app.state.service.replay_game, game_id)
 
     assert error.value.code == "REPLAY_INTEGRITY_ERROR"
+
+
+def test_resignation_replay_rejects_already_finished_terminal_event_prestate(client):
+    store = client.app.state.store
+    created = client.post("/api/v1/game", json={"first_player": "A", "mode": "LOCAL"})
+    game_id = created.json()["data"]["game_id"]
+    original = store._games[game_id]
+    before = original.initial_state.model_copy(update={"game_status": "FINISHED"})
+    after = before.model_copy(update={"winner": "B", "winner_reason": "RESIGN"})
+    store._games[game_id] = replace(
+        original, initial_state=before, state=after, version=1, ply_count=0,
+    )
+    store._terminal_events[game_id] = StoredTerminalEvent(
+        game_id=game_id, client_request_id="resign-finished-before-0001",
+        revision=1, event_type="RESIGN", actor="A", winner="B",
+        state_before=before, state_after=after,
+    )
+
+    with pytest.raises(ApiError) as error:
+        client.portal.call(client.app.state.service.replay_game, game_id)
+
+    assert error.value.code == "REPLAY_INTEGRITY_ERROR"
+
+
+@pytest.mark.parametrize("mutation", ["board", "players"])
+def test_resignation_replay_rejects_state_changes_beyond_terminal_metadata(client, mutation):
+    store = client.app.state.store
+    created = client.post("/api/v1/game", json={"first_player": "A", "mode": "LOCAL"})
+    game_id = created.json()["data"]["game_id"]
+    original = store._games[game_id]
+    before = original.initial_state
+    changes = {"game_status": "FINISHED", "winner": "B", "winner_reason": "RESIGN"}
+    if mutation == "board":
+        occupancy = dict(before.board.occupancy)
+        occupancy["P01"] = None
+        changes["board"] = BoardState(occupancy=occupancy)
+    else:
+        players = dict(before.players)
+        players["A"] = players["A"].model_copy(update={"reserve_count": 3})
+        changes["players"] = players
+    after = before.model_copy(update=changes)
+    store._games[game_id] = replace(
+        original, state=after, version=1, ply_count=0,
+    )
+    store._terminal_events[game_id] = StoredTerminalEvent(
+        game_id=game_id, client_request_id=f"resign-{mutation}-mutation-0001",
+        revision=1, event_type="RESIGN", actor="A", winner="B",
+        state_before=before, state_after=after,
+    )
+
+    with pytest.raises(ApiError) as error:
+        client.portal.call(client.app.state.service.replay_game, game_id)
+
+    assert error.value.code == "REPLAY_INTEGRITY_ERROR"
