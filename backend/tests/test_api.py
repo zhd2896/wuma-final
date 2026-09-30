@@ -118,6 +118,8 @@ def test_ready_requires_both_canonical_worker_and_database(client: TestClient, m
 
 def test_create_get_and_legal_moves_use_canonical_state(client: TestClient):
     game_id, state = create_game(client, "B")
+    created = client.get(f"/api/v1/game/{game_id}").json()["data"]
+    assert created["version"] == created["ply_count"] == 0
     assert state["current_player"] == "B"
     assert state["first_player"] == "B"
     assert len(state["board"]["occupancy"]) == 29
@@ -224,7 +226,9 @@ def test_move_executes_real_turn_and_rejects_wrong_turn(client: TestClient):
     assert after["board"]["occupancy"]["P01"] is None
     assert after["board"]["occupancy"]["P02"] == "A"
     assert after["current_player"] == "B"
-    assert client.get(f"/api/v1/game/{game_id}").json()["data"]["state"] == after
+    snapshot = client.get(f"/api/v1/game/{game_id}").json()["data"]
+    assert snapshot["state"] == after
+    assert snapshot["version"] == snapshot["ply_count"] == 1
     repeat = client.post(f"/api/v1/game/{game_id}/move", json={"from_node": "P01", "to_node": "P02"})
     assert repeat.status_code == 400
     assert repeat.json()["code"] == "INVALID_MOVE"

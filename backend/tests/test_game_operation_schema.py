@@ -9,8 +9,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy import Index, UniqueConstraint
 
 from backend.app.db import models
+from backend.app.core.errors import ApiError
 from backend.app.main import create_app
-from backend.app.services.game_store import InMemoryGameStore
+from backend.app.services.game_store import InMemoryGameStore, StoredTerminalEvent
 
 
 def _unique_columns(table) -> set[tuple[str, ...]]:
@@ -130,9 +131,82 @@ def test_remote_retry_uses_created_revision_when_revision_and_ply_diverge():
             store._remote_requests[key], created_revision=3)
         retried = client.post(
             path, json={**body, "expected_version": 2}, headers=headers)
+        store._games[host["game_id"]] = replace(
+            store._games[host["game_id"]], version=4, ply_count=1)
+        room = client.get(
+            f"/api/v1/remote/rooms/{host['game_id']}", headers=headers)
 
     assert retried.status_code == 200, retried.text
     assert retried.json()["data"]["version"] == 3
+    assert retried.json()["data"]["ply_count"] == 1
+    assert room.status_code == 200, room.text
+    assert room.json()["data"]["version"] == 4
+    assert room.json()["data"]["ply_count"] == 1
+
+
+def test_in_memory_replay_uses_only_active_plies_when_revision_is_higher():
+    store = InMemoryGameStore()
+    with TestClient(create_app(store=store, require_auth=False)) as client:
+        created = client.post("/api/v1/game", json={"first_player": "A", "mode": "LOCAL"})
+        game_id = created.json()["data"]["game_id"]
+        moved = client.post(
+            f"/api/v1/game/{game_id}/move",
+            json={"from_node": "P01", "to_node": "P02"},
+        )
+        assert moved.status_code == 200, moved.text
+
+        original = store._moves[game_id][0]
+        store._moves[game_id] = [
+            replace(original, reverted_revision=3),
+            replace(original, game_move_id=2, created_revision=4,
+                    client_request_id="active-branch-0001"),
+        ]
+        store._games[game_id] = replace(
+            store._games[game_id], version=4, ply_count=1,
+            state=original.turn.state,
+        )
+
+        active = client.portal.call(store.list_moves, game_id)
+        frames = client.portal.call(client.app.state.service.replay_game, game_id)
+
+    assert [(move.turn_number, move.created_revision, move.reverted_revision,
+             move.client_request_id) for move in active] == [
+        (1, 4, None, "active-branch-0001"),
+    ]
+    assert frames == [original.turn.before_state, original.turn.state]
+
+
+@pytest.mark.parametrize("corruption", ["count", "turn", "chain", "final"])
+def test_replay_rejects_active_history_corruption(corruption):
+    store = InMemoryGameStore()
+    with TestClient(create_app(store=store, require_auth=False)) as client:
+        created = client.post("/api/v1/game", json={"first_player": "A", "mode": "LOCAL"})
+        game_id = created.json()["data"]["game_id"]
+        moved = client.post(f"/api/v1/game/{game_id}/move", json={
+            "from_node": "P01", "to_node": "P02",
+        })
+        assert moved.status_code == 200, moved.text
+        move = store._moves[game_id][0]
+        game = store._games[game_id]
+        if corruption == "count":
+            store._games[game_id] = replace(game, version=4, ply_count=2)
+        elif corruption == "turn":
+            store._moves[game_id] = [replace(move, turn_number=2)]
+        elif corruption == "chain":
+            store._moves[game_id] = [replace(
+                move, turn=move.turn.model_copy(update={"before_state": move.turn.state}))]
+        else:
+            store._games[game_id] = replace(game, version=2, state=game.initial_state)
+            store._terminal_events[game_id] = StoredTerminalEvent(
+                game_id=game_id, client_request_id="wrong-resign-proof-0001",
+                revision=1, event_type="RESIGN", actor="A", winner="B",
+                state_before=move.turn.state, state_after=game.initial_state,
+            )
+
+        with pytest.raises(ApiError) as error:
+            client.portal.call(client.app.state.service.replay_game, game_id)
+
+    assert error.value.code == "REPLAY_INTEGRITY_ERROR"
 
 
 def test_game_operations_migration_is_the_new_head():

@@ -17,7 +17,8 @@ from backend.app.core.errors import ApiError
 from backend.app.db.models import (AiAnalysisModel, CoachHintModel, TrainingItemModel,
                                     TrainingRecordModel, GameModel, GameMoveModel,
                                     GameReviewModel, MoveReviewModel,
-                                    ReviewExplanationModel, RemoteRoomModel, UserModel)
+                                    ReviewExplanationModel, RemoteRoomModel, UserModel,
+                                    GameTerminalEventModel, utc_now)
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.db.repositories.mysql_store import MySQLGameStore
 from backend.app.main import create_app
@@ -101,6 +102,7 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
         "device_id": "mysql-host-device", "public": False})
     assert host_response.status_code == 200, host_response.text
     host = host_response.json()["data"]
+    assert host["version"] == host["ply_count"] == 0
     game_id = host["game_id"]
     guest_response = client.post("/api/v1/remote/join", json={
         "invite_code": host["invite_code"], "device_id": "mysql-guest-device"})
@@ -118,6 +120,7 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
     path = f"/api/v1/remote/rooms/{game_id}/move"
     moved = client.post(path, json=body, headers=headers)
     assert moved.status_code == 200, moved.text
+    assert moved.json()["data"]["version"] == moved.json()["data"]["ply_count"] == 1
     assert client.post(path, json=body, headers=headers).json()["data"] == moved.json()["data"]
     row, moves = game_and_moves(db, game_id)
     assert row.mode == "REMOTE" and row.version == row.ply_count == 1 and len(moves) == 1
@@ -130,7 +133,7 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
                                 headers={"X-Room-Token": guest["token"]})
         assert fetched.status_code == 200, fetched.text
         assert fetched.json()["data"]["seat"] == "B"
-        assert fetched.json()["data"]["version"] == 1
+        assert fetched.json()["data"]["version"] == fetched.json()["data"]["ply_count"] == 1
         restarted.app.state.store.close()
 
 
@@ -227,7 +230,9 @@ def test_analysis_detects_game_change_during_search_and_does_not_save_stale_resu
 def test_create_get_and_json_roundtrip(client, db):
     game_id = create_game(client)
     row, moves = game_and_moves(db, game_id)
-    state = client.get(f"/api/v1/game/{game_id}").json()["data"]["state"]
+    response = client.get(f"/api/v1/game/{game_id}").json()["data"]
+    state = response["state"]
+    assert response["version"] == response["ply_count"] == 0
     assert row.initial_state == row.current_state == state
     assert row.version == row.ply_count == 0 and moves == []
     assert row.user_id is not None and row.state_schema_version == 1
@@ -473,6 +478,73 @@ def test_turn_numbers_can_branch_but_created_revisions_stay_unique(client, db):
             session.flush()
     assert len(game_and_moves(db, game_id)[1]) == 2
 
+
+def test_mysql_replay_and_history_use_only_active_plies(client, db):
+    game_id = create_game(client, mode="AI")
+    response = client.post(f"/api/v1/game/{game_id}/move", json={
+        "from_node": "P01", "to_node": "P02",
+    })
+    assert response.status_code == 200, response.text
+    with Session(db) as session, session.begin():
+        game = session.get(GameModel, game_id)
+        original = session.scalar(select(GameMoveModel).where(
+            GameMoveModel.game_id == game_id))
+        original.reverted_revision = 3
+        branch = {column.name: getattr(original, column.name)
+                  for column in GameMoveModel.__table__.columns if column.name != "id"}
+        branch.update({
+            "created_revision": 4,
+            "reverted_revision": None,
+            "client_request_id": "mysql-active-branch-0001",
+        })
+        session.add(GameMoveModel(**branch))
+        game.version = 4
+        game.ply_count = 1
+
+    moves = client.portal.call(client.app.state.store.list_moves, game_id)
+    frames = client.portal.call(client.app.state.service.replay_game, game_id)
+    snapshot = client.get(f"/api/v1/game/{game_id}").json()["data"]
+    history = client.get("/api/v1/me/games").json()["data"]["items"]
+
+    assert [(move.turn_number, move.created_revision, move.reverted_revision,
+             move.client_request_id) for move in moves] == [
+        (1, 4, None, "mysql-active-branch-0001"),
+    ]
+    assert len(frames) == 2 and frames[-1].model_dump(mode="json") == snapshot["state"]
+    assert snapshot["version"] == 4 and snapshot["ply_count"] == 1
+    assert next(item for item in history if item["gameId"] == game_id)["turns"] == 1
+
+
+def test_mysql_zero_move_resignation_replay_requires_terminal_event(client, db):
+    game_id = create_game(client)
+    with Session(db) as session, session.begin():
+        game = session.get(GameModel, game_id)
+        before = GameState.model_validate(game.current_state)
+        after = before.model_copy(update={
+            "game_status": "FINISHED", "winner": "B", "winner_reason": "RESIGN",
+        })
+        game.current_state = after.model_dump(mode="json")
+        game.status = "FINISHED"
+        game.winner = "B"
+        game.winner_reason = "RESIGN"
+        game.version = 1
+        game.ply_count = 0
+        session.add(GameTerminalEventModel(
+            game_id=game_id, client_request_id="mysql-resign-zero-0001",
+            revision=1, event_type="RESIGN", actor="A", winner="B",
+            state_before=before.model_dump(mode="json"),
+            state_after=after.model_dump(mode="json"), created_at=utc_now(),
+        ))
+
+    frames = client.portal.call(client.app.state.service.replay_game, game_id)
+    review = client.post(f"/api/v1/game/{game_id}/review", json={})
+
+    assert [frame.model_dump(mode="json") for frame in frames] == [
+        before.model_dump(mode="json"), after.model_dump(mode="json"),
+    ]
+    assert review.status_code == 200, review.text
+    assert review.json()["data"]["winnerReason"] == "RESIGN"
+    assert review.json()["data"]["moveReviews"] == []
 
 def test_replay_rejects_disagreeing_snapshots(client, db):
     game_id = create_game(client)

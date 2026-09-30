@@ -1,5 +1,7 @@
 """Anonymous device identity and ownership at the HTTP boundary."""
 
+from dataclasses import replace
+
 from fastapi.testclient import TestClient
 
 from backend.app.main import create_app
@@ -43,6 +45,25 @@ def test_account_game_cursor_has_no_duplicates():
         assert client.get("/api/v1/me/games?cursor=not-base64").status_code == 422
         client.headers["Authorization"] = "Bearer " + 'f' * 64
         assert client.get("/api/v1/me/games").status_code == 401
+
+
+def test_account_history_turns_use_active_ply_count():
+    store = InMemoryGameStore()
+    with TestClient(create_app(store=store, require_auth=True)) as client:
+        token = client.post("/api/v1/auth/device").json()["data"]["token"]
+        client.headers["Authorization"] = "Bearer " + token
+        created = client.post("/api/v1/game", json={"mode": "AI", "first_player": "A"})
+        game_id = created.json()["data"]["game_id"]
+        moved = client.post(f"/api/v1/game/{game_id}/move", json={
+            "from_node": "P01", "to_node": "P02",
+        })
+        assert moved.status_code == 200, moved.text
+        store._games[game_id] = replace(store._games[game_id], version=4, ply_count=1)
+
+        history = client.get("/api/v1/me/games").json()["data"]["items"]
+
+    assert history[0]["gameId"] == game_id
+    assert history[0]["turns"] == 1
 
 
 def test_training_and_legacy_data_stay_outside_other_accounts():

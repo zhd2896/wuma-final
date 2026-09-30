@@ -6,9 +6,9 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from backend.app.core.errors import ApiError
-from backend.app.db.models import GameModel, utc_now
+from backend.app.db.models import GameModel, GameTerminalEventModel, utc_now
 from backend.app.schemas.game import GameState
-from backend.app.services.game_store import StoredGame
+from backend.app.services.game_store import StoredGame, StoredTerminalEvent
 
 
 class GameRepository:
@@ -45,6 +45,20 @@ class GameRepository:
             state=GameState.model_validate(row.current_state), version=row.version,
             ply_count=row.ply_count, mode=row.mode, ai_player=row.ai_player,
             ai_level=row.ai_level, user_id=row.user_id)
+
+    def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None:
+        row = self.session.scalar(select(GameTerminalEventModel).where(
+            GameTerminalEventModel.game_id == game_id))
+        if row is None:
+            return None
+        return StoredTerminalEvent(
+            game_id=row.game_id, client_request_id=row.client_request_id,
+            revision=row.revision, event_type=row.event_type, actor=row.actor,
+            winner=row.winner,
+            state_before=GameState.model_validate(row.state_before),
+            state_after=GameState.model_validate(row.state_after),
+            terminal_event_id=row.id,
+        )
 
     def update_game_state(self, row: GameModel, expected_version: int, state: GameState) -> None:
         now = utc_now()

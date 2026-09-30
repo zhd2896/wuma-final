@@ -38,7 +38,10 @@ class MoveRepository:
 
     def list_moves(self, game_id: str) -> list[StoredMove]:
         rows = self.session.scalars(
-            select(GameMoveModel).where(GameMoveModel.game_id == game_id)
+            select(GameMoveModel).where(
+                GameMoveModel.game_id == game_id,
+                GameMoveModel.reverted_revision.is_(None),
+            )
             .order_by(GameMoveModel.turn_number)
         ).all()
         result = []

@@ -40,6 +40,19 @@ class StoredMove:
 
 
 @dataclass(frozen=True)
+class StoredTerminalEvent:
+    game_id: str
+    client_request_id: str
+    revision: int
+    event_type: str
+    actor: str
+    winner: str
+    state_before: GameState
+    state_after: GameState
+    terminal_event_id: int = 0
+
+
+@dataclass(frozen=True)
 class StoredRemoteRoom:
     game_id: str
     invite_code: str
@@ -69,6 +82,7 @@ class GameStore(Protocol):
                           actor_type: str, search: SearchResult | None = None) -> None: ...
     async def list_moves(self, game_id: str) -> list[StoredMove]: ...
     async def read_replay(self, game_id: str) -> tuple[StoredGame, list[StoredMove]]: ...
+    async def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None: ...
     async def lock_for(self, game_id: str) -> asyncio.Lock: ...
     async def commit_analysis(self, game_id: str, expected_version: int,
                               analysis: PositionAnalysis) -> None: ...
@@ -125,6 +139,7 @@ class InMemoryGameStore:
         self._catalog_lock = asyncio.Lock()
         self._remote_rooms: dict[str, StoredRemoteRoom] = {}
         self._remote_requests: dict[tuple[str, str], StoredMove] = {}
+        self._terminal_events: dict[str, StoredTerminalEvent] = {}
         self._device_users: dict[str, str] = {}
         self._game_created: dict[str, datetime] = {}
         self._training_owners: dict[str, str | None] = {}
@@ -220,12 +235,19 @@ class InMemoryGameStore:
 
     async def list_moves(self, game_id: str) -> list[StoredMove]:
         await self.get_snapshot(game_id)
-        return list(self._moves[game_id])
+        return sorted(
+            (move for move in self._moves[game_id] if move.reverted_revision is None),
+            key=lambda move: move.turn_number,
+        )
 
     async def read_replay(self, game_id: str) -> tuple[StoredGame, list[StoredMove]]:
         lock = await self.lock_for(game_id)
         async with lock:
             return await self.get_snapshot(game_id), await self.list_moves(game_id)
+
+    async def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None:
+        await self.get_snapshot(game_id)
+        return self._terminal_events.get(game_id)
 
     async def update(self, game_id: str, state: GameState) -> None:
         """Fixture setup for legacy API tests; never used by production."""

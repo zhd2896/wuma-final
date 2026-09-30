@@ -1,6 +1,7 @@
 """Review API exercises real Node search with saved in-memory turn snapshots."""
 
 from datetime import UTC, datetime
+from dataclasses import replace
 from unittest.mock import patch
 
 import pytest
@@ -9,7 +10,7 @@ from fastapi.testclient import TestClient
 from backend.app.core.errors import ApiError
 from backend.app.main import create_app
 from backend.app.schemas.game import BoardState, GameReview, GameState, Move
-from backend.app.services.game_store import InMemoryGameStore
+from backend.app.services.game_store import InMemoryGameStore, StoredTerminalEvent
 from backend.app.services.review_explanation.fallback import fallback_game
 
 
@@ -139,3 +140,32 @@ def test_ai_review_counts_only_human_turns(client):
     assert sum(review[key] for key in ("goodMoves", "normalMoves", "mistakes", "blunders")) == 2
     denied = client.post(f"/api/v1/game/{game_id}/review", json={"reviewed_player": "B"})
     assert denied.status_code == 422 and denied.json()["code"] == "INVALID_REQUEST"
+
+
+def test_zero_move_resignation_requires_matching_terminal_event_and_fabricates_no_move(client):
+    store = client.app.state.store
+    created = client.post("/api/v1/game", json={"first_player": "A", "mode": "LOCAL"})
+    game_id = created.json()["data"]["game_id"]
+    original = store._games[game_id]
+    resigned = original.state.model_copy(update={
+        "game_status": "FINISHED", "winner": "B", "winner_reason": "RESIGN",
+    })
+    store._games[game_id] = replace(
+        original, state=resigned, version=1, ply_count=0,
+    )
+    store._terminal_events[game_id] = StoredTerminalEvent(
+        game_id=game_id, client_request_id="resign-zero-0001",
+        revision=1, event_type="RESIGN", actor="A", winner="B",
+        state_before=original.initial_state, state_after=resigned,
+    )
+
+    with patch.object(client.app.state.adapter, "review_move",
+                      side_effect=AssertionError("zero-move review must not call the adapter")):
+        response = client.post(f"/api/v1/game/{game_id}/review", json={})
+    frames = client.portal.call(client.app.state.service.replay_game, game_id)
+
+    assert response.status_code == 200, response.text
+    review = response.json()["data"]
+    assert review["winner"] == "B" and review["winnerReason"] == "RESIGN"
+    assert review["moveReviews"] == []
+    assert frames == [original.initial_state, resigned]

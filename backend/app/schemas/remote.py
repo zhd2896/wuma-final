@@ -46,10 +46,12 @@ class RemoteRoomResponse(StrictModel):
     public: bool
     expires_at: datetime
     version: int
+    ply_count: int
     state: GameState
     token: str | None = None
 
 
 class RemoteMoveResponse(StrictModel):
     version: int
+    ply_count: int
     turn: TurnResult

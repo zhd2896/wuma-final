@@ -17,7 +17,8 @@ def test_private_room_two_seats_turns_idempotency_and_reconnect():
             "device_id": "device-host-123", "public": False,
         }))
         assert host["seat"] == "A" and host["room_status"] == "WAITING"
-        assert host["version"] == 0 and host["state"]["current_player"] == "A"
+        assert host["version"] == host["ply_count"] == 0
+        assert host["state"]["current_player"] == "A"
         assert len(host["invite_code"]) == 8 and len(host["token"]) >= 32
         game_id = host["game_id"]
         a = {"X-Room-Token": host["token"]}
@@ -41,7 +42,7 @@ def test_private_room_two_seats_turns_idempotency_and_reconnect():
                  "client_request_id": "request-A-0001"}
         assert client.post(path, json=first, headers=b).status_code == 403
         moved = data(client.post(path, json=first, headers=a))
-        assert moved["version"] == 1
+        assert moved["version"] == moved["ply_count"] == 1
         assert moved["turn"]["state"]["board"]["occupancy"]["P02"] == "A"
         repeated = data(client.post(path, json=first, headers=a))
         assert repeated == moved
@@ -66,14 +67,16 @@ def test_private_room_two_seats_turns_idempotency_and_reconnect():
         }).status_code == 403
 
         guest_view = data(client.get(f"/api/v1/remote/rooms/{game_id}", headers=b))
-        assert guest_view["version"] == 1 and guest_view["seat"] == "B"
+        assert guest_view["version"] == guest_view["ply_count"] == 1
+        assert guest_view["seat"] == "B"
         assert guest_view["state"]["board"]["occupancy"]["P02"] == "A"
         second = data(client.post(path, json={"from_node": "P05", "to_node": "P04",
                                                "expected_version": 1,
                                                "client_request_id": "request-B-0001"}, headers=b))
-        assert second["version"] == 2
+        assert second["version"] == second["ply_count"] == 2
         reconnected = data(client.get(f"/api/v1/remote/rooms/{game_id}", headers=a))
-        assert reconnected["version"] == 2 and reconnected["seat"] == "A"
+        assert reconnected["version"] == reconnected["ply_count"] == 2
+        assert reconnected["seat"] == "A"
         assert reconnected["state"]["board"]["occupancy"]["P04"] == "B"
         assert len(client.portal.call(client.app.state.store.list_moves, game_id)) == 2
 
@@ -123,11 +126,12 @@ def test_two_remote_seats_reach_the_same_authoritative_terminal():
                                      json={"from_node": source, "to_node": destination,
                                            "expected_version": index,
                                            "client_request_id": f"terminal-move-{index:04d}"}))
-            assert moved["version"] == index + 1
+            assert moved["version"] == moved["ply_count"] == index + 1
         views = [data(client.get(path, headers={"X-Room-Token": item["token"]}))
                  for item in (host, guest)]
         assert views[0]["state"] == views[1]["state"]
         assert views[0]["version"] == views[1]["version"] == len(fixture)
+        assert views[0]["ply_count"] == views[1]["ply_count"] == len(fixture)
         assert views[0]["room_status"] == views[1]["room_status"] == "FINISHED"
         assert views[0]["state"]["winner"] in ("A", "B")
         assert client.get(f"/api/v1/game/{game_id}/review").status_code == 403

@@ -11,7 +11,7 @@ from backend.app.schemas.game import (
     LegalMovesResponse, Move, MoveRequest, MoveResponse, GameState, GameReview,
     MoveReview, ReviewConfig,
 )
-from backend.app.services.game_store import GameStore
+from backend.app.services.game_store import GameStore, StoredGame, StoredMove
 
 
 class GameService:
@@ -27,7 +27,8 @@ class GameService:
         ai_level = "STANDARD" if request.mode == "AI" else None
         state = await self.adapter.initialize(request.first_player)
         game_id = await self.store.create(state, request.mode, ai_player, ai_level, user_id)
-        return GameResponse(game_id=game_id, version=0, state=state, mode=request.mode,
+        return GameResponse(game_id=game_id, version=0, ply_count=0,
+                            state=state, mode=request.mode,
                             human_player=self._human(ai_player), ai_player=ai_player,
                             ai_level=ai_level)
 
@@ -40,6 +41,7 @@ class GameService:
         if snapshot.mode == "REMOTE":
             raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
         return GameResponse(game_id=game_id, version=snapshot.version,
+                            ply_count=snapshot.ply_count,
                             state=snapshot.state, mode=snapshot.mode,
                             human_player=self._human(snapshot.ai_player),
                             ai_player=snapshot.ai_player, ai_level=snapshot.ai_level)
@@ -90,13 +92,32 @@ class GameService:
     async def replay_game(self, game_id: str) -> list[GameState]:
         """Read historical snapshots without reinterpreting moves under future rules."""
         snapshot, moves = await self.store.read_replay(game_id)
+        return await self._validated_replay(snapshot, moves)
+
+    async def _validated_replay(self, snapshot: StoredGame,
+                                moves: list[StoredMove]) -> list[GameState]:
+        if len(moves) != snapshot.ply_count:
+            raise ApiError("REPLAY_INTEGRITY_ERROR", "Active move count does not match game")
         frames = [snapshot.initial_state]
         for number, item in enumerate(moves, 1):
             if item.turn_number != number or item.turn.before_state != frames[-1]:
                 raise ApiError("REPLAY_INTEGRITY_ERROR", "Move history is not contiguous")
             frames.append(item.turn.state)
-        if len(moves) != snapshot.version or frames[-1] != snapshot.state:
+        if frames[-1] == snapshot.state:
+            return frames
+        event = await self.store.get_terminal_event(snapshot.game_id)
+        if not (
+            snapshot.state.game_status == "FINISHED"
+            and snapshot.state.winner_reason == "RESIGN"
+            and event is not None
+            and event.event_type == "RESIGN"
+            and event.revision == snapshot.version
+            and event.winner == snapshot.state.winner
+            and event.state_before == frames[-1]
+            and event.state_after == snapshot.state
+        ):
             raise ApiError("REPLAY_INTEGRITY_ERROR", "Final state differs from move history")
+        frames.append(snapshot.state)
         return frames
 
     async def analyze(self, game_id: str, expected_version: int | None = None) -> AnalyzeResponse:
@@ -142,16 +163,10 @@ class GameService:
         if snapshot.state.game_status != "FINISHED":
             raise ApiError("GAME_NOT_FINISHED", "Game has not finished")
         player = self._reviewed_player(snapshot, reviewed_player)
+        await self._validated_replay(snapshot, moves)
         existing = await self.store.get_review(game_id, player, config.version)
         if existing is not None:
             return existing
-        frame = snapshot.initial_state
-        for number, item in enumerate(moves, 1):
-            if item.turn_number != number or item.turn.before_state != frame:
-                raise ApiError("REPLAY_INTEGRITY_ERROR", "Move history is not contiguous")
-            frame = item.turn.state
-        if len(moves) != snapshot.version or frame != snapshot.state:
-            raise ApiError("REPLAY_INTEGRITY_ERROR", "Final state differs from move history")
         reviewed = []
         for item in moves:
             if item.actor_type != "HUMAN" or item.turn.before_state.current_player != player:

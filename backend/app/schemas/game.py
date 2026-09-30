@@ -254,6 +254,7 @@ class HealthResponse(StrictModel):
 class GameResponse(StrictModel):
     game_id: str
     version: int
+    ply_count: int
     state: GameState
     mode: Literal["LOCAL", "AI"]
     human_player: Player | None

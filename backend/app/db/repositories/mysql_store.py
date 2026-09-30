@@ -21,7 +21,8 @@ from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
                                           TrainingSource)
 from backend.app.db.repositories.training import TrainingRepository
-from backend.app.services.game_store import StoredGame, StoredMove, StoredRemoteRoom
+from backend.app.services.game_store import (StoredGame, StoredMove, StoredRemoteRoom,
+                                             StoredTerminalEvent)
 
 
 class MySQLGameStore:
@@ -205,6 +206,17 @@ class MySQLGameStore:
                 snapshot = GameRepository(session).get_snapshot(game_id)
                 moves = MoveRepository(session).list_moves(game_id)
                 return snapshot, moves
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
+
+    async def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None:
+        return await asyncio.to_thread(self._get_terminal_event, game_id)
+
+    def _get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None:
+        try:
+            with self.sessions() as session:
+                GameRepository(session).get_game(game_id)
+                return GameRepository(session).get_terminal_event(game_id)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
