@@ -239,7 +239,21 @@ class InMemoryGameStore:
         game = self._games.get(game_id)
         if game is None:
             raise ApiError("GAME_NOT_FOUND", "Game not found")
-        return game
+        return replace(
+            game, initial_state=game.initial_state.model_copy(deep=True),
+            state=game.state.model_copy(deep=True))
+
+    @staticmethod
+    def _copy_move(move: StoredMove) -> StoredMove:
+        return replace(
+            move, turn=move.turn.model_copy(deep=True),
+            search=move.search.model_copy(deep=True) if move.search is not None else None)
+
+    @staticmethod
+    def _copy_terminal_event(event: StoredTerminalEvent) -> StoredTerminalEvent:
+        return replace(
+            event, state_before=event.state_before.model_copy(deep=True),
+            state_after=event.state_after.model_copy(deep=True))
 
     async def commit_turn(self, game_id: str, expected_version: int, turn: TurnResult,
                           actor_type: str, search: SearchResult | None = None) -> None:
@@ -257,7 +271,8 @@ class InMemoryGameStore:
     async def list_moves(self, game_id: str) -> list[StoredMove]:
         await self.get_snapshot(game_id)
         return sorted(
-            (move for move in self._moves[game_id] if move.reverted_revision is None),
+            (self._copy_move(move) for move in self._moves[game_id]
+             if move.reverted_revision is None),
             key=lambda move: move.turn_number,
         )
 
@@ -268,7 +283,8 @@ class InMemoryGameStore:
 
     async def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None:
         await self.get_snapshot(game_id)
-        return self._terminal_events.get(game_id)
+        event = self._terminal_events.get(game_id)
+        return self._copy_terminal_event(event) if event is not None else None
 
     @staticmethod
     def _request_conflict() -> ApiError:
@@ -283,13 +299,14 @@ class InMemoryGameStore:
                 raise self._request_conflict()
             return GameOperationResponse(
                 version=undo.after_revision, ply_count=undo.anchor_turn - 1,
-                state=undo.state_after, reverted_turns=undo.reverted_count)
+                state=undo.state_after.model_copy(deep=True),
+                reverted_turns=undo.reverted_count)
         if terminal is not None and terminal.client_request_id == request.client_request_id:
             if operation != "RESIGN" or terminal.revision - 1 != request.expected_version:
                 raise self._request_conflict()
             return GameOperationResponse(
                 version=terminal.revision, ply_count=game.ply_count,
-                state=terminal.state_after)
+                state=terminal.state_after.model_copy(deep=True))
         return None
 
     @staticmethod
@@ -326,16 +343,17 @@ class InMemoryGameStore:
                 replace(item, reverted_revision=revision) if id(item) in reverted_ids else item
                 for item in self._moves[game_id]
             ]
-            state = anchor.turn.before_state
+            state = anchor.turn.before_state.model_copy(deep=True)
             self._games[game_id] = replace(
-                game, state=state, version=revision, ply_count=anchor.turn_number - 1)
+                game, state=state.model_copy(deep=True), version=revision,
+                ply_count=anchor.turn_number - 1)
             event = StoredUndoEvent(
                 game_id=game_id, client_request_id=request.client_request_id,
                 requester=(("B" if game.ai_player == "A" else "A")
                            if game.mode == "AI" else game.state.current_player),
                 before_revision=game.version,
                 after_revision=revision, anchor_turn=anchor.turn_number,
-                reverted_count=len(reverted), state_after=state,
+                reverted_count=len(reverted), state_after=state.model_copy(deep=True),
                 undo_event_id=len(self._undo_events) + 1,
             )
             self._undo_events[(game_id, request.client_request_id)] = event
@@ -357,19 +375,22 @@ class InMemoryGameStore:
             loser = (("B" if game.ai_player == "A" else "A")
                      if game.mode == "AI" else game.state.current_player)
             winner = "B" if loser == "A" else "A"
-            finished = game.state.model_copy(update={
+            finished = game.state.model_copy(deep=True, update={
                 "game_status": "FINISHED", "winner": winner, "winner_reason": "RESIGN",
             })
             revision = game.version + 1
-            self._games[game_id] = replace(game, state=finished, version=revision)
+            self._games[game_id] = replace(
+                game, state=finished.model_copy(deep=True), version=revision)
             self._terminal_events[game_id] = StoredTerminalEvent(
                 game_id=game_id, client_request_id=request.client_request_id,
                 revision=revision, event_type="RESIGN", actor=loser, winner=winner,
-                state_before=game.state, state_after=finished,
+                state_before=game.state.model_copy(deep=True),
+                state_after=finished.model_copy(deep=True),
                 terminal_event_id=len(self._terminal_events) + 1,
             )
             return GameOperationResponse(
-                version=revision, ply_count=game.ply_count, state=finished)
+                version=revision, ply_count=game.ply_count,
+                state=finished.model_copy(deep=True))
 
     async def update(self, game_id: str, state: GameState) -> None:
         """Fixture setup for legacy API tests; never used by production."""

@@ -332,6 +332,62 @@ def test_store_records_typed_undo_event(client):
             event.reverted_count) == (1, 2, 1, 1)
 
 
+def test_undo_response_state_is_isolated_from_snapshot_event_and_retry(client):
+    store = client.app.state.store
+    game_id = create_game(client)["game_id"]
+    move(client, game_id)
+    request = GameOperationRequest(
+        expected_version=1, client_request_id="copy-undo-0001")
+    response = client.portal.call(store.commit_undo, game_id, request)
+
+    response.state.board.occupancy["P01"] = None
+
+    stored = store._games[game_id]
+    event = store._undo_events[(game_id, request.client_request_id)]
+    retried = client.portal.call(store.commit_undo, game_id, request)
+    assert stored.state.board.occupancy["P01"] == "A"
+    assert event.state_after.board.occupancy["P01"] == "A"
+    assert retried.state.board.occupancy["P01"] == "A"
+
+
+def test_resign_response_event_and_replay_reads_are_isolated(client):
+    store = client.app.state.store
+    game_id = create_game(client)["game_id"]
+    request = GameOperationRequest(
+        expected_version=0, client_request_id="copy-resign-0001")
+    response = client.portal.call(store.commit_resign, game_id, request)
+
+    response.state.board.occupancy["P01"] = None
+    event = client.portal.call(store.get_terminal_event, game_id)
+    event.state_before.board.occupancy["P05"] = None
+    event.state_after.board.occupancy["P01"] = None
+    frames = client.portal.call(client.app.state.service.replay_game, game_id)
+    frames[0].board.occupancy["P06"] = None
+    frames[-1].board.occupancy["P11"] = None
+
+    stored = store._games[game_id]
+    stored_event = store._terminal_events[game_id]
+    assert stored.state.board.occupancy["P01"] == "A"
+    assert stored.initial_state.board.occupancy["P06"] == "A"
+    assert stored_event.state_before.board.occupancy["P05"] == "B"
+    assert stored_event.state_after.board.occupancy["P01"] == "A"
+    assert stored_event.state_after.board.occupancy["P11"] == "A"
+
+
+def test_snapshot_and_move_reads_do_not_expose_stored_operation_state(client):
+    store = client.app.state.store
+    game_id = create_game(client)["game_id"]
+    move(client, game_id)
+
+    snapshot = client.portal.call(store.get_snapshot, game_id)
+    moves = client.portal.call(store.list_moves, game_id)
+    snapshot.state.board.occupancy["P02"] = None
+    moves[0].turn.state.board.occupancy["P02"] = None
+
+    assert store._games[game_id].state.board.occupancy["P02"] == "A"
+    assert store._moves[game_id][0].turn.state.board.occupancy["P02"] == "A"
+
+
 def test_mysql_operation_methods_fail_explicitly_until_transaction_support_exists():
     store = object.__new__(MySQLGameStore)
     request = GameOperationRequest(expected_version=0, client_request_id="mysql-op-0001")
