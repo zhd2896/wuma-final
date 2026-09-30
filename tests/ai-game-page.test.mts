@@ -27,6 +27,8 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   let creates = 0;
   let aiCalls = 0;
   let analysisCalls = 0;
+  let version = 0;
+  let plyCount = 0;
   let waitForAi: (() => void) | null = null;
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
@@ -41,12 +43,15 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
       const url = new URL(options.url);
       const reply = (data: unknown) => options.success({ statusCode: 200,
         data: { code: 0, message: 'success', data } });
-      const game = () => ({ game_id: `ai${creates}`, state, mode: 'AI',
+      const game = () => ({ game_id: `ai${creates}`, version, ply_count: plyCount,
+        state, mode: 'AI',
         human_player: 'A', ai_player: 'B', ai_level: 'STANDARD' });
       if (url.pathname === '/api/v1/game' && options.method === 'POST') {
         assert.equal(options.data.mode, 'AI');
         creates++;
         state = createInitialGameState({ firstPlayer: options.data.first_player });
+        version = 0;
+        plyCount = 0;
         reply(game());
       } else if (url.pathname.endsWith('/legal-moves')) {
         reply({ moves: RuleEngine.getAllLegalMoves(state).filter(
@@ -57,6 +62,8 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
           const move = RuleEngine.getAllLegalMoves(state)[0];
           const turn = RuleEngine.executeTurn(state, move);
           state = turn.state;
+          version++;
+          plyCount++;
           reply({ turn, search: { bestMove: move, scorePerspective: 'B',
             searchDepth: 1, thinkingTimeMs: 5, timedOut: false } });
         };
@@ -66,11 +73,25 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
         const turn = RuleEngine.executeTurn(state,
           { from: options.data.from_node, to: options.data.to_node });
         state = turn.state;
+        version++;
+        plyCount++;
         reply({ turn });
+      } else if (url.pathname.endsWith('/undo')) {
+        assert.equal(options.data.expected_version, version);
+        assert.match(options.data.client_request_id, /^game-undo-/);
+        state = createInitialGameState();
+        version++;
+        plyCount = 0;
+        reply({ version, ply_count: plyCount, state, reverted_turns: 2 });
+      } else if (url.pathname.endsWith('/resign')) {
+        assert.equal(options.data.expected_version, version);
+        state = { ...state, game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' };
+        version++;
+        reply({ version, ply_count: plyCount, state, reverted_turns: 0 });
       } else if (url.pathname === '/api/v1/ai/analyze') {
         analysisCalls++;
         assert.equal(options.data.game_id, `ai${creates}`);
-        reply({ game_id: `ai${creates}`, game_version: aiCalls + creates - 1,
+        reply({ game_id: `ai${creates}`, game_version: version,
           ...analyzePosition(state, { maxDepth: 1, timeLimitMs: 1000, now: () => 0 }) });
       } else if (options.method === 'GET') reply(game());
       else throw new Error(`Unexpected request ${options.url}`);
@@ -102,6 +123,7 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   assert.equal(page.data.aiState.isAiThinking, false);
   assert.equal(page.data.aiState.gameState.current_player, 'A');
   assert.equal(page.data.aiState.lastSearch.searchDepth, 1);
+  assert.equal(page.data.aiState.plyCount, 2);
   const beforeAnalysis = structuredClone(page.data.aiState.gameState);
   page.onAction({ currentTarget: { dataset: { action: 'analysis' } } });
   await flush();
@@ -112,6 +134,17 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
     mapPositionAnalysis(page.data.aiState.gameState, page.data.aiState.analysis));
   assert.equal(page.data.board.recommendedFrom, page.data.aiState.lastMove.from);
   assert.equal(page.data.board.recommendedTo, page.data.aiState.lastMove.to);
+  page.onAction({ currentTarget: { dataset: { action: 'undo' } } });
+  assert.equal(page.data.showUndoConfirm, true);
+  page.confirmUndo();
+  await flush();
+  assert.equal(page.data.aiState.plyCount, 0);
+  assert.equal(page.data.operationBusy, false);
+  page.onAction({ currentTarget: { dataset: { action: 'resign' } } });
+  assert.equal(page.data.showResign, true);
+  page.confirmResign();
+  await flush();
+  assert.equal(page.data.aiState.gameState.winner_reason, 'RESIGN');
   page.restartAiFirstGame();
   await flush();
   assert.equal(creates, 2);

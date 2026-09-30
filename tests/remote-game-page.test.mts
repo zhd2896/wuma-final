@@ -47,14 +47,19 @@ test('existing game page renders remote server state, saves ID, restores and kee
         data: { code: 0, message: 'success', data } });
       if (path === '/api/v1/game' && options.method === 'POST') {
         creates++;
-        reply({ game_id: `g${creates}`, state: initial });
+        reply({ game_id: `g${creates}`, version: 0, ply_count: 0, state: initial });
       } else if (path === '/api/v1/game/g1' && options.method === 'GET') {
-        reply({ game_id: 'g1', state: serverState });
+        reply({ game_id: 'g1', version: serverState === initial ? 0 : 1,
+          ply_count: serverState === initial ? 0 : 1, state: serverState });
       } else if (path.endsWith('/legal-moves')) {
         reply({ moves: [{ from: 'P01', to: 'P02' }] });
       } else if (path.endsWith('/move')) {
         serverState = turn.state;
         reply({ turn });
+      } else if (path.endsWith('/undo')) {
+        assert.equal(options.data.expected_version, 1);
+        serverState = initial;
+        reply({ version: 2, ply_count: 0, state: initial, reverted_turns: 1 });
       } else throw new Error(`Unexpected request ${options.url}`);
     },
   };
@@ -81,14 +86,19 @@ test('existing game page renders remote server state, saves ID, restores and kee
   assert.equal(page.data.remoteView.currentPlayer, 'B');
   assert.deepEqual(requests.find(request => request.url.endsWith('/move'))?.data,
     { from_node: 'P01', to_node: 'P02' });
+  page.onAction({ currentTarget: { dataset: { action: 'undo' } } });
+  assert.equal(page.data.showUndoConfirm, true);
+  page.confirmUndo();
+  await flush();
+  assert.equal(page.data.remoteState.plyCount, 0);
+  assert.equal(page.data.remoteView.currentPlayer, 'A');
   page.onUnload();
 
   const reopened = makePage();
   reopened.onLoad({ mode: 'remote' });
   await flush();
   assert.equal(creates, 1);
-  assert.equal(reopened.data.remoteView.currentPlayer, 'B');
-  assert.equal(reopened.data.board.pieces.find((piece: any) => piece.nodeId === 'P02').side, 'black');
+  assert.equal(reopened.data.remoteView.currentPlayer, 'A');
   reopened.onAction({ currentTarget: { dataset: { action: 'restart' } } });
   await flush();
   assert.equal(storedId, 'g2');

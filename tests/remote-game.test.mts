@@ -288,3 +288,30 @@ test('disposed page ignores late request response', async () => {
   assert.equal(updates, beforeDispose);
   assert.equal(f.saved, null);
 });
+
+test('compatible LOCAL remote controller applies authoritative one-ply undo and resignation', async () => {
+  const f = fixture();
+  const requests: any[] = [];
+  f.api.createGame = async () => ({ game_id: 'g1', version: 1, ply_count: 1,
+    state: f.turn.state });
+  (f.api as any).undo = async (_id: string, request: any) => {
+    requests.push(['undo', request]);
+    return { version: 2, ply_count: 0, state: f.initial, reverted_turns: 1 };
+  };
+  (f.api as any).resign = async (_id: string, request: any) => {
+    requests.push(['resign', request]);
+    return { version: 3, ply_count: 0,
+      state: { ...f.initial, game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' },
+      reverted_turns: 0 };
+  };
+  const c = new RemoteGameController(f.api as any, f.storage, () => {});
+  await c.enter();
+  assert.equal(c.snapshot.plyCount, 1);
+  await c.undo();
+  assert.equal(c.snapshot.plyCount, 0);
+  assert.deepEqual(c.snapshot.gameState, f.initial);
+  assert.equal(requests[0][1].expected_version, 1);
+  await c.resign();
+  assert.equal(c.snapshot.gameState?.winner_reason, 'RESIGN');
+  assert.equal(c.snapshot.isOperating, false);
+});

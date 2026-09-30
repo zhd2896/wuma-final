@@ -69,7 +69,7 @@ Page({
     remoteReady: false, aiState: null as AiGameSnapshot | null,
     aiView: null as GameViewModel | null, aiReady: false,
     aiAName: '玩家 A', aiBName: '标准 AI · B',
-    aiCaptureText: '',
+    remoteCaptureText: '', aiCaptureText: '',
     aiAnalysisView: null as AnalysisViewModel | null,
     mode: 'ai', showHint: false, thinking: false,
     showUndoConfirm: false, showResign: false, showSettings: false,
@@ -113,22 +113,30 @@ Page({
     this.aiController?.dispose(); this.aiController = null;
   },
   renderRemote(snapshot: RemoteGameSnapshot) {
+    const previous = this.data.remoteState as RemoteGameSnapshot | null;
     if (snapshot.gameId && snapshot.gameState) {
       this.saveHistory(snapshot.gameId, 'remote', snapshot.gameState,
-        snapshot.gameVersion ?? this.historyTurns(snapshot.gameId));
+        snapshot.plyCount);
     }
     const view = snapshot.gameState ? mapGameStateToView(snapshot.gameState, {
       selectedNode: snapshot.selectedNode,
       legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
       lastMove: snapshot.lastMove,
     }) : null;
+    if (previous?.gameId === snapshot.gameId && snapshot.plyCount > previous.plyCount &&
+        snapshot.lastMove) vibrateForSuccessfulAction(this.data.settings);
     this.setData({ remoteState: snapshot, remoteView: view,
+      operationBusy: snapshot.isOperating,
+      remoteCaptureText: this.data.settings.showCaptureNotice && snapshot.lastCapture?.was_applied
+        ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚`
+        : '',
       remoteReady: view !== null, board: view?.board ?? emptyBoard });
   },
   renderAi(snapshot: AiGameSnapshot) {
+    const previous = this.data.aiState as AiGameSnapshot | null;
     if (snapshot.gameId && snapshot.gameState) {
       this.saveHistory(snapshot.gameId, 'ai', snapshot.gameState,
-        snapshot.gameVersion ?? this.historyTurns(snapshot.gameId));
+        snapshot.plyCount);
     }
     const view = snapshot.gameState ? mapGameStateToView(snapshot.gameState, {
       selectedNode: snapshot.selectedNode,
@@ -138,7 +146,10 @@ Page({
     }) : null;
     const analysisView = snapshot.analysis && snapshot.gameState
       ? mapPositionAnalysis(snapshot.gameState, snapshot.analysis) : null;
+    if (previous?.gameId === snapshot.gameId && snapshot.plyCount > previous.plyCount &&
+        snapshot.lastMove) vibrateForSuccessfulAction(this.data.settings);
     this.setData({ aiState: snapshot, aiView: view,
+      operationBusy: snapshot.isOperating,
       aiAnalysisView: analysisView,
       aiCaptureText: this.data.settings.showCaptureNotice && snapshot.lastCapture?.was_applied
         ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚`
@@ -296,9 +307,25 @@ Page({
   retryAiGame() { void this.aiController?.enter(this.aiFirstPlayer); },
   undo() {
     if (this.data.operationBusy) return;
-    if (this.data.mode !== 'local') {
-      wx.showToast({ title: '当前模式暂不支持悔棋', icon: 'none' });
-      return;
+    if (this.data.mode === 'ai') {
+      const snapshot = this.data.aiState as AiGameSnapshot | null;
+      if (!snapshot || snapshot.gameState?.game_status !== 'PLAYING') {
+        wx.showToast({ title: '对局已结束，无法悔棋', icon: 'none' }); return;
+      }
+      if (snapshot.plyCount === 0) {
+        wx.showToast({ title: '当前没有可悔的棋步', icon: 'none' }); return;
+      }
+      this.setData({ showUndoConfirm: true, showResign: false }); return;
+    }
+    if (this.data.mode === 'remote') {
+      const snapshot = this.data.remoteState as RemoteGameSnapshot | null;
+      if (!snapshot || snapshot.gameState?.game_status !== 'PLAYING') {
+        wx.showToast({ title: '对局已结束，无法悔棋', icon: 'none' }); return;
+      }
+      if (snapshot.plyCount === 0) {
+        wx.showToast({ title: '当前没有可悔的棋步', icon: 'none' }); return;
+      }
+      this.setData({ showUndoConfirm: true, showResign: false }); return;
     }
     const session = this.data.localSession as LocalGameSession | null;
     if (!session || session.gameState.game_status !== 'PLAYING') {
@@ -312,8 +339,17 @@ Page({
     this.setData({ showUndoConfirm: true, showResign: false });
   },
   cancelUndo() { this.setData({ showUndoConfirm: false }); },
-  confirmUndo() {
-    if (this.data.operationBusy || this.data.mode !== 'local') return;
+  async confirmUndo() {
+    if (this.data.operationBusy) return;
+    if (this.data.mode === 'ai' || this.data.mode === 'remote') {
+      this.setData({ showUndoConfirm: false, operationBusy: true });
+      const success = this.data.mode === 'ai'
+        ? await this.aiController?.undo() : await this.remoteController?.undo();
+      this.setData({ operationBusy: false });
+      if (success) vibrateForSuccessfulAction(this.data.settings);
+      return;
+    }
+    if (this.data.mode !== 'local') return;
     const session = this.data.localSession as LocalGameSession | null;
     if (!session || session.gameState.game_status !== 'PLAYING' || !session.undoFrame) {
       this.setData({ showUndoConfirm: false });
@@ -371,17 +407,31 @@ Page({
         wx.showToast({ title: '对局已结束', icon: 'none' });
         return;
       }
+    } else if (this.data.mode === 'ai') {
+      const snapshot = this.data.aiState as AiGameSnapshot | null;
+      if (!snapshot || snapshot.gameState?.game_status !== 'PLAYING') {
+        wx.showToast({ title: '对局已结束', icon: 'none' }); return;
+      }
+    } else if (this.data.mode === 'remote') {
+      const snapshot = this.data.remoteState as RemoteGameSnapshot | null;
+      if (!snapshot || snapshot.gameState?.game_status !== 'PLAYING') {
+        wx.showToast({ title: '对局已结束', icon: 'none' }); return;
+      }
     }
     this.setData({ showResign: true, showUndoConfirm: false });
   },
   cancelResign() { this.setData({ showResign: false }); },
-  confirmResign() {
+  async confirmResign() {
     if (this.data.operationBusy) return;
-    if (this.data.mode !== 'local') {
-      this.setData({ showResign: false });
-      wx.showToast({ title: '当前模式暂不支持结束对局', icon: 'none' });
+    if (this.data.mode === 'ai' || this.data.mode === 'remote') {
+      this.setData({ showResign: false, operationBusy: true });
+      const success = this.data.mode === 'ai'
+        ? await this.aiController?.resign() : await this.remoteController?.resign();
+      this.setData({ operationBusy: false, resigned: !!success });
+      if (success) vibrateForSuccessfulAction(this.data.settings);
       return;
     }
+    if (this.data.mode !== 'local') return;
     const session = this.data.localSession as LocalGameSession | null;
     if (!session || session.gameState.game_status !== 'PLAYING') {
       this.setData({ showResign: false });

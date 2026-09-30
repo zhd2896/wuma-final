@@ -8,6 +8,7 @@ import type { GameIdStorage } from './remote-game';
 export interface AiGameSnapshot {
   readonly gameId: string | null;
   readonly gameVersion: number | null;
+  readonly plyCount: number;
   readonly gameState: GameState | null;
   readonly humanPlayer: Player | null;
   readonly aiPlayer: Player | null;
@@ -27,18 +28,19 @@ export interface AiGameSnapshot {
   readonly isLoadingLegalMoves: boolean;
   readonly isSubmittingMove: boolean;
   readonly isAiThinking: boolean;
+  readonly isOperating: boolean;
   readonly needsResync: boolean;
   readonly errorMessage: string | null;
   readonly notice: string | null;
 }
 
 const emptySnapshot: AiGameSnapshot = {
-  gameId: null, gameVersion: null, gameState: null, humanPlayer: null, aiPlayer: null, aiLevel: null,
+  gameId: null, gameVersion: null, plyCount: 0, gameState: null, humanPlayer: null, aiPlayer: null, aiLevel: null,
   selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null, lastSearch: null,
   analysis: null, isAnalyzing: false, analysisErrorMessage: null,
   coachHint: null, isCoachLoading: false, coachErrorMessage: null,
   isLoadingGame: false, isLoadingLegalMoves: false, isSubmittingMove: false,
-  isAiThinking: false, needsResync: false, errorMessage: null, notice: null,
+  isAiThinking: false, isOperating: false, needsResync: false, errorMessage: null, notice: null,
 };
 
 export class AiGameController {
@@ -51,6 +53,8 @@ export class AiGameController {
   private readonly onChange: (snapshot: AiGameSnapshot) => void;
   private readonly preferredAiPlayer: Player;
   private readonly createOnMissing: boolean;
+  private pendingUndo: { readonly id: string; readonly expectedVersion: number } | null = null;
+  private pendingResign: { readonly id: string; readonly expectedVersion: number } | null = null;
 
   constructor(api: GameApi, storage: GameIdStorage,
               onChange: (snapshot: AiGameSnapshot) => void,
@@ -81,6 +85,7 @@ export class AiGameController {
     this.storage.write(game.game_id);
     this.legalGeneration++;
     this.publish({ gameId: game.game_id, gameVersion: game.version ?? null,
+      plyCount: game.ply_count ?? game.version ?? 0,
       gameState: game.state,
       humanPlayer: game.human_player, aiPlayer: game.ai_player, aiLevel: game.ai_level,
       selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
@@ -96,7 +101,7 @@ export class AiGameController {
   }
 
   async enter(firstPlayer: Player = 'A'): Promise<void> {
-    if (this.disposed || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isLoadingGame || this.state.isSubmittingMove ||
+    if (this.disposed || this.state.isOperating || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isLoadingGame || this.state.isSubmittingMove ||
         this.state.isAiThinking) return;
     const generation = ++this.generation;
     this.legalGeneration++;
@@ -131,7 +136,7 @@ export class AiGameController {
   }
 
   async restart(firstPlayer: Player = 'A'): Promise<void> {
-    if (this.disposed || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isLoadingGame || this.state.isSubmittingMove ||
+    if (this.disposed || this.state.isOperating || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isLoadingGame || this.state.isSubmittingMove ||
         this.state.isAiThinking) return;
     const generation = ++this.generation;
     this.legalGeneration++;
@@ -149,7 +154,7 @@ export class AiGameController {
   }
 
   private canHumanInteract(): boolean {
-    return !this.disposed && !this.state.isAnalyzing && !this.state.isCoachLoading && !this.state.isLoadingGame && !this.state.isSubmittingMove &&
+    return !this.disposed && !this.state.isOperating && !this.state.isAnalyzing && !this.state.isCoachLoading && !this.state.isLoadingGame && !this.state.isSubmittingMove &&
       !this.state.isAiThinking && !this.state.needsResync && !!this.state.gameId &&
       this.state.gameState?.game_status === 'PLAYING' &&
       this.state.gameState.current_player === this.state.humanPlayer;
@@ -194,6 +199,7 @@ export class AiGameController {
       if (!this.current(generation) || this.state.gameId !== gameId) return;
       this.publish({ gameState: turn.state,
         gameVersion: this.state.gameVersion === null ? null : this.state.gameVersion + 1,
+        plyCount: this.state.plyCount + 1,
         lastMove: turn.move, lastCapture: turn.capture,
         analysis: null, analysisErrorMessage: null,
         coachHint: null, coachErrorMessage: null,
@@ -222,6 +228,7 @@ export class AiGameController {
       if (!this.current(generation) || this.state.gameId !== gameId) return;
       this.publish({ gameState: turn.state,
         gameVersion: this.state.gameVersion === null ? null : this.state.gameVersion + 1,
+        plyCount: this.state.plyCount + 1,
         lastMove: turn.move, lastCapture: turn.capture,
         analysis: null, analysisErrorMessage: null,
         coachHint: null, coachErrorMessage: null,
@@ -263,9 +270,70 @@ export class AiGameController {
     this.legalGeneration++;
   }
 
+  private requestId(kind: 'undo' | 'resign'): string {
+    return `game-${kind}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  private async operate(kind: 'undo' | 'resign'): Promise<boolean> {
+    if (this.disposed || this.state.isOperating || this.state.isLoadingGame ||
+        this.state.isSubmittingMove || this.state.isAiThinking || this.state.isAnalyzing ||
+        this.state.isCoachLoading || this.state.needsResync || !this.state.gameId ||
+        this.state.gameVersion === null || this.state.gameState?.game_status !== 'PLAYING') return false;
+    const gameId = this.state.gameId;
+    const generation = this.generation;
+    const field = kind === 'undo' ? 'pendingUndo' : 'pendingResign';
+    const pending = this[field] ?? {
+      id: this.requestId(kind), expectedVersion: this.state.gameVersion,
+    };
+    this[field] = pending;
+    this.legalGeneration++;
+    this.publish({ isOperating: true, selectedNode: null, legalTargets: [],
+      isLoadingLegalMoves: false, errorMessage: null, notice: null });
+    try {
+      const result = await this.api[kind](gameId, {
+        expected_version: pending.expectedVersion, client_request_id: pending.id,
+      });
+      if (!this.current(generation) || this.state.gameId !== gameId) return false;
+      this[field] = null;
+      this.publish({ gameVersion: result.version, plyCount: result.ply_count,
+        gameState: result.state, selectedNode: null, legalTargets: [],
+        lastMove: null, lastCapture: null, lastSearch: null,
+        analysis: null, analysisErrorMessage: null, isAnalyzing: false,
+        coachHint: null, coachErrorMessage: null, isCoachLoading: false,
+        needsResync: false, errorMessage: null,
+        notice: kind === 'undo' ? `已悔棋 ${result.reverted_turns} 手` : '已认输' });
+      return true;
+    } catch (error) {
+      if (!this.current(generation)) return false;
+      const uncertain = !(error instanceof ApiError) || error.code === 'NETWORK_ERROR' ||
+        error.code === 'SERVER_UNAVAILABLE' || error.code === 'DATABASE_UNAVAILABLE';
+      const conflict = error instanceof ApiError && error.code === 'GAME_STATE_CONFLICT';
+      if (!uncertain) this[field] = null;
+      this.publish({ needsResync: uncertain || conflict, errorMessage: messageForApiError(error) });
+      if (uncertain || conflict) {
+        try {
+          const game = await this.api.getGame(gameId);
+          if (this.current(generation) && this.state.gameId === gameId) {
+            this.accept(game);
+            this.publish({ errorMessage: messageForApiError(error) });
+          }
+        } catch (reloadError) {
+          if (this.current(generation)) this.publish({ needsResync: true,
+            errorMessage: messageForApiError(reloadError) });
+        }
+      }
+      return false;
+    } finally {
+      if (this.current(generation)) this.publish({ isOperating: false });
+    }
+  }
+
+  undo(): Promise<boolean> { return this.operate('undo'); }
+  resign(): Promise<boolean> { return this.operate('resign'); }
+
   async analyze(): Promise<void> {
     if (this.disposed || !this.state.gameId || !this.state.gameState ||
-        this.state.isLoadingGame || this.state.isSubmittingMove ||
+        this.state.isOperating || this.state.isLoadingGame || this.state.isSubmittingMove ||
         this.state.isAiThinking || this.state.isAnalyzing || this.state.isCoachLoading || this.state.needsResync) return;
     const gameId = this.state.gameId;
     const generation = this.generation;

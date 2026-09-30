@@ -33,6 +33,8 @@ test('client unwraps success envelope and game API sends exact create/move paths
   await api.aiMove('g1', {});
   await api.analyzeGame('g1');
   await api.analyzeGame('g1', 0);
+  await api.undo('g1', { expected_version: 2, client_request_id: 'undo-1' });
+  await api.resign('g1', { expected_version: 3, client_request_id: 'resign-1' });
   await api.createGame({ first_player: 'B', mode: 'AI', ai_player: 'B', ai_level: 'STANDARD' });
   assert.deepEqual(sent.map(item => [item.method, item.url]), [
     ['POST', 'http://127.0.0.1:8000/api/v1/game'],
@@ -42,6 +44,8 @@ test('client unwraps success envelope and game API sends exact create/move paths
     ['POST', 'http://127.0.0.1:8000/api/v1/game/g1/ai-move'],
     ['POST', 'http://127.0.0.1:8000/api/v1/ai/analyze'],
     ['POST', 'http://127.0.0.1:8000/api/v1/ai/analyze'],
+    ['POST', 'http://127.0.0.1:8000/api/v1/game/g1/undo'],
+    ['POST', 'http://127.0.0.1:8000/api/v1/game/g1/resign'],
     ['POST', 'http://127.0.0.1:8000/api/v1/game'],
   ]);
   assert.deepEqual(sent[0].data, { first_player: 'A', mode: 'LOCAL' });
@@ -49,7 +53,9 @@ test('client unwraps success envelope and game API sends exact create/move paths
   assert.deepEqual(sent[4].data, {});
   assert.deepEqual(sent[5].data, { game_id: 'g1' });
   assert.deepEqual(sent[6].data, { game_id: 'g1', expected_version: 0 });
-  assert.deepEqual(sent[7].data, { first_player: 'B', mode: 'AI',
+  assert.deepEqual(sent[7].data, { expected_version: 2, client_request_id: 'undo-1' });
+  assert.deepEqual(sent[8].data, { expected_version: 3, client_request_id: 'resign-1' });
+  assert.deepEqual(sent[9].data, { first_player: 'B', mode: 'AI',
     ai_player: 'B', ai_level: 'STANDARD' });
 });
 
@@ -80,6 +86,19 @@ test('API errors keep public codes and show safe messages', async () => {
       assert.notEqual(messageForApiError(error), 'internal detail');
       return true;
     });
+  }
+});
+
+test('game operation errors have actionable Chinese messages', () => {
+  const expected = new Map([
+    ['UNDO_NOT_AVAILABLE', '当前没有可悔的棋步'],
+    ['OPERATION_REQUEST_CONFLICT', '操作编号已被使用，请刷新棋局'],
+    ['GAME_STATE_CONFLICT', '棋局状态已更新'],
+    ['GAME_ALREADY_FINISHED', '本局已结束'],
+    ['AUTH_FORBIDDEN', '这条记录不属于当前设备账号'],
+  ]);
+  for (const [code, message] of expected) {
+    assert.equal(messageForApiError(new ApiError(code, 409)), message);
   }
 });
 

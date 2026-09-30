@@ -18,11 +18,22 @@ export type SearchResultDto = IterativeDeepeningSearchResult;
 export interface GameDto {
   readonly game_id: string;
   readonly version?: number;
+  readonly ply_count: number;
   readonly state: GameStateDto;
   readonly mode: 'LOCAL' | 'AI';
   readonly human_player: Player | null;
   readonly ai_player: Player | null;
   readonly ai_level: 'STANDARD' | null;
+}
+export interface GameOperationRequestDto {
+  readonly expected_version: number;
+  readonly client_request_id: string;
+}
+export interface GameOperationDto {
+  readonly version: number;
+  readonly ply_count: number;
+  readonly state: GameState;
+  readonly reverted_turns: number;
 }
 export type CreateGameRequestDto =
   | { readonly first_player: Player; readonly mode: 'LOCAL' }

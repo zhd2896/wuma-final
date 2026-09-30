@@ -76,9 +76,9 @@ test('game page records and resumes real local games and indexes server games', 
   assert.equal(rows.length, 2);
 
   const initial = createInitialGameState();
-  reopened.renderRemote({ gameId: 'remote-1', gameState: initial, gameVersion: 4,
+  reopened.renderRemote({ gameId: 'remote-1', gameState: initial, gameVersion: 4, plyCount: 4,
     selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null });
-  reopened.renderAi({ gameId: 'ai-1', gameState: initial, gameVersion: 2,
+  reopened.renderAi({ gameId: 'ai-1', gameState: initial, gameVersion: 2, plyCount: 2,
     selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
     aiPlayer: 'B', analysis: null });
   rows = createWxDeviceHistoryStore().list();
@@ -92,9 +92,9 @@ test('game page records and resumes real local games and indexes server games', 
     const path = new URL(options.url).pathname;
     loaded.push(`${options.method} ${path}`);
     const data = path.endsWith('/ai-1')
-      ? { game_id: 'ai-1', version: 2, state: initial, mode: 'AI',
+      ? { game_id: 'ai-1', version: 2, ply_count: 2, state: initial, mode: 'AI',
           human_player: 'A', ai_player: 'B', ai_level: 'STANDARD' }
-      : { game_id: 'remote-1', version: 4, state: initial, mode: 'LOCAL',
+      : { game_id: 'remote-1', version: 4, ply_count: 4, state: initial, mode: 'LOCAL',
           human_player: null, ai_player: null, ai_level: null };
     options.success({ statusCode: 200, data: { code: 0, message: 'success', data } });
   };
