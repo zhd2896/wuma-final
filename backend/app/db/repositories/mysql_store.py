@@ -15,7 +15,10 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, GameModel, G
 from backend.app.db.repositories.game import GameRepository
 from backend.app.db.repositories.remote import RemoteRepository
 from backend.app.db.repositories.move import MoveRepository
-from backend.app.schemas.game import GameReview, GameState, PositionAnalysis, SearchResult, TurnResult
+from backend.app.schemas.game import (
+    GameOperationRequest, GameOperationResponse, GameReview, GameState, PositionAnalysis,
+    SearchResult, TurnResult,
+)
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
@@ -220,6 +223,14 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
+    async def commit_undo(self, game_id: str,
+                          request: GameOperationRequest) -> GameOperationResponse:
+        raise ApiError("NOT_IMPLEMENTED", "MySQL game operations are not implemented")
+
+    async def commit_resign(self, game_id: str,
+                            request: GameOperationRequest) -> GameOperationResponse:
+        raise ApiError("NOT_IMPLEMENTED", "MySQL game operations are not implemented")
+
     def close(self) -> None:
         self.engine.dispose()
 
@@ -336,7 +347,7 @@ class MySQLGameStore:
                 row = session.scalar(select(GameModel).where(GameModel.id == game_id).with_for_update())
                 if row is None:
                     raise ApiError("GAME_NOT_FOUND", "Game not found")
-                if row.version != expected_version:
+                if row.version != expected_version or row.status != "PLAYING":
                     raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
                 session.add(AiAnalysisModel(
                     game_id=game_id, game_version=expected_version,

@@ -1,13 +1,16 @@
 """Persistence contract and an explicit in-memory implementation for isolated API tests."""
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Protocol
 from uuid import uuid4
 
 from backend.app.core.errors import ApiError
-from backend.app.schemas.game import GameReview, GameState, PositionAnalysis, SearchResult, TurnResult
+from backend.app.schemas.game import (
+    GameOperationRequest, GameOperationResponse, GameReview, GameState, PositionAnalysis,
+    SearchResult, TurnResult,
+)
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
@@ -37,6 +40,19 @@ class StoredMove:
     created_revision: int = 0
     reverted_revision: int | None = None
     client_request_id: str | None = None
+
+
+@dataclass(frozen=True)
+class StoredUndoEvent:
+    game_id: str
+    client_request_id: str
+    requester: str
+    before_revision: int
+    after_revision: int
+    anchor_turn: int
+    reverted_count: int
+    state_after: GameState
+    undo_event_id: int = 0
 
 
 @dataclass(frozen=True)
@@ -83,6 +99,10 @@ class GameStore(Protocol):
     async def list_moves(self, game_id: str) -> list[StoredMove]: ...
     async def read_replay(self, game_id: str) -> tuple[StoredGame, list[StoredMove]]: ...
     async def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None: ...
+    async def commit_undo(self, game_id: str,
+                          request: GameOperationRequest) -> GameOperationResponse: ...
+    async def commit_resign(self, game_id: str,
+                            request: GameOperationRequest) -> GameOperationResponse: ...
     async def lock_for(self, game_id: str) -> asyncio.Lock: ...
     async def commit_analysis(self, game_id: str, expected_version: int,
                               analysis: PositionAnalysis) -> None: ...
@@ -140,6 +160,7 @@ class InMemoryGameStore:
         self._remote_rooms: dict[str, StoredRemoteRoom] = {}
         self._remote_requests: dict[tuple[str, str], StoredMove] = {}
         self._terminal_events: dict[str, StoredTerminalEvent] = {}
+        self._undo_events: dict[tuple[str, str], StoredUndoEvent] = {}
         self._device_users: dict[str, str] = {}
         self._game_created: dict[str, datetime] = {}
         self._training_owners: dict[str, str | None] = {}
@@ -248,6 +269,107 @@ class InMemoryGameStore:
     async def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None:
         await self.get_snapshot(game_id)
         return self._terminal_events.get(game_id)
+
+    @staticmethod
+    def _request_conflict() -> ApiError:
+        return ApiError("OPERATION_REQUEST_CONFLICT", "Request ID already used")
+
+    def _existing_operation(self, game: StoredGame, request: GameOperationRequest,
+                            operation: str) -> GameOperationResponse | None:
+        undo = self._undo_events.get((game.game_id, request.client_request_id))
+        terminal = self._terminal_events.get(game.game_id)
+        if undo is not None:
+            if operation != "UNDO" or undo.before_revision != request.expected_version:
+                raise self._request_conflict()
+            return GameOperationResponse(
+                version=undo.after_revision, ply_count=undo.anchor_turn - 1,
+                state=undo.state_after, reverted_turns=undo.reverted_count)
+        if terminal is not None and terminal.client_request_id == request.client_request_id:
+            if operation != "RESIGN" or terminal.revision - 1 != request.expected_version:
+                raise self._request_conflict()
+            return GameOperationResponse(
+                version=terminal.revision, ply_count=game.ply_count,
+                state=terminal.state_after)
+        return None
+
+    @staticmethod
+    def _validate_operation(game: StoredGame, request: GameOperationRequest) -> None:
+        if game.state.game_status != "PLAYING":
+            raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
+        if game.version != request.expected_version:
+            raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the operation")
+
+    async def commit_undo(self, game_id: str,
+                          request: GameOperationRequest) -> GameOperationResponse:
+        lock = await self.lock_for(game_id)
+        async with lock:
+            game = await self.get_snapshot(game_id)
+            if game.mode == "REMOTE":
+                raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+            existing = self._existing_operation(game, request, "UNDO")
+            if existing is not None:
+                return existing
+            self._validate_operation(game, request)
+            active = sorted(
+                (item for item in self._moves[game_id] if item.reverted_revision is None),
+                key=lambda item: item.turn_number,
+            )
+            candidates = active if game.mode == "LOCAL" else [
+                item for item in active if item.actor_type == "HUMAN"]
+            if not candidates:
+                raise ApiError("UNDO_NOT_AVAILABLE", "No move is available to undo")
+            anchor = candidates[-1]
+            reverted = [item for item in active if item.turn_number >= anchor.turn_number]
+            revision = game.version + 1
+            reverted_ids = {id(item) for item in reverted}
+            self._moves[game_id] = [
+                replace(item, reverted_revision=revision) if id(item) in reverted_ids else item
+                for item in self._moves[game_id]
+            ]
+            state = anchor.turn.before_state
+            self._games[game_id] = replace(
+                game, state=state, version=revision, ply_count=anchor.turn_number - 1)
+            event = StoredUndoEvent(
+                game_id=game_id, client_request_id=request.client_request_id,
+                requester=(("B" if game.ai_player == "A" else "A")
+                           if game.mode == "AI" else game.state.current_player),
+                before_revision=game.version,
+                after_revision=revision, anchor_turn=anchor.turn_number,
+                reverted_count=len(reverted), state_after=state,
+                undo_event_id=len(self._undo_events) + 1,
+            )
+            self._undo_events[(game_id, request.client_request_id)] = event
+            return GameOperationResponse(
+                version=revision, ply_count=anchor.turn_number - 1, state=state,
+                reverted_turns=len(reverted))
+
+    async def commit_resign(self, game_id: str,
+                            request: GameOperationRequest) -> GameOperationResponse:
+        lock = await self.lock_for(game_id)
+        async with lock:
+            game = await self.get_snapshot(game_id)
+            if game.mode == "REMOTE":
+                raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+            existing = self._existing_operation(game, request, "RESIGN")
+            if existing is not None:
+                return existing
+            self._validate_operation(game, request)
+            loser = (("B" if game.ai_player == "A" else "A")
+                     if game.mode == "AI" else game.state.current_player)
+            winner = "B" if loser == "A" else "A"
+            finished = game.state.model_copy(update={
+                "game_status": "FINISHED", "winner": winner, "winner_reason": "RESIGN",
+            })
+            revision = game.version + 1
+            self._games[game_id] = replace(game, state=finished, version=revision)
+            self._terminal_events[game_id] = StoredTerminalEvent(
+                game_id=game_id, client_request_id=request.client_request_id,
+                revision=revision, event_type="RESIGN", actor=loser, winner=winner,
+                state_before=game.state, state_after=finished,
+                terminal_event_id=len(self._terminal_events) + 1,
+            )
+            return GameOperationResponse(
+                version=revision, ply_count=game.ply_count, state=finished)
 
     async def update(self, game_id: str, state: GameState) -> None:
         """Fixture setup for legacy API tests; never used by production."""
@@ -382,7 +504,7 @@ class InMemoryGameStore:
         lock = await self.lock_for(game_id)
         async with lock:
             game = await self.get_snapshot(game_id)
-            if game.version != expected_version:
+            if game.version != expected_version or game.state.game_status != "PLAYING":
                 raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
             self._analyses[game_id].append((expected_version, analysis))
 

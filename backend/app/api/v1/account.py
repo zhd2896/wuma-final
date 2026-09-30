@@ -39,6 +39,8 @@ async def require_game_owner(request: Request, game_id: str) -> str | None:
     user_id = await require_account(request)
     if user_id is not None:
         snapshot = await request.app.state.store.get_snapshot(game_id)
+        if snapshot.mode == "REMOTE":
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
         if snapshot.user_id != user_id:
             raise ApiError("AUTH_FORBIDDEN", "Game belongs to another account")
     return user_id

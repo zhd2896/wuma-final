@@ -7,9 +7,9 @@ from backend.app.core.config import Settings
 from backend.app.core.errors import ApiError
 from backend.app.engine_adapter.node_worker import NodeEngineAdapter
 from backend.app.schemas.game import (
-    AiMoveRequest, AiMoveResponse, AnalyzeResponse, CreateGameRequest, GameResponse,
-    LegalMovesResponse, Move, MoveRequest, MoveResponse, GameState, GameReview,
-    MoveReview, ReviewConfig,
+    AiMoveRequest, AiMoveResponse, AnalyzeResponse, CreateGameRequest, GameOperationRequest,
+    GameOperationResponse, GameResponse, LegalMovesResponse, Move, MoveRequest, MoveResponse,
+    GameState, GameReview, MoveReview, ReviewConfig,
 )
 from backend.app.services.game_store import GameStore, StoredGame, StoredMove
 
@@ -89,6 +89,20 @@ class GameService:
             await self.store.commit_turn(game_id, snapshot.version, turn, "AI", search)
             return AiMoveResponse(search=search, turn=turn)
 
+    async def undo(self, game_id: str,
+                   request: GameOperationRequest) -> GameOperationResponse:
+        snapshot = await self.store.get_snapshot(game_id)
+        if snapshot.mode == "REMOTE":
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+        return await self.store.commit_undo(game_id, request)
+
+    async def resign(self, game_id: str,
+                     request: GameOperationRequest) -> GameOperationResponse:
+        snapshot = await self.store.get_snapshot(game_id)
+        if snapshot.mode == "REMOTE":
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+        return await self.store.commit_resign(game_id, request)
+
     async def replay_game(self, game_id: str) -> list[GameState]:
         """Read historical snapshots without reinterpreting moves under future rules."""
         snapshot, moves = await self.store.read_replay(game_id)
@@ -144,7 +158,8 @@ class GameService:
             snapshot.state, self.settings.analysis_max_depth,
             self.settings.analysis_time_limit_ms, self.settings.analysis_candidate_limit,
         )
-        await self.store.commit_analysis(game_id, snapshot.version, analysis)
+        if snapshot.state.game_status == "PLAYING":
+            await self.store.commit_analysis(game_id, snapshot.version, analysis)
         return AnalyzeResponse(game_id=game_id, game_version=snapshot.version,
                                **analysis.model_dump())
 

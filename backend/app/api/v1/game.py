@@ -3,9 +3,9 @@
 from fastapi import APIRouter, Query, Request
 
 from backend.app.schemas.game import (
-    AiMoveRequest, AiMoveResponse, ApiResponse, CreateGameRequest,
-    GameResponse, GameReview, LegalMovesResponse, MoveRequest, MoveResponse, NodeId,
-    Player, ReviewRequest,
+    AiMoveRequest, AiMoveResponse, ApiResponse, CreateGameRequest, GameOperationRequest,
+    GameOperationResponse, GameResponse, GameReview, LegalMovesResponse, MoveRequest,
+    MoveResponse, NodeId, Player, ReviewRequest,
 )
 from backend.app.schemas.explanation import ExplainedReview
 from backend.app.schemas.coach import CoachHint, CoachHintRequest
@@ -61,6 +61,20 @@ async def move(request: Request, game_id: str, body: MoveRequest) -> ApiResponse
 async def ai_move(request: Request, game_id: str, body: AiMoveRequest) -> ApiResponse[AiMoveResponse]:
     await require_game_owner(request, game_id)
     return ApiResponse(data=await request.app.state.service.ai_move(game_id, body))
+
+
+@router.post("/{game_id}/undo", response_model=ApiResponse[GameOperationResponse])
+async def undo(request: Request, game_id: str,
+               body: GameOperationRequest) -> ApiResponse[GameOperationResponse]:
+    await require_game_owner(request, game_id)
+    return ApiResponse(data=await request.app.state.service.undo(game_id, body))
+
+
+@router.post("/{game_id}/resign", response_model=ApiResponse[GameOperationResponse])
+async def resign(request: Request, game_id: str,
+                 body: GameOperationRequest) -> ApiResponse[GameOperationResponse]:
+    await require_game_owner(request, game_id)
+    return ApiResponse(data=await request.app.state.service.resign(game_id, body))
 
 
 @router.post("/{game_id}/review", response_model=ApiResponse[GameReview])

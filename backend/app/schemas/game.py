@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 Player = Literal["A", "B"]
 NodeId = Annotated[str, StringConstraints(pattern=r"^P(?:0[1-9]|1[0-9]|2[0-9])$")]
+ClientRequestId = Annotated[str, StringConstraints(
+    min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")]
 WinnerReason = Literal["CAPTURE_ALL", "TEMPLE_TRAP", "LONE_PIECE_IMMOBILIZED", "RESIGN"]
 
 
@@ -246,6 +248,11 @@ class AiMoveRequest(StrictModel):
     pass
 
 
+class GameOperationRequest(StrictModel):
+    expected_version: int = Field(ge=0)
+    client_request_id: ClientRequestId
+
+
 class HealthResponse(StrictModel):
     status: Literal["ok"]
     engine: Literal["ok"]
@@ -260,6 +267,13 @@ class GameResponse(StrictModel):
     human_player: Player | None
     ai_player: Player | None
     ai_level: Literal["STANDARD"] | None
+
+
+class GameOperationResponse(StrictModel):
+    version: int
+    ply_count: int
+    state: GameState
+    reverted_turns: int = 0
 
 
 class LegalMovesResponse(StrictModel):
