@@ -14,6 +14,7 @@ _WINNER_REASON = {
     "CAPTURE_ALL": "对方棋子全部被吃尽",
     "TEMPLE_TRAP": "庙宇困局",
     "LONE_PIECE_IMMOBILIZED": "对方仅剩棋子无法合法移动",
+    "RESIGN": "对方认输",
 }
 
 

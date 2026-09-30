@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
 Player = Literal["A", "B"]
 NodeId = Annotated[str, StringConstraints(pattern=r"^P(?:0[1-9]|1[0-9]|2[0-9])$")]
-WinnerReason = Literal["CAPTURE_ALL", "TEMPLE_TRAP", "LONE_PIECE_IMMOBILIZED"]
+WinnerReason = Literal["CAPTURE_ALL", "TEMPLE_TRAP", "LONE_PIECE_IMMOBILIZED", "RESIGN"]
 
 
 class StrictModel(BaseModel):

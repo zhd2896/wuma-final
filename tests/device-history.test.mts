@@ -63,6 +63,24 @@ test('restores the real local position after a new store instance opens it', () 
   assert.equal(saved?.turns, 1);
 });
 
+test('restores a local game finished by resignation', () => {
+  const values = new Map<string, unknown>();
+  const storage = { get: (key: string) => values.get(key),
+    set: (key: string, value: unknown) => { values.set(key, structuredClone(value)); },
+    remove: (key: string) => { values.delete(key); } };
+  const resigned = { ...createInitialGameState(), game_status: 'FINISHED' as const,
+    winner: 'A' as const, winner_reason: 'RESIGN' as const };
+  createDeviceHistoryStore(storage, () => 10).record({ id: 'local-resign', mode: 'local',
+    state: resigned, turns: 3 });
+
+  const saved = createDeviceHistoryStore(storage, () => 20).get('local-resign');
+
+  assert.equal(saved?.status, 'FINISHED');
+  assert.equal(saved?.winner, 'A');
+  assert.equal(saved?.winnerReason, 'RESIGN');
+  assert.equal(saved?.localState?.winner_reason, 'RESIGN');
+});
+
 test('rejects a damaged history index instead of displaying invented empty history', () => {
   const storage = { get: () => ({ version: 1, records: [{ id: 'bad' }] }),
     set: () => {}, remove: () => {} };

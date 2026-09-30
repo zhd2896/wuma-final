@@ -101,7 +101,7 @@ export interface PlayerState {
   readonly reserve_count: number;
 }
 
-export type WinnerReason = 'CAPTURE_ALL' | 'TEMPLE_TRAP' | 'LONE_PIECE_IMMOBILIZED';
+export type WinnerReason = 'CAPTURE_ALL' | 'TEMPLE_TRAP' | 'LONE_PIECE_IMMOBILIZED' | 'RESIGN';
 export type GameStatus = 'PLAYING' | 'FINISHED';
 
 export interface GameState {

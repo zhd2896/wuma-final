@@ -1,5 +1,6 @@
 """Review API exercises real Node search with saved in-memory turn snapshots."""
 
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest
@@ -7,8 +8,9 @@ from fastapi.testclient import TestClient
 
 from backend.app.core.errors import ApiError
 from backend.app.main import create_app
-from backend.app.schemas.game import BoardState, GameState, Move
+from backend.app.schemas.game import BoardState, GameReview, GameState, Move
 from backend.app.services.game_store import InMemoryGameStore
+from backend.app.services.review_explanation.fallback import fallback_game
 
 
 @pytest.fixture
@@ -35,6 +37,31 @@ def create_short_game(client, *, finish=True, mode="LOCAL"):
                             json={"from_node": "P19", "to_node": "P13"})
         assert moved.status_code == 200, moved.text
     return game_id
+
+
+def test_fallback_review_explains_resignation():
+    review = GameReview(
+        id="review-resign",
+        gameId="game-resign",
+        reviewedPlayer="A",
+        overallScore=None,
+        goodMoves=0,
+        normalMoves=0,
+        mistakes=0,
+        blunders=0,
+        bestMoveRate=0,
+        turningPoints=[],
+        winner="A",
+        winnerReason="RESIGN",
+        reviewConfig={},
+        reviewConfigVersion=1,
+        moveReviews=[],
+        createdAt=datetime.now(UTC),
+    )
+
+    explanation = fallback_game(review)
+
+    assert "认输" in explanation.overall_summary
 
 
 def test_finished_review_is_idempotent_and_never_changes_the_game(client):
