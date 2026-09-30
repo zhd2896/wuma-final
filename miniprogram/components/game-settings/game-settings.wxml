@@ -1,0 +1,39 @@
+<view class="game-settings">
+  <view class="setting-row">
+    <view class="setting-copy">
+      <view class="setting-title">显示可走位置</view>
+      <view class="setting-description">选中棋子后标出可以落子的位置</view>
+    </view>
+    <switch checked="{{settings.showLegalTargets}}" color="#a83a30" bindchange="onLegalTargetsChange" />
+  </view>
+  <view class="setting-row">
+    <view class="setting-copy">
+      <view class="setting-title">显示吃子提示</view>
+      <view class="setting-description">落子后提示本回合移除的棋子</view>
+    </view>
+    <switch checked="{{settings.showCaptureNotice}}" color="#a83a30" bindchange="onCaptureNoticeChange" />
+  </view>
+  <view class="setting-row">
+    <view class="setting-copy">
+      <view class="setting-title">操作成功时振动</view>
+      <view class="setting-description">落子和对局操作成功后提供轻微反馈</view>
+    </view>
+    <switch checked="{{settings.vibrateOnAction}}" color="#a83a30" bindchange="onVibrationChange" />
+  </view>
+  <view wx:if="{{showAiFirstPlayer}}" class="setting-row setting-row-column">
+    <view class="setting-copy">
+      <view class="setting-title">AI 对局先手</view>
+      <view class="setting-description">新一局 AI 对弈开始时生效</view>
+    </view>
+    <radio-group class="first-player-options" bindchange="onAiFirstPlayerChange">
+      <label class="player-option">
+        <radio value="A" checked="{{settings.aiFirstPlayer == 'A'}}" color="#a83a30" />
+        <text>玩家先手</text>
+      </label>
+      <label class="player-option">
+        <radio value="B" checked="{{settings.aiFirstPlayer == 'B'}}" color="#a83a30" />
+        <text>AI 先手</text>
+      </label>
+    </radio-group>
+  </view>
+</view>
