@@ -169,3 +169,26 @@ def test_zero_move_resignation_requires_matching_terminal_event_and_fabricates_n
     assert review["winner"] == "B" and review["winnerReason"] == "RESIGN"
     assert review["moveReviews"] == []
     assert frames == [original.initial_state, resigned]
+
+
+def test_resignation_replay_rejects_winner_as_terminal_event_actor(client):
+    store = client.app.state.store
+    created = client.post("/api/v1/game", json={"first_player": "A", "mode": "LOCAL"})
+    game_id = created.json()["data"]["game_id"]
+    original = store._games[game_id]
+    resigned = original.state.model_copy(update={
+        "game_status": "FINISHED", "winner": "B", "winner_reason": "RESIGN",
+    })
+    store._games[game_id] = replace(
+        original, state=resigned, version=1, ply_count=0,
+    )
+    store._terminal_events[game_id] = StoredTerminalEvent(
+        game_id=game_id, client_request_id="resign-winner-actor-0001",
+        revision=1, event_type="RESIGN", actor="B", winner="B",
+        state_before=original.initial_state, state_after=resigned,
+    )
+
+    with pytest.raises(ApiError) as error:
+        client.portal.call(client.app.state.service.replay_game, game_id)
+
+    assert error.value.code == "REPLAY_INTEGRITY_ERROR"

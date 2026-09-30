@@ -2,6 +2,7 @@
 
 from uuid import uuid4
 
+from pydantic import ValidationError
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
@@ -51,12 +52,18 @@ class GameRepository:
             GameTerminalEventModel.game_id == game_id))
         if row is None:
             return None
+        try:
+            state_before = GameState.model_validate(row.state_before)
+            state_after = GameState.model_validate(row.state_after)
+        except ValidationError as exc:
+            raise ApiError(
+                "REPLAY_INTEGRITY_ERROR", "Stored terminal event state is invalid",
+            ) from exc
         return StoredTerminalEvent(
             game_id=row.game_id, client_request_id=row.client_request_id,
             revision=row.revision, event_type=row.event_type, actor=row.actor,
             winner=row.winner,
-            state_before=GameState.model_validate(row.state_before),
-            state_after=GameState.model_validate(row.state_after),
+            state_before=state_before, state_after=state_after,
             terminal_event_id=row.id,
         )
 

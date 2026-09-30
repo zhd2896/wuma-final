@@ -108,11 +108,13 @@ class GameService:
         event = await self.store.get_terminal_event(snapshot.game_id)
         if not (
             snapshot.state.game_status == "FINISHED"
+            and snapshot.state.winner is not None
             and snapshot.state.winner_reason == "RESIGN"
             and event is not None
             and event.event_type == "RESIGN"
             and event.revision == snapshot.version
             and event.winner == snapshot.state.winner
+            and event.actor == ("B" if snapshot.state.winner == "A" else "A")
             and event.state_before == frames[-1]
             and event.state_after == snapshot.state
         ):

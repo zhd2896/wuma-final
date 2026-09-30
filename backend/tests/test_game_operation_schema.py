@@ -3,12 +3,14 @@
 import importlib.util
 from dataclasses import replace
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy import Index, UniqueConstraint
 
 from backend.app.db import models
+from backend.app.db.repositories.game import GameRepository
 from backend.app.core.errors import ApiError
 from backend.app.main import create_app
 from backend.app.services.game_store import InMemoryGameStore, StoredTerminalEvent
@@ -205,6 +207,22 @@ def test_replay_rejects_active_history_corruption(corruption):
 
         with pytest.raises(ApiError) as error:
             client.portal.call(client.app.state.service.replay_game, game_id)
+
+    assert error.value.code == "REPLAY_INTEGRITY_ERROR"
+
+
+def test_terminal_event_repository_maps_malformed_state_to_replay_integrity_error():
+    class MalformedEventSession:
+        def scalar(self, _statement):
+            return SimpleNamespace(
+                id=1, game_id="corrupt-terminal-game",
+                client_request_id="corrupt-terminal-event-0001",
+                revision=3, event_type="RESIGN", actor="A", winner="B",
+                state_before={"malformed": True}, state_after={"malformed": True},
+            )
+
+    with pytest.raises(ApiError) as error:
+        GameRepository(MalformedEventSession()).get_terminal_event("corrupt-terminal-game")
 
     assert error.value.code == "REPLAY_INTEGRITY_ERROR"
 
