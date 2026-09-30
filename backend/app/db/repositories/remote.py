@@ -99,8 +99,11 @@ class RemoteRepository:
             GameMoveModel.game_id == game_id,
             GameMoveModel.client_request_id == request_id))
         return None if row is None else StoredMove(
-            row.turn_number, row.actor_type,
-            TurnResult.model_validate(row.turn_result), None, row.id)
+            turn_number=row.turn_number, actor_type=row.actor_type,
+            turn=TurnResult.model_validate(row.turn_result), search=None,
+            game_move_id=row.id, created_revision=row.created_revision,
+            reverted_revision=row.reverted_revision,
+            client_request_id=row.client_request_id)
 
     def commit_turn(self, game_id: str, token_hash: str,
                     expected_version: int, request_id: str,
@@ -115,7 +118,7 @@ class RemoteRepository:
         if existing is not None:
             if (existing.turn.before_state.current_player != seat or
                 existing.turn.move != turn.move or
-                existing.turn_number - 1 != expected_version):
+                existing.created_revision - 1 != expected_version):
                 raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
             return existing
         if room.status != "PLAYING":
@@ -126,9 +129,11 @@ class RemoteRepository:
             raise ApiError("NOT_YOUR_TURN", "Wait for your turn")
         if game.version != expected_version or GameState.model_validate(game.current_state) != turn.before_state:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
+        turn_number = game.ply_count + 1
         games.update_game_state(game, expected_version, turn.state)
-        MoveRepository(self.session).create_move(game_id, expected_version + 1,
-                                                 turn, "HUMAN", None, request_id)
+        MoveRepository(self.session).create_move(
+            game_id, turn_number, expected_version + 1,
+            turn, "HUMAN", None, request_id)
         self.session.flush()
         saved = self.get_move(game_id, request_id)
         assert saved is not None

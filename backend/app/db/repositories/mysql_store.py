@@ -89,7 +89,7 @@ class MySQLGameStore:
                                    "startedAt": row.started_at.replace(tzinfo=timezone.utc).isoformat(),
                                    "finishedAt": row.finished_at.replace(tzinfo=timezone.utc).isoformat()
                                    if row.finished_at else None,
-                                   "turns": row.version,
+                                   "turns": row.ply_count,
                                    "reviewAvailable": row.id in reviewed_games,
                                    "cursorDate": row.created_at.replace(tzinfo=timezone.utc).isoformat()})
                 return result, len(rows) > limit
@@ -176,8 +176,10 @@ class MySQLGameStore:
                 row = games.get_game(game_id)
                 if row.version != expected_version or GameState.model_validate(row.current_state) != turn.before_state:
                     raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the move")
+                turn_number = row.ply_count + 1
                 games.update_game_state(row, expected_version, turn.state)
-                MoveRepository(session).create_move(game_id, expected_version + 1, turn, actor_type, search)
+                MoveRepository(session).create_move(
+                    game_id, turn_number, expected_version + 1, turn, actor_type, search)
                 session.flush()
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc

@@ -26,6 +26,7 @@ class GameRepository:
             winner=state.winner, winner_reason=state.winner_reason,
             status=state.game_status, initial_state=state.model_dump(mode="json"),
             current_state=state.model_dump(mode="json"), state_schema_version=1, version=0,
+            ply_count=0,
             started_at=now, finished_at=None, duration_ms=None,
             created_at=now, updated_at=now,
         ))
@@ -39,9 +40,11 @@ class GameRepository:
 
     def get_snapshot(self, game_id: str) -> StoredGame:
         row = self.get_game(game_id)
-        return StoredGame(row.id, GameState.model_validate(row.initial_state),
-                          GameState.model_validate(row.current_state), row.version,
-                          row.mode, row.ai_player, row.ai_level, row.user_id)
+        return StoredGame(
+            game_id=row.id, initial_state=GameState.model_validate(row.initial_state),
+            state=GameState.model_validate(row.current_state), version=row.version,
+            ply_count=row.ply_count, mode=row.mode, ai_player=row.ai_player,
+            ai_level=row.ai_level, user_id=row.user_id)
 
     def update_game_state(self, row: GameModel, expected_version: int, state: GameState) -> None:
         now = utc_now()
@@ -52,7 +55,7 @@ class GameRepository:
             update(GameModel).where(GameModel.id == row.id, GameModel.version == expected_version).values(
                 current_state=state.model_dump(mode="json"), current_player=state.current_player,
                 status=state.game_status, winner=state.winner, winner_reason=state.winner_reason,
-                version=expected_version + 1, updated_at=now,
+                version=expected_version + 1, ply_count=row.ply_count + 1, updated_at=now,
                 finished_at=finished_at, duration_ms=duration_ms,
             )
         )

@@ -120,8 +120,10 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
     assert moved.status_code == 200, moved.text
     assert client.post(path, json=body, headers=headers).json()["data"] == moved.json()["data"]
     row, moves = game_and_moves(db, game_id)
-    assert row.mode == "REMOTE" and row.version == 1 and len(moves) == 1
+    assert row.mode == "REMOTE" and row.version == row.ply_count == 1 and len(moves) == 1
     assert moves[0].client_request_id == "mysql-request-0001"
+    assert moves[0].turn_number == moves[0].created_revision == 1
+    assert moves[0].reverted_revision is None
     with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
         restarted.headers["Authorization"] = client.headers["Authorization"]
         fetched = restarted.get(f"/api/v1/remote/rooms/{game_id}",
@@ -227,7 +229,7 @@ def test_create_get_and_json_roundtrip(client, db):
     row, moves = game_and_moves(db, game_id)
     state = client.get(f"/api/v1/game/{game_id}").json()["data"]["state"]
     assert row.initial_state == row.current_state == state
-    assert row.version == 0 and moves == []
+    assert row.version == row.ply_count == 0 and moves == []
     assert row.user_id is not None and row.state_schema_version == 1
     assert row.finished_at is None and row.duration_ms is None
     assert client.get(f"/api/v1/game/{game_id}/legal-moves").json()["data"]["moves"]
@@ -243,12 +245,13 @@ def test_move_invalid_move_replay_and_restart_continue(client, db):
     first = client.post(f"/api/v1/game/{game_id}/move", json={"from_node": "P01", "to_node": "P02"})
     assert first.status_code == 200, first.text
     row, moves = game_and_moves(db, game_id)
-    assert row.version == 1 and len(moves) == 1
+    assert row.version == row.ply_count == 1 and len(moves) == 1
     assert moves[0].state_before == row.initial_state
     assert moves[0].state_after == row.current_state
     assert moves[0].turn_result["state"] == row.current_state
     assert moves[0].player == "A" and moves[0].actor_type == "HUMAN"
-    assert moves[0].turn_number == 1 and row.current_player == "B"
+    assert moves[0].turn_number == moves[0].created_revision == 1
+    assert moves[0].reverted_revision is None and row.current_player == "B"
     assert client.portal.call(client.app.state.service.replay_game, game_id)[-1].model_dump() == row.current_state
 
     with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
@@ -263,7 +266,9 @@ def test_move_invalid_move_replay_and_restart_continue(client, db):
         assert len(restarted.portal.call(restarted.app.state.service.replay_game, game_id)) == 3
         restarted.app.state.store.close()
     row, moves = game_and_moves(db, game_id)
-    assert row.version == 2 and [move.turn_number for move in moves] == [1, 2]
+    assert row.version == row.ply_count == 2
+    assert [move.turn_number for move in moves] == [1, 2]
+    assert [move.created_revision for move in moves] == [1, 2]
     assert moves[0].state_after == moves[1].state_before
     assert moves[-1].state_after == row.current_state
 
@@ -446,10 +451,19 @@ def _real_turn(client, game_id):
                               Move(from_node="P01", to_node="P02"))
 
 
-def test_unique_turn_constraint(client, db):
+def test_turn_numbers_can_branch_but_created_revisions_stay_unique(client, db):
     game_id = create_game(client)
     response = client.post(f"/api/v1/game/{game_id}/move", json={"from_node": "P01", "to_node": "P02"})
     assert response.status_code == 200
+    with Session(db) as session, session.begin():
+        original = session.scalar(select(GameMoveModel).where(GameMoveModel.game_id == game_id))
+        branched = {column.name: getattr(original, column.name)
+                    for column in GameMoveModel.__table__.columns if column.name != "id"}
+        branched["created_revision"] = 2
+        session.add(GameMoveModel(**branched))
+        session.flush()
+    assert len(game_and_moves(db, game_id)[1]) == 2
+
     with pytest.raises(IntegrityError):
         with Session(db) as session, session.begin():
             original = session.scalar(select(GameMoveModel).where(GameMoveModel.game_id == game_id))
@@ -457,7 +471,7 @@ def test_unique_turn_constraint(client, db):
                     if column.name != "id"}
             session.add(GameMoveModel(**copy))
             session.flush()
-    assert len(game_and_moves(db, game_id)[1]) == 1
+    assert len(game_and_moves(db, game_id)[1]) == 2
 
 
 def test_replay_rejects_disagreeing_snapshots(client, db):

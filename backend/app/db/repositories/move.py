@@ -13,11 +13,13 @@ class MoveRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create_move(self, game_id: str, turn_number: int, turn: TurnResult,
+    def create_move(self, game_id: str, turn_number: int, created_revision: int,
+                    turn: TurnResult,
                     actor_type: str, search: SearchResult | None,
                     client_request_id: str | None = None) -> None:
         self.session.add(GameMoveModel(
             game_id=game_id, turn_number=turn_number,
+            created_revision=created_revision, reverted_revision=None,
             player=turn.before_state.current_player, actor_type=actor_type,
             client_request_id=client_request_id,
             from_node=turn.move.from_node, to_node=turn.move.to_node,
@@ -52,7 +54,11 @@ class MoveRepository:
                     or row.board_after != turn.board_after.model_dump(mode="json")
                     or row.capture_result != turn.capture.model_dump(mode="json")):
                 raise ApiError("REPLAY_INTEGRITY_ERROR", "Stored turn snapshots disagree")
-            result.append(StoredMove(row.turn_number, row.actor_type, turn,
-                                     SearchResult.model_validate(row.ai_search_result)
-                                     if row.ai_search_result is not None else None, row.id))
+            result.append(StoredMove(
+                turn_number=row.turn_number, actor_type=row.actor_type, turn=turn,
+                search=(SearchResult.model_validate(row.ai_search_result)
+                        if row.ai_search_result is not None else None),
+                game_move_id=row.id, created_revision=row.created_revision,
+                reverted_revision=row.reverted_revision,
+                client_request_id=row.client_request_id))
         return result

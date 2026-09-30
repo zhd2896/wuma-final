@@ -44,6 +44,7 @@ class GameModel(Base):
     current_state: Mapped[dict] = mapped_column(JSON, nullable=False)
     state_schema_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     version: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    ply_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     started_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
     finished_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))
     duration_ms: Mapped[int | None] = mapped_column(BigInteger)
@@ -71,14 +72,17 @@ class RemoteRoomModel(Base):
 class GameMoveModel(Base):
     __tablename__ = "game_moves"
     __table_args__ = (
-        UniqueConstraint("game_id", "turn_number", name="uq_game_moves_game_turn"),
+        UniqueConstraint("game_id", "created_revision", name="uq_game_moves_game_revision"),
         UniqueConstraint("game_id", "client_request_id", name="uq_game_moves_client_request"),
         Index("ix_game_moves_game_id", "game_id"),
+        Index("ix_game_moves_active_turn", "game_id", "reverted_revision", "turn_number"),
     )
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), nullable=False)
     turn_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    reverted_revision: Mapped[int | None] = mapped_column(Integer)
     player: Mapped[str] = mapped_column(String(1), nullable=False)
     actor_type: Mapped[str] = mapped_column(String(8), nullable=False)
     client_request_id: Mapped[str | None] = mapped_column(String(64))
@@ -100,6 +104,66 @@ class GameMoveModel(Base):
     turn_result: Mapped[dict] = mapped_column(JSON, nullable=False)
     ai_search_result: Mapped[dict | None] = mapped_column(JSON(none_as_null=True))
     created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+
+
+class GameUndoEventModel(Base):
+    __tablename__ = "game_undo_events"
+    __table_args__ = (UniqueConstraint("game_id", "client_request_id",
+                                      name="uq_game_undo_events_request"),)
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), nullable=False)
+    client_request_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    requester: Mapped[str] = mapped_column(String(1), nullable=False)
+    before_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    after_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    anchor_turn: Mapped[int] = mapped_column(Integer, nullable=False)
+    reverted_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    state_after: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+
+
+class GameTerminalEventModel(Base):
+    __tablename__ = "game_terminal_events"
+    __table_args__ = (
+        UniqueConstraint("game_id", name="uq_game_terminal_events_game"),
+        UniqueConstraint("game_id", "client_request_id",
+                         name="uq_game_terminal_events_request"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), nullable=False)
+    client_request_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    actor: Mapped[str] = mapped_column(String(1), nullable=False)
+    winner: Mapped[str] = mapped_column(String(1), nullable=False)
+    state_before: Mapped[dict] = mapped_column(JSON, nullable=False)
+    state_after: Mapped[dict] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+
+
+class RemoteUndoRequestModel(Base):
+    __tablename__ = "remote_undo_requests"
+    __table_args__ = (
+        UniqueConstraint("game_id", "create_client_request_id",
+                         name="uq_remote_undo_requests_create"),
+        UniqueConstraint("game_id", "resolve_client_request_id",
+                         name="uq_remote_undo_requests_resolve"),
+        Index("ix_remote_undo_requests_game_status", "game_id", "status"),
+    )
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), nullable=False)
+    requester: Mapped[str] = mapped_column(String(1), nullable=False)
+    responder: Mapped[str] = mapped_column(String(1), nullable=False)
+    create_client_request_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    resolve_client_request_id: Mapped[str | None] = mapped_column(String(64))
+    base_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    anchor_turn: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+    resolved_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))
 
 
 class AiAnalysisModel(Base):

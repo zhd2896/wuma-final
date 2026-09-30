@@ -20,6 +20,7 @@ class StoredGame:
     initial_state: GameState
     state: GameState
     version: int
+    ply_count: int = 0
     mode: str = "LOCAL"
     ai_player: str | None = None
     ai_level: str | None = None
@@ -33,6 +34,9 @@ class StoredMove:
     turn: TurnResult
     search: SearchResult | None
     game_move_id: int = 0
+    created_revision: int = 0
+    reverted_revision: int | None = None
+    client_request_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -152,7 +156,7 @@ class InMemoryGameStore:
     def _personal_row(self, date: datetime, game: StoredGame) -> dict:
         return {"gameId": game.game_id, "mode": game.mode, "status": game.state.game_status,
                 "winner": game.state.winner, "startedAt": date.isoformat(),
-                "finishedAt": None, "turns": game.version,
+                "finishedAt": None, "turns": game.ply_count,
                 "reviewAvailable": any(key[0] == game.game_id for key in self._reviews),
                 "cursorDate": date.isoformat()}
 
@@ -179,7 +183,9 @@ class InMemoryGameStore:
                      user_id: str | None = None) -> str:
         async with self._catalog_lock:
             game_id = uuid4().hex
-            self._games[game_id] = StoredGame(game_id, state, state, 0, mode, ai_player, ai_level, user_id)
+            self._games[game_id] = StoredGame(
+                game_id=game_id, initial_state=state, state=state, version=0, ply_count=0,
+                mode=mode, ai_player=ai_player, ai_level=ai_level, user_id=user_id)
             self._game_created[game_id] = datetime.now(timezone.utc)
             self._moves[game_id] = []
             self._locks[game_id] = asyncio.Lock()
@@ -204,11 +210,13 @@ class InMemoryGameStore:
         game = await self.get_snapshot(game_id)
         if game.version != expected_version or game.state != turn.before_state:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the move")
-        self._moves[game_id].append(StoredMove(game.version + 1, actor_type, turn, search,
-                                               game.version + 1))
-        self._games[game_id] = StoredGame(game_id, game.initial_state, turn.state,
-                                          game.version + 1, game.mode, game.ai_player, game.ai_level,
-                                          game.user_id)
+        self._moves[game_id].append(StoredMove(
+            turn_number=game.ply_count + 1, actor_type=actor_type, turn=turn, search=search,
+            game_move_id=game.version + 1, created_revision=game.version + 1))
+        self._games[game_id] = StoredGame(
+            game_id=game_id, initial_state=game.initial_state, state=turn.state,
+            version=game.version + 1, ply_count=game.ply_count + 1, mode=game.mode,
+            ai_player=game.ai_player, ai_level=game.ai_level, user_id=game.user_id)
 
     async def list_moves(self, game_id: str) -> list[StoredMove]:
         await self.get_snapshot(game_id)
@@ -224,9 +232,10 @@ class InMemoryGameStore:
         lock = await self.lock_for(game_id)
         async with lock:
             game = await self.get_snapshot(game_id)
-            self._games[game_id] = StoredGame(game_id, state, state, game.version,
-                                              game.mode, game.ai_player, game.ai_level,
-                                              game.user_id)
+            self._games[game_id] = StoredGame(
+                game_id=game_id, initial_state=state, state=state, version=game.version,
+                ply_count=game.ply_count, mode=game.mode, ai_player=game.ai_player,
+                ai_level=game.ai_level, user_id=game.user_id)
 
     def _create_remote_unlocked(self, state: GameState, token_hash: str, code: str,
                                 device_id: str, public: bool,
@@ -234,7 +243,9 @@ class InMemoryGameStore:
         if any(room.invite_code == code for room in self._remote_rooms.values()):
             raise ApiError("REMOTE_CODE_CONFLICT", "Invite code already exists")
         game_id = uuid4().hex
-        self._games[game_id] = StoredGame(game_id, state, state, 0, "REMOTE")
+        self._games[game_id] = StoredGame(
+            game_id=game_id, initial_state=state, state=state, version=0,
+            ply_count=0, mode="REMOTE")
         self._game_created[game_id] = datetime.now(timezone.utc)
         self._moves[game_id] = []
         self._locks[game_id] = asyncio.Lock()
@@ -323,7 +334,7 @@ class InMemoryGameStore:
         if existing is not None:
             if (existing.turn.before_state.current_player != seat or
                 existing.turn.move != turn.move or
-                existing.turn_number - 1 != expected_version):
+                existing.created_revision - 1 != expected_version):
                 raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
             return existing
         game = await self.get_snapshot(game_id)
@@ -333,12 +344,15 @@ class InMemoryGameStore:
             raise ApiError("NOT_YOUR_TURN", "Wait for your turn")
         if game.version != expected_version or game.state != turn.before_state:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
-        move = StoredMove(expected_version + 1, "HUMAN", turn, None,
-                          expected_version + 1)
+        move = StoredMove(
+            turn_number=game.ply_count + 1, actor_type="HUMAN", turn=turn, search=None,
+            game_move_id=expected_version + 1, created_revision=expected_version + 1,
+            client_request_id=request_id)
         self._moves[game_id].append(move)
         self._remote_requests[(game_id, request_id)] = move
-        self._games[game_id] = StoredGame(game_id, game.initial_state, turn.state,
-                                          expected_version + 1, "REMOTE")
+        self._games[game_id] = StoredGame(
+            game_id=game_id, initial_state=game.initial_state, state=turn.state,
+            version=expected_version + 1, ply_count=game.ply_count + 1, mode="REMOTE")
         return move
 
     async def commit_analysis(self, game_id: str, expected_version: int,

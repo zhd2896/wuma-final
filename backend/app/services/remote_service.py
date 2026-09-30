@@ -137,9 +137,9 @@ class RemoteService:
             if existing is not None:
                 if (existing.turn.before_state.current_player != seat or
                     existing.turn.move != move or
-                    existing.turn_number - 1 != body.expected_version):
+                    existing.created_revision - 1 != body.expected_version):
                     raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
-                return RemoteMoveResponse(version=existing.turn_number, turn=existing.turn)
+                return RemoteMoveResponse(version=existing.created_revision, turn=existing.turn)
             game = await self.store.get_snapshot(game_id)
             if room.status != "PLAYING":
                 raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
@@ -153,4 +153,4 @@ class RemoteService:
             stored = await self.store.commit_remote_turn(game_id, token_hash(token or ""),
                                                          body.expected_version,
                                                          body.client_request_id, turn)
-            return RemoteMoveResponse(version=stored.turn_number, turn=stored.turn)
+            return RemoteMoveResponse(version=stored.created_revision, turn=stored.turn)
