@@ -1,7 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-const root = path.resolve(__dirname, '..');
+const root = process.env.WUMA_CHECK_ROOT
+  ? path.resolve(process.env.WUMA_CHECK_ROOT)
+  : path.resolve(__dirname, '..');
 const mini = path.join(root, 'miniprogram');
 const app = JSON.parse(fs.readFileSync(path.join(mini, 'app.json'), 'utf8'));
 const errors = [];
@@ -9,7 +11,10 @@ const expectedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training
 const seenPages = app.pages.map(route => route.split('/').pop());
 for (const name of expectedPages) if (!seenPages.includes(name)) errors.push(`missing page: ${name}`);
 
-const knownNative = new Set(['view', 'text', 'image', 'button', 'canvas', 'scroll-view', 'block', 'switch', 'input']);
+const knownNative = new Set([
+  'view', 'text', 'image', 'button', 'canvas', 'scroll-view', 'block',
+  'switch', 'input', 'radio-group', 'label', 'radio',
+]);
 const sourceDirs = [path.join(mini, 'pages'), path.join(mini, 'components')];
 let checked = 0;
 for (const parent of sourceDirs) {
