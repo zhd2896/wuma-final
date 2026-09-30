@@ -163,6 +163,7 @@ class RemoteUndoRequestModel(Base):
     resolve_action: Mapped[str | None] = mapped_column(String(16))
     base_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     anchor_turn: Mapped[int] = mapped_column(Integer, nullable=False)
+    revert_count: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
     resolved_at: Mapped[datetime | None] = mapped_column(DATETIME(fsp=6))

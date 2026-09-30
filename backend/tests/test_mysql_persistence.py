@@ -594,6 +594,95 @@ def test_mysql_reverted_remote_request_is_a_permanent_tombstone(client, db):
     assert retried.json()["code"] == "REMOTE_REQUEST_CONFLICT"
 
 
+def test_mysql_remote_operation_retries_return_identical_revert_counts(client, db):
+    def playing_room(prefix):
+        host = client.post("/api/v1/remote/rooms", json={
+            "device_id": f"{prefix}-host-device", "public": False,
+        }).json()["data"]
+        guest = client.post("/api/v1/remote/join", json={
+            "invite_code": host["invite_code"],
+            "device_id": f"{prefix}-guest-device",
+        }).json()["data"]
+        return host, guest
+
+    host, guest = playing_room("mysql-idem-accept")
+    game_id = host["game_id"]
+    path = f"/api/v1/remote/rooms/{game_id}/move"
+    assert client.post(path, headers={"X-Room-Token": host["token"]}, json={
+        "from_node": "P01", "to_node": "P02", "expected_version": 0,
+        "client_request_id": "mysql-idem-accept-move-a",
+    }).status_code == 200
+    assert client.post(path, headers={"X-Room-Token": guest["token"]}, json={
+        "from_node": "P05", "to_node": "P04", "expected_version": 1,
+        "client_request_id": "mysql-idem-accept-move-b",
+    }).status_code == 200
+    created = client.portal.call(
+        client.app.state.store.create_remote_undo, game_id,
+        token_hash(host["token"]),
+        RemoteOperationRequest(expected_version=2,
+                               client_request_id="mysql-idem-accept-create"),
+    )
+    resolve = RemoteOperationRequest(
+        expected_version=2, client_request_id="mysql-idem-accept-resolve")
+    first = client.portal.call(
+        client.app.state.store.resolve_remote_undo, game_id, created.id,
+        token_hash(guest["token"]), resolve, "ACCEPT")
+    retry = client.portal.call(
+        client.app.state.store.resolve_remote_undo, game_id, created.id,
+        token_hash(guest["token"]), resolve, "ACCEPT")
+    assert first == retry
+    assert first.revert_count == 2
+
+    host, guest = playing_room("mysql-idem-decline")
+    game_id = host["game_id"]
+    assert client.post(f"/api/v1/remote/rooms/{game_id}/move",
+                       headers={"X-Room-Token": host["token"]}, json={
+        "from_node": "P01", "to_node": "P02", "expected_version": 0,
+        "client_request_id": "mysql-idem-decline-move-a",
+    }).status_code == 200
+    created = client.portal.call(
+        client.app.state.store.create_remote_undo, game_id,
+        token_hash(host["token"]),
+        RemoteOperationRequest(expected_version=1,
+                               client_request_id="mysql-idem-decline-create"),
+    )
+    resolve = RemoteOperationRequest(
+        expected_version=1, client_request_id="mysql-idem-decline-resolve")
+    first = client.portal.call(
+        client.app.state.store.resolve_remote_undo, game_id, created.id,
+        token_hash(guest["token"]), resolve, "DECLINE")
+    retry = client.portal.call(
+        client.app.state.store.resolve_remote_undo, game_id, created.id,
+        token_hash(guest["token"]), resolve, "DECLINE")
+    assert first == retry
+    assert first.revert_count == 1
+
+    host, guest = playing_room("mysql-idem-stale")
+    game_id = host["game_id"]
+    assert client.post(f"/api/v1/remote/rooms/{game_id}/move",
+                       headers={"X-Room-Token": host["token"]}, json={
+        "from_node": "P01", "to_node": "P02", "expected_version": 0,
+        "client_request_id": "mysql-idem-stale-move-a",
+    }).status_code == 200
+    created = client.portal.call(
+        client.app.state.store.create_remote_undo, game_id,
+        token_hash(host["token"]),
+        RemoteOperationRequest(expected_version=1,
+                               client_request_id="mysql-idem-stale-create"),
+    )
+    with Session(db) as session, session.begin():
+        session.get(GameModel, game_id).version = 2
+    resolve = RemoteOperationRequest(
+        expected_version=1, client_request_id="mysql-idem-stale-resolve")
+    first = client.app.state.store._resolve_remote_undo(
+        game_id, created.id, token_hash(guest["token"]), resolve, "ACCEPT")
+    retry = client.app.state.store._resolve_remote_undo(
+        game_id, created.id, token_hash(guest["token"]), resolve, "ACCEPT")
+    assert first == retry
+    assert first[0].status == "STALE" and first[0].revert_count == 1
+    assert first[1] is True
+
+
 def test_mysql_undo_and_resign_race_has_one_atomic_winner(client, db):
     game_id = create_game(client)
     assert client.post(f"/api/v1/game/{game_id}/move", json={

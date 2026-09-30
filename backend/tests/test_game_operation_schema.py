@@ -77,7 +77,7 @@ def test_operation_event_models_expose_idempotency_constraints_and_status_index(
     assert set(remote_table.c.keys()) == {
         "id", "game_id", "requester", "responder", "create_client_request_id",
         "resolve_client_request_id", "resolve_expected_version", "resolve_action",
-        "base_revision", "anchor_turn", "status",
+        "base_revision", "anchor_turn", "revert_count", "status",
         "created_at", "resolved_at",
     }
     assert remote_table.c.resolve_client_request_id.nullable is True
@@ -231,10 +231,13 @@ def test_terminal_event_repository_maps_malformed_state_to_replay_integrity_erro
 def test_game_operations_migration_is_the_new_head():
     operations = _migration_module()
     idempotency = _migration_module("0012_remote_undo_idempotency")
+    revert_count = _migration_module("0013_remote_undo_revert_count")
     assert operations.revision == "0011_game_operations"
     assert operations.down_revision == "0010_personal_history_indexes"
     assert idempotency.revision == "0012_remote_undo_idempotency"
     assert idempotency.down_revision == operations.revision
+    assert revert_count.revision == "0013_remote_undo_revert_count"
+    assert revert_count.down_revision == idempotency.revision
 
 
 def test_migration_downgrade_guard_rejects_branched_turns(monkeypatch):

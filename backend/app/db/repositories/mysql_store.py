@@ -574,6 +574,8 @@ class MySQLGameStore:
                     resolve_client_request_id=None,
                     resolve_expected_version=None, resolve_action=None,
                     base_revision=game.version, anchor_turn=anchor.turn_number,
+                    revert_count=sum(
+                        move.turn_number >= anchor.turn_number for move in active),
                     status="PENDING", created_at=utc_now(), resolved_at=None,
                 )
                 session.add(row)
@@ -630,8 +632,11 @@ class MySQLGameStore:
                 active = MoveRepository(session).active_rows(game_id)
                 anchor = next((move for move in active
                                if move.turn_number == target.anchor_turn), None)
+                active_revert_count = sum(
+                    move.turn_number >= target.anchor_turn for move in active)
                 stale = (game.version != target.base_revision or anchor is None
-                         or anchor.player != target.requester)
+                         or anchor.player != target.requester
+                         or active_revert_count != target.revert_count)
                 target.resolve_client_request_id = request.client_request_id
                 target.resolve_expected_version = request.expected_version
                 target.resolve_action = action
@@ -640,15 +645,13 @@ class MySQLGameStore:
                     target.status = "STALE"
                 elif action == "ACCEPT":
                     revision = game.version + 1
-                    reverted_count = MoveRepository(session).revert_from(
+                    MoveRepository(session).revert_from(
                         game_id, target.anchor_turn, revision)
                     restored = GameState.model_validate(anchor.state_before)
                     self._set_locked_game_state(
                         game, restored, revision, target.anchor_turn - 1)
                     target.status = "ACCEPTED"
                 else:
-                    reverted_count = sum(
-                        move.turn_number >= target.anchor_turn for move in active)
                     target.status = "DECLINED"
                 session.flush()
                 item = StoredRemoteUndoRequest(
@@ -657,7 +660,7 @@ class MySQLGameStore:
                     create_client_request_id=target.create_client_request_id,
                     base_revision=target.base_revision,
                     anchor_turn=target.anchor_turn,
-                    revert_count=(0 if stale else reverted_count),
+                    revert_count=target.revert_count,
                     status=target.status,
                     resolve_client_request_id=target.resolve_client_request_id,
                     resolve_expected_version=target.resolve_expected_version,

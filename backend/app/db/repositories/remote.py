@@ -132,14 +132,12 @@ class RemoteRepository:
         ).with_for_update())
 
     def stored_undo(self, row: RemoteUndoRequestModel) -> StoredRemoteUndoRequest:
-        active = MoveRepository(self.session).active_rows(row.game_id)
-        revert_count = sum(move.turn_number >= row.anchor_turn for move in active)
         return StoredRemoteUndoRequest(
             id=row.id, game_id=row.game_id, requester=row.requester,
             responder=row.responder,
             create_client_request_id=row.create_client_request_id,
             base_revision=row.base_revision, anchor_turn=row.anchor_turn,
-            revert_count=revert_count, status=row.status,
+            revert_count=row.revert_count, status=row.status,
             resolve_client_request_id=row.resolve_client_request_id,
             resolve_expected_version=row.resolve_expected_version,
             resolve_action=row.resolve_action,
