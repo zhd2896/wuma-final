@@ -7,11 +7,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from backend.app.core.errors import ApiError
-from backend.app.db.models import GameMoveModel, RemoteRoomModel, utc_now
+from backend.app.db.models import (GameMoveModel, GameTerminalEventModel,
+                                   RemoteRoomModel, RemoteUndoRequestModel, utc_now)
 from backend.app.db.repositories.game import GameRepository
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.schemas.game import GameState, TurnResult
-from backend.app.services.game_store import StoredMove, StoredRemoteRoom
+from backend.app.services.game_store import (StoredMove, StoredRemoteRoom,
+                                             StoredRemoteUndoRequest)
 
 
 class RemoteRepository:
@@ -105,26 +107,76 @@ class RemoteRepository:
             reverted_revision=row.reverted_revision,
             client_request_id=row.client_request_id)
 
+    @staticmethod
+    def seat(room: RemoteRoomModel, token_hash: str) -> str:
+        if hmac.compare_digest(room.host_token_hash, token_hash):
+            return "A"
+        if room.guest_token_hash and hmac.compare_digest(room.guest_token_hash, token_hash):
+            return "B"
+        raise ApiError("REMOTE_ACCESS_DENIED", "This seat is unavailable")
+
+    def get_undo(self, game_id: str, request_id: str,
+                 lock: bool = False) -> RemoteUndoRequestModel | None:
+        query = select(RemoteUndoRequestModel).where(
+            RemoteUndoRequestModel.game_id == game_id,
+            RemoteUndoRequestModel.id == request_id,
+        )
+        if lock:
+            query = query.with_for_update()
+        return self.session.scalar(query)
+
+    def get_pending_undo(self, game_id: str) -> RemoteUndoRequestModel | None:
+        return self.session.scalar(select(RemoteUndoRequestModel).where(
+            RemoteUndoRequestModel.game_id == game_id,
+            RemoteUndoRequestModel.status == "PENDING",
+        ).with_for_update())
+
+    def stored_undo(self, row: RemoteUndoRequestModel) -> StoredRemoteUndoRequest:
+        active = MoveRepository(self.session).active_rows(row.game_id)
+        revert_count = sum(move.turn_number >= row.anchor_turn for move in active)
+        return StoredRemoteUndoRequest(
+            id=row.id, game_id=row.game_id, requester=row.requester,
+            responder=row.responder,
+            create_client_request_id=row.create_client_request_id,
+            base_revision=row.base_revision, anchor_turn=row.anchor_turn,
+            revert_count=revert_count, status=row.status,
+            resolve_client_request_id=row.resolve_client_request_id,
+            resolve_expected_version=row.resolve_expected_version,
+            resolve_action=row.resolve_action,
+        )
+
     def commit_turn(self, game_id: str, token_hash: str,
                     expected_version: int, request_id: str,
                     turn: TurnResult) -> StoredMove:
+        games = GameRepository(self.session)
+        game = games.get_game(game_id, lock=True)
         room = self.get(game_id, lock=True)
-        seat = "A" if hmac.compare_digest(room.host_token_hash, token_hash) else (
-            "B" if room.guest_token_hash and
-            hmac.compare_digest(room.guest_token_hash, token_hash) else None)
-        if seat is None:
-            raise ApiError("REMOTE_ACCESS_DENIED", "This seat is unavailable")
+        seat = self.seat(room, token_hash)
         existing = self.get_move(game_id, request_id)
         if existing is not None:
-            if (existing.turn.before_state.current_player != seat or
+            if (existing.reverted_revision is not None or
+                existing.turn.before_state.current_player != seat or
                 existing.turn.move != turn.move or
                 existing.created_revision - 1 != expected_version):
                 raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
             return existing
+        undo_request = self.session.scalar(select(RemoteUndoRequestModel.id).where(
+            RemoteUndoRequestModel.game_id == game_id,
+            (RemoteUndoRequestModel.create_client_request_id == request_id)
+            | (RemoteUndoRequestModel.resolve_client_request_id == request_id),
+        ))
+        terminal_request = self.session.scalar(select(GameTerminalEventModel.id).where(
+            GameTerminalEventModel.game_id == game_id,
+            GameTerminalEventModel.client_request_id == request_id,
+        ))
+        if undo_request is not None or terminal_request is not None:
+            raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
         if room.status != "PLAYING":
             raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
-        games = GameRepository(self.session)
-        game = games.get_game(game_id)
+        if self.get_pending_undo(game_id) is not None:
+            raise ApiError("REMOTE_UNDO_PENDING", "An undo request is pending")
+        if game.status != "PLAYING":
+            raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
         if game.current_player != seat:
             raise ApiError("NOT_YOUR_TURN", "Wait for your turn")
         if game.version != expected_version or GameState.model_validate(game.current_state) != turn.before_state:

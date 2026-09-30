@@ -159,6 +159,8 @@ class RemoteUndoRequestModel(Base):
     responder: Mapped[str] = mapped_column(String(1), nullable=False)
     create_client_request_id: Mapped[str] = mapped_column(String(64), nullable=False)
     resolve_client_request_id: Mapped[str | None] = mapped_column(String(64))
+    resolve_expected_version: Mapped[int | None] = mapped_column(Integer)
+    resolve_action: Mapped[str | None] = mapped_column(String(16))
     base_revision: Mapped[int] = mapped_column(Integer, nullable=False)
     anchor_turn: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(16), nullable=False)

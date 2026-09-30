@@ -33,8 +33,11 @@ class GameRepository:
         ))
         return game_id
 
-    def get_game(self, game_id: str) -> GameModel:
-        row = self.session.scalar(select(GameModel).where(GameModel.id == game_id))
+    def get_game(self, game_id: str, lock: bool = False) -> GameModel:
+        query = select(GameModel).where(GameModel.id == game_id)
+        if lock:
+            query = query.with_for_update()
+        row = self.session.scalar(query)
         if row is None:
             raise ApiError("GAME_NOT_FOUND", "Game not found")
         return row

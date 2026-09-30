@@ -9,9 +9,11 @@ from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import sessionmaker
 
 from backend.app.core.errors import ApiError
-from backend.app.db.models import (AiAnalysisModel, CoachHintModel, GameModel, GameReviewModel,
-                                    MoveReviewModel, ReviewExplanationModel, UserModel,
-                                    TrainingRecordModel)
+from backend.app.db.models import (AiAnalysisModel, CoachHintModel, GameModel, GameMoveModel,
+                                    GameReviewModel, GameTerminalEventModel,
+                                    GameUndoEventModel, MoveReviewModel,
+                                    RemoteUndoRequestModel, ReviewExplanationModel, UserModel,
+                                    TrainingRecordModel, utc_now)
 from backend.app.db.repositories.game import GameRepository
 from backend.app.db.repositories.remote import RemoteRepository
 from backend.app.db.repositories.move import MoveRepository
@@ -179,7 +181,7 @@ class MySQLGameStore:
         try:
             with self.sessions.begin() as session:
                 games = GameRepository(session)
-                row = games.get_game(game_id)
+                row = games.get_game(game_id, lock=True)
                 if row.version != expected_version or GameState.model_validate(row.current_state) != turn.before_state:
                     raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the move")
                 turn_number = row.ply_count + 1
@@ -187,6 +189,8 @@ class MySQLGameStore:
                 MoveRepository(session).create_move(
                     game_id, turn_number, expected_version + 1, turn, actor_type, search)
                 session.flush()
+        except IntegrityError as exc:
+            raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the move") from exc
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
@@ -227,11 +231,158 @@ class MySQLGameStore:
 
     async def commit_undo(self, game_id: str,
                           request: GameOperationRequest) -> GameOperationResponse:
-        raise ApiError("NOT_IMPLEMENTED", "MySQL game operations are not implemented")
+        return await asyncio.to_thread(self._commit_undo, game_id, request)
+
+    @staticmethod
+    def _operation_conflict() -> ApiError:
+        return ApiError("OPERATION_REQUEST_CONFLICT", "Request ID already used")
+
+    @staticmethod
+    def _remote_request_conflict() -> ApiError:
+        return ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
+
+    @staticmethod
+    def _set_locked_game_state(row: GameModel, state: GameState,
+                               version: int, ply_count: int) -> None:
+        now = utc_now()
+        finished = state.game_status == "FINISHED"
+        row.current_state = state.model_dump(mode="json")
+        row.current_player = state.current_player
+        row.status = state.game_status
+        row.winner = state.winner
+        row.winner_reason = state.winner_reason
+        row.version = version
+        row.ply_count = ply_count
+        row.updated_at = now
+        row.finished_at = now if finished else None
+        row.duration_ms = (int((now - row.started_at).total_seconds() * 1000)
+                           if finished else None)
+
+    @staticmethod
+    def _validate_operation(row: GameModel, request: GameOperationRequest) -> None:
+        if row.status != "PLAYING":
+            raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
+        if row.version != request.expected_version:
+            raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the operation")
+
+    def _commit_undo(self, game_id: str,
+                     request: GameOperationRequest) -> GameOperationResponse:
+        try:
+            with self.sessions.begin() as session:
+                games = GameRepository(session)
+                row = games.get_game(game_id, lock=True)
+                if row.mode == "REMOTE":
+                    raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+                existing = session.scalar(select(GameUndoEventModel).where(
+                    GameUndoEventModel.game_id == game_id,
+                    GameUndoEventModel.client_request_id == request.client_request_id,
+                ))
+                terminal = session.scalar(select(GameTerminalEventModel).where(
+                    GameTerminalEventModel.game_id == game_id,
+                    GameTerminalEventModel.client_request_id == request.client_request_id,
+                ))
+                if terminal is not None:
+                    raise self._operation_conflict()
+                if existing is not None:
+                    if existing.before_revision != request.expected_version:
+                        raise self._operation_conflict()
+                    return GameOperationResponse(
+                        version=existing.after_revision,
+                        ply_count=existing.anchor_turn - 1,
+                        state=GameState.model_validate(existing.state_after),
+                        reverted_turns=existing.reverted_count,
+                    )
+                self._validate_operation(row, request)
+                moves = MoveRepository(session)
+                active = moves.active_rows(game_id)
+                candidates = (active if row.mode == "LOCAL" else
+                              [item for item in active if item.actor_type == "HUMAN"])
+                if not candidates:
+                    raise ApiError("UNDO_NOT_AVAILABLE", "No move is available to undo")
+                anchor = candidates[-1]
+                restored = GameState.model_validate(anchor.state_before)
+                requester = (("B" if row.ai_player == "A" else "A")
+                             if row.mode == "AI" else
+                             GameState.model_validate(row.current_state).current_player)
+                revision = row.version + 1
+                reverted_count = moves.revert_from(game_id, anchor.turn_number, revision)
+                self._set_locked_game_state(
+                    row, restored, revision, anchor.turn_number - 1)
+                session.add(GameUndoEventModel(
+                    game_id=game_id,
+                    client_request_id=request.client_request_id,
+                    requester=requester,
+                    before_revision=request.expected_version,
+                    after_revision=revision,
+                    anchor_turn=anchor.turn_number,
+                    reverted_count=reverted_count,
+                    state_after=restored.model_dump(mode="json"),
+                    created_at=utc_now(),
+                ))
+                session.flush()
+                return GameOperationResponse(
+                    version=revision, ply_count=anchor.turn_number - 1,
+                    state=restored, reverted_turns=reverted_count)
+        except IntegrityError as exc:
+            raise self._operation_conflict() from exc
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_resign(self, game_id: str,
                             request: GameOperationRequest) -> GameOperationResponse:
-        raise ApiError("NOT_IMPLEMENTED", "MySQL game operations are not implemented")
+        return await asyncio.to_thread(self._commit_resign, game_id, request)
+
+    def _commit_resign(self, game_id: str,
+                       request: GameOperationRequest) -> GameOperationResponse:
+        try:
+            with self.sessions.begin() as session:
+                row = GameRepository(session).get_game(game_id, lock=True)
+                if row.mode == "REMOTE":
+                    raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+                undo = session.scalar(select(GameUndoEventModel).where(
+                    GameUndoEventModel.game_id == game_id,
+                    GameUndoEventModel.client_request_id == request.client_request_id,
+                ))
+                terminal = session.scalar(select(GameTerminalEventModel).where(
+                    GameTerminalEventModel.game_id == game_id,
+                    GameTerminalEventModel.client_request_id == request.client_request_id,
+                ))
+                if undo is not None:
+                    raise self._operation_conflict()
+                if terminal is not None:
+                    if (terminal.event_type != "RESIGN"
+                            or terminal.revision - 1 != request.expected_version):
+                        raise self._operation_conflict()
+                    return GameOperationResponse(
+                        version=terminal.revision, ply_count=row.ply_count,
+                        state=GameState.model_validate(terminal.state_after))
+                self._validate_operation(row, request)
+                before = GameState.model_validate(row.current_state)
+                loser = (("B" if row.ai_player == "A" else "A")
+                         if row.mode == "AI" else before.current_player)
+                winner = "B" if loser == "A" else "A"
+                after = before.model_copy(deep=True, update={
+                    "game_status": "FINISHED", "winner": winner,
+                    "winner_reason": "RESIGN",
+                })
+                revision = row.version + 1
+                self._set_locked_game_state(row, after, revision, row.ply_count)
+                session.add(GameTerminalEventModel(
+                    game_id=game_id,
+                    client_request_id=request.client_request_id,
+                    revision=revision, event_type="RESIGN", actor=loser,
+                    winner=winner,
+                    state_before=before.model_dump(mode="json"),
+                    state_after=after.model_dump(mode="json"),
+                    created_at=utc_now(),
+                ))
+                session.flush()
+                return GameOperationResponse(
+                    version=revision, ply_count=row.ply_count, state=after)
+        except IntegrityError as exc:
+            raise self._operation_conflict() from exc
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     def close(self) -> None:
         self.engine.dispose()
@@ -335,26 +486,260 @@ class MySQLGameStore:
             with self.sessions.begin() as session:
                 return RemoteRepository(session).commit_turn(game_id, token_hash,
                                                               expected_version, request_id, turn)
+        except IntegrityError as exc:
+            raise self._remote_request_conflict() from exc
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def get_pending_remote_undo(self,
                                       game_id: str) -> StoredRemoteUndoRequest | None:
-        # Task 6 replaces this compatibility read with the transactional query.
-        return None
+        return await asyncio.to_thread(self._get_pending_remote_undo, game_id)
+
+    def _get_pending_remote_undo(self, game_id: str) -> StoredRemoteUndoRequest | None:
+        try:
+            with self.sessions.begin() as session:
+                remote = RemoteRepository(session)
+                remote.get(game_id)
+                row = remote.get_pending_undo(game_id)
+                return None if row is None else remote.stored_undo(row)
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def create_remote_undo(self, game_id: str, token_hash: str,
                                  request: RemoteOperationRequest) -> StoredRemoteUndoRequest:
-        raise ApiError("NOT_IMPLEMENTED", "MySQL remote operations are not implemented")
+        return await asyncio.to_thread(
+            self._create_remote_undo, game_id, token_hash, request)
+
+    @staticmethod
+    def _remote_operation_use(session, game_id: str,
+                              client_request_id: str) -> tuple[str, object] | None:
+        move = session.scalar(select(GameMoveModel).where(
+            GameMoveModel.game_id == game_id,
+            GameMoveModel.client_request_id == client_request_id,
+        ))
+        if move is not None:
+            return "MOVE", move
+        created = session.scalar(select(RemoteUndoRequestModel).where(
+            RemoteUndoRequestModel.game_id == game_id,
+            RemoteUndoRequestModel.create_client_request_id == client_request_id,
+        ))
+        if created is not None:
+            return "CREATE_UNDO", created
+        resolved = session.scalar(select(RemoteUndoRequestModel).where(
+            RemoteUndoRequestModel.game_id == game_id,
+            RemoteUndoRequestModel.resolve_client_request_id == client_request_id,
+        ))
+        if resolved is not None:
+            return "RESOLVE_UNDO", resolved
+        terminal = session.scalar(select(GameTerminalEventModel).where(
+            GameTerminalEventModel.game_id == game_id,
+            GameTerminalEventModel.client_request_id == client_request_id,
+        ))
+        return None if terminal is None else ("RESIGN", terminal)
+
+    def _create_remote_undo(self, game_id: str, token_hash: str,
+                            request: RemoteOperationRequest) -> StoredRemoteUndoRequest:
+        try:
+            with self.sessions.begin() as session:
+                game = GameRepository(session).get_game(game_id, lock=True)
+                remote = RemoteRepository(session)
+                room = remote.get(game_id, lock=True)
+                seat = remote.seat(room, token_hash)
+                use = self._remote_operation_use(
+                    session, game_id, request.client_request_id)
+                if use is not None:
+                    kind, row = use
+                    if (kind == "CREATE_UNDO"
+                            and row.base_revision == request.expected_version
+                            and row.requester == seat):
+                        return remote.stored_undo(row)
+                    raise self._remote_request_conflict()
+                if room.status != "PLAYING":
+                    raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
+                if game.status != "PLAYING":
+                    raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
+                if game.version != request.expected_version:
+                    raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
+                if remote.get_pending_undo(game_id) is not None:
+                    raise ApiError("REMOTE_UNDO_PENDING", "An undo request is already pending")
+                active = MoveRepository(session).active_rows(game_id)
+                candidates = [move for move in active if move.player == seat]
+                if not candidates:
+                    raise ApiError("UNDO_NOT_AVAILABLE", "No move is available to undo")
+                anchor = candidates[-1]
+                row = RemoteUndoRequestModel(
+                    id=uuid4().hex, game_id=game_id,
+                    requester=seat, responder="B" if seat == "A" else "A",
+                    create_client_request_id=request.client_request_id,
+                    resolve_client_request_id=None,
+                    resolve_expected_version=None, resolve_action=None,
+                    base_revision=game.version, anchor_turn=anchor.turn_number,
+                    status="PENDING", created_at=utc_now(), resolved_at=None,
+                )
+                session.add(row)
+                session.flush()
+                return remote.stored_undo(row)
+        except IntegrityError as exc:
+            raise self._remote_request_conflict() from exc
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def resolve_remote_undo(self, game_id: str, request_id: str,
                                   token_hash: str, request: RemoteOperationRequest,
                                   action: str) -> StoredRemoteUndoRequest:
-        raise ApiError("NOT_IMPLEMENTED", "MySQL remote operations are not implemented")
+        item, stale = await asyncio.to_thread(
+            self._resolve_remote_undo, game_id, request_id,
+            token_hash, request, action)
+        if stale:
+            raise ApiError("GAME_STATE_CONFLICT", "Undo request is stale")
+        return item
+
+    def _resolve_remote_undo(self, game_id: str, request_id: str,
+                             token_hash: str, request: RemoteOperationRequest,
+                             action: str) -> tuple[StoredRemoteUndoRequest, bool]:
+        if action not in {"ACCEPT", "DECLINE"}:
+            raise ValueError(f"Unsupported remote undo action: {action}")
+        try:
+            with self.sessions.begin() as session:
+                game = GameRepository(session).get_game(game_id, lock=True)
+                remote = RemoteRepository(session)
+                room = remote.get(game_id, lock=True)
+                seat = remote.seat(room, token_hash)
+                target = remote.get_undo(game_id, request_id, lock=True)
+                use = self._remote_operation_use(
+                    session, game_id, request.client_request_id)
+                if use is not None:
+                    kind, existing = use
+                    if (kind == "RESOLVE_UNDO" and existing.id == request_id
+                            and existing.responder == seat
+                            and existing.resolve_expected_version == request.expected_version
+                            and existing.resolve_action == action):
+                        item = remote.stored_undo(existing)
+                        return item, existing.status == "STALE"
+                    raise self._remote_request_conflict()
+                if target is None:
+                    raise ApiError("REMOTE_UNDO_NOT_FOUND", "Undo request not found")
+                if game.status != "PLAYING":
+                    raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
+                if seat != target.responder:
+                    raise ApiError("REMOTE_ACCESS_DENIED", "Only the opponent can respond")
+                if target.status != "PENDING":
+                    raise ApiError("REMOTE_UNDO_UNAVAILABLE", "Undo request is no longer pending")
+                if request.expected_version != target.base_revision:
+                    raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
+                active = MoveRepository(session).active_rows(game_id)
+                anchor = next((move for move in active
+                               if move.turn_number == target.anchor_turn), None)
+                stale = (game.version != target.base_revision or anchor is None
+                         or anchor.player != target.requester)
+                target.resolve_client_request_id = request.client_request_id
+                target.resolve_expected_version = request.expected_version
+                target.resolve_action = action
+                target.resolved_at = utc_now()
+                if stale:
+                    target.status = "STALE"
+                elif action == "ACCEPT":
+                    revision = game.version + 1
+                    reverted_count = MoveRepository(session).revert_from(
+                        game_id, target.anchor_turn, revision)
+                    restored = GameState.model_validate(anchor.state_before)
+                    self._set_locked_game_state(
+                        game, restored, revision, target.anchor_turn - 1)
+                    target.status = "ACCEPTED"
+                else:
+                    reverted_count = sum(
+                        move.turn_number >= target.anchor_turn for move in active)
+                    target.status = "DECLINED"
+                session.flush()
+                item = StoredRemoteUndoRequest(
+                    id=target.id, game_id=target.game_id,
+                    requester=target.requester, responder=target.responder,
+                    create_client_request_id=target.create_client_request_id,
+                    base_revision=target.base_revision,
+                    anchor_turn=target.anchor_turn,
+                    revert_count=(0 if stale else reverted_count),
+                    status=target.status,
+                    resolve_client_request_id=target.resolve_client_request_id,
+                    resolve_expected_version=target.resolve_expected_version,
+                    resolve_action=target.resolve_action,
+                )
+                return item, stale
+        except IntegrityError as exc:
+            raise self._remote_request_conflict() from exc
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_remote_resign(self, game_id: str, token_hash: str,
                                    request: RemoteOperationRequest) -> StoredTerminalEvent:
-        raise ApiError("NOT_IMPLEMENTED", "MySQL remote operations are not implemented")
+        return await asyncio.to_thread(
+            self._commit_remote_resign, game_id, token_hash, request)
+
+    def _commit_remote_resign(self, game_id: str, token_hash: str,
+                              request: RemoteOperationRequest) -> StoredTerminalEvent:
+        try:
+            with self.sessions.begin() as session:
+                game = GameRepository(session).get_game(game_id, lock=True)
+                remote = RemoteRepository(session)
+                room = remote.get(game_id, lock=True)
+                seat = remote.seat(room, token_hash)
+                use = self._remote_operation_use(
+                    session, game_id, request.client_request_id)
+                if use is not None:
+                    kind, existing = use
+                    if (kind == "RESIGN" and existing.actor == seat
+                            and existing.revision - 1 == request.expected_version):
+                        return StoredTerminalEvent(
+                            game_id=existing.game_id,
+                            client_request_id=existing.client_request_id,
+                            revision=existing.revision,
+                            event_type=existing.event_type,
+                            actor=existing.actor, winner=existing.winner,
+                            state_before=GameState.model_validate(existing.state_before),
+                            state_after=GameState.model_validate(existing.state_after),
+                            terminal_event_id=existing.id,
+                        )
+                    raise self._remote_request_conflict()
+                if room.status != "PLAYING":
+                    raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
+                if game.status != "PLAYING":
+                    raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
+                if game.version != request.expected_version:
+                    raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
+                before = GameState.model_validate(game.current_state)
+                winner = "B" if seat == "A" else "A"
+                after = before.model_copy(deep=True, update={
+                    "game_status": "FINISHED", "winner": winner,
+                    "winner_reason": "RESIGN",
+                })
+                revision = game.version + 1
+                self._set_locked_game_state(game, after, revision, game.ply_count)
+                pending = remote.get_pending_undo(game_id)
+                if pending is not None:
+                    pending.status = "STALE"
+                    pending.resolved_at = utc_now()
+                event = GameTerminalEventModel(
+                    game_id=game_id,
+                    client_request_id=request.client_request_id,
+                    revision=revision, event_type="RESIGN",
+                    actor=seat, winner=winner,
+                    state_before=before.model_dump(mode="json"),
+                    state_after=after.model_dump(mode="json"),
+                    created_at=utc_now(),
+                )
+                session.add(event)
+                session.flush()
+                return StoredTerminalEvent(
+                    game_id=game_id,
+                    client_request_id=request.client_request_id,
+                    revision=revision, event_type="RESIGN",
+                    actor=seat, winner=winner,
+                    state_before=before, state_after=after,
+                    terminal_event_id=event.id,
+                )
+        except IntegrityError as exc:
+            raise self._remote_request_conflict() from exc
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_analysis(self, game_id: str, expected_version: int,
                               analysis: PositionAnalysis) -> None:

@@ -32,10 +32,10 @@ def _indexes(table) -> dict[str, tuple[str, ...]]:
     }
 
 
-def _migration_module():
-    path = Path(__file__).parents[1] / "alembic" / "versions" / "0011_game_operations.py"
-    assert path.exists(), "0011_game_operations migration is missing"
-    spec = importlib.util.spec_from_file_location("migration_0011_game_operations", path)
+def _migration_module(revision="0011_game_operations"):
+    path = Path(__file__).parents[1] / "alembic" / "versions" / f"{revision}.py"
+    assert path.exists(), f"{revision} migration is missing"
+    spec = importlib.util.spec_from_file_location(f"migration_{revision}", path)
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -76,7 +76,8 @@ def test_operation_event_models_expose_idempotency_constraints_and_status_index(
     remote_table = models.RemoteUndoRequestModel.__table__
     assert set(remote_table.c.keys()) == {
         "id", "game_id", "requester", "responder", "create_client_request_id",
-        "resolve_client_request_id", "base_revision", "anchor_turn", "status",
+        "resolve_client_request_id", "resolve_expected_version", "resolve_action",
+        "base_revision", "anchor_turn", "status",
         "created_at", "resolved_at",
     }
     assert remote_table.c.resolve_client_request_id.nullable is True
@@ -228,9 +229,12 @@ def test_terminal_event_repository_maps_malformed_state_to_replay_integrity_erro
 
 
 def test_game_operations_migration_is_the_new_head():
-    migration = _migration_module()
-    assert migration.revision == "0011_game_operations"
-    assert migration.down_revision == "0010_personal_history_indexes"
+    operations = _migration_module()
+    idempotency = _migration_module("0012_remote_undo_idempotency")
+    assert operations.revision == "0011_game_operations"
+    assert operations.down_revision == "0010_personal_history_indexes"
+    assert idempotency.revision == "0012_remote_undo_idempotency"
+    assert idempotency.down_revision == operations.revision
 
 
 def test_migration_downgrade_guard_rejects_branched_turns(monkeypatch):

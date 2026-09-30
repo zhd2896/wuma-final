@@ -1,6 +1,5 @@
 """Idempotent local and AI undo/resign operations."""
 
-import asyncio
 from dataclasses import replace
 from unittest.mock import patch
 
@@ -9,7 +8,6 @@ from fastapi.testclient import TestClient
 from pydantic import TypeAdapter, ValidationError
 
 from backend.app.core.errors import ApiError
-from backend.app.db.repositories.mysql_store import MySQLGameStore
 from backend.app.main import create_app
 from backend.app.schemas.game import (
     BoardState, ClientRequestId, GameOperationRequest, GameOperationResponse, GameState,
@@ -386,13 +384,3 @@ def test_snapshot_and_move_reads_do_not_expose_stored_operation_state(client):
 
     assert store._games[game_id].state.board.occupancy["P02"] == "A"
     assert store._moves[game_id][0].turn.state.board.occupancy["P02"] == "A"
-
-
-def test_mysql_operation_methods_fail_explicitly_until_transaction_support_exists():
-    store = object.__new__(MySQLGameStore)
-    request = GameOperationRequest(expected_version=0, client_request_id="mysql-op-0001")
-
-    for method in (store.commit_undo, store.commit_resign):
-        with pytest.raises(ApiError) as error:
-            asyncio.run(method("game-id", request))
-        assert error.value.code == "NOT_IMPLEMENTED"

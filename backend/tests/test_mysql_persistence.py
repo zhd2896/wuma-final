@@ -18,11 +18,14 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, TrainingItem
                                     TrainingRecordModel, GameModel, GameMoveModel,
                                     GameReviewModel, MoveReviewModel,
                                     ReviewExplanationModel, RemoteRoomModel, UserModel,
-                                    GameTerminalEventModel, utc_now)
+                                    GameTerminalEventModel, GameUndoEventModel,
+                                    RemoteUndoRequestModel, utc_now)
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.db.repositories.mysql_store import MySQLGameStore
 from backend.app.main import create_app
-from backend.app.schemas.game import BoardState, GameState, Move
+from backend.app.schemas.game import BoardState, GameOperationRequest, GameState, Move
+from backend.app.schemas.remote import RemoteOperationRequest
+from backend.app.services.remote_service import token_hash
 
 
 DB_URL = os.getenv("WUMA_TEST_DATABASE_URL")
@@ -44,6 +47,9 @@ def db():
         session.execute(delete(MoveReviewModel))
         session.execute(delete(GameReviewModel))
         session.execute(delete(AiAnalysisModel))
+        session.execute(delete(RemoteUndoRequestModel))
+        session.execute(delete(GameUndoEventModel))
+        session.execute(delete(GameTerminalEventModel))
         session.execute(delete(GameMoveModel))
         session.execute(delete(RemoteRoomModel))
         session.execute(delete(GameModel))
@@ -447,6 +453,224 @@ def test_stale_version_conflict_and_atomic_rollback(client, db):
         store2.close()
     row, moves = game_and_moves(db, game_id)
     assert row.version == 1 and len(moves) == 1
+
+
+def test_mysql_local_undo_is_atomic_idempotent_and_persists_tombstones(client, db):
+    game_id = create_game(client)
+    moved = client.post(f"/api/v1/game/{game_id}/move", json={
+        "from_node": "P01", "to_node": "P02",
+    })
+    assert moved.status_code == 200, moved.text
+    body = {"expected_version": 1, "client_request_id": "mysql-undo-local-0001"}
+    first = client.post(f"/api/v1/game/{game_id}/undo", json=body)
+    assert first.status_code == 200, first.text
+    assert first.json()["data"]["version"] == 2
+    assert first.json()["data"]["ply_count"] == 0
+    assert first.json()["data"]["reverted_turns"] == 1
+    assert client.post(f"/api/v1/game/{game_id}/undo", json=body).json() == first.json()
+    reused = client.post(f"/api/v1/game/{game_id}/resign", json=body)
+    assert reused.status_code == 409
+    assert reused.json()["code"] == "OPERATION_REQUEST_CONFLICT"
+    with Session(db) as session:
+        game = session.get(GameModel, game_id)
+        moves = session.scalars(select(GameMoveModel).where(
+            GameMoveModel.game_id == game_id)).all()
+        events = session.scalars(select(GameUndoEventModel).where(
+            GameUndoEventModel.game_id == game_id)).all()
+    assert game.version == 2 and game.ply_count == 0
+    assert len(moves) == 1 and moves[0].reverted_revision == 2
+    assert len(events) == 1 and events[0].reverted_count == 1
+
+
+def test_mysql_ai_undo_reverts_the_human_anchor_and_ai_reply(client, db):
+    game_id = create_game(client, mode="AI", ai_player="B")
+    assert client.post(f"/api/v1/game/{game_id}/move", json={
+        "from_node": "P01", "to_node": "P02",
+    }).status_code == 200
+    ai = client.post(f"/api/v1/game/{game_id}/ai-move", json={})
+    assert ai.status_code == 200, ai.text
+    undone = client.post(f"/api/v1/game/{game_id}/undo", json={
+        "expected_version": 2, "client_request_id": "mysql-ai-undo-0001",
+    })
+    assert undone.status_code == 200, undone.text
+    assert undone.json()["data"]["version"] == 3
+    assert undone.json()["data"]["ply_count"] == 0
+    assert undone.json()["data"]["reverted_turns"] == 2
+    with Session(db) as session:
+        moves = session.scalars(select(GameMoveModel).where(
+            GameMoveModel.game_id == game_id).order_by(GameMoveModel.turn_number)).all()
+        event = session.scalar(select(GameUndoEventModel).where(
+            GameUndoEventModel.game_id == game_id))
+    assert [move.reverted_revision for move in moves] == [3, 3]
+    assert event.requester == "A" and event.anchor_turn == 1
+
+
+def test_mysql_undo_event_failure_rolls_back_state_and_move_marker(client, db):
+    game_id = create_game(client)
+    assert client.post(f"/api/v1/game/{game_id}/move", json={
+        "from_node": "P01", "to_node": "P02",
+    }).status_code == 200
+    real_flush = Session.flush
+
+    def fail_event_flush(session, *args, **kwargs):
+        if any(isinstance(item, GameUndoEventModel) for item in session.new):
+            real_flush(session, *args, **kwargs)
+            raise RuntimeError("failure after undo event insert")
+        return real_flush(session, *args, **kwargs)
+
+    with patch.object(Session, "flush", fail_event_flush):
+        with pytest.raises(RuntimeError, match="failure after undo event insert"):
+            client.app.state.store._commit_undo(
+                game_id,
+                GameOperationRequest(expected_version=1,
+                                     client_request_id="mysql-undo-rollback-0001"),
+            )
+    row, moves = game_and_moves(db, game_id)
+    assert row.version == 1 and row.ply_count == 1
+    assert len(moves) == 1 and moves[0].reverted_revision is None
+    with Session(db) as session:
+        assert session.scalar(select(GameUndoEventModel).where(
+            GameUndoEventModel.game_id == game_id)) is None
+
+
+def test_mysql_remote_pending_undo_is_rechecked_inside_move_transaction(client, db):
+    host = client.post("/api/v1/remote/rooms", json={
+        "device_id": "mysql-pending-host", "public": False,
+    }).json()["data"]
+    guest = client.post("/api/v1/remote/join", json={
+        "invite_code": host["invite_code"], "device_id": "mysql-pending-guest",
+    }).json()["data"]
+    game_id = host["game_id"]
+    first = client.post(f"/api/v1/remote/rooms/{game_id}/move",
+                        headers={"X-Room-Token": host["token"]}, json={
+        "from_node": "P01", "to_node": "P02", "expected_version": 0,
+        "client_request_id": "mysql-pending-anchor-0001",
+    })
+    assert first.status_code == 200, first.text
+    created = client.post(f"/api/v1/remote/rooms/{game_id}/undo-requests",
+                          headers={"X-Room-Token": host["token"]}, json={
+        "expected_version": 1, "client_request_id": "mysql-pending-create-0001",
+    })
+    assert created.status_code == 200, created.text
+    stale_preflight_state = GameState.model_validate(first.json()["data"]["turn"]["state"])
+    turn = client.portal.call(client.app.state.adapter.execute_turn, stale_preflight_state,
+                              Move(from_node="P05", to_node="P04"))
+    with pytest.raises(ApiError) as error:
+        client.app.state.store._commit_remote_turn(
+            game_id, token_hash(guest["token"]), 1,
+            "mysql-racing-move-0001", turn,
+        )
+    assert error.value.code == "REMOTE_UNDO_PENDING"
+    row, moves = game_and_moves(db, game_id)
+    assert row.version == row.ply_count == 1
+    assert len(moves) == 1
+
+
+def test_mysql_reverted_remote_request_is_a_permanent_tombstone(client, db):
+    host = client.post("/api/v1/remote/rooms", json={
+        "device_id": "mysql-tombstone-host", "public": False,
+    }).json()["data"]
+    guest = client.post("/api/v1/remote/join", json={
+        "invite_code": host["invite_code"], "device_id": "mysql-tombstone-guest",
+    }).json()["data"]
+    game_id = host["game_id"]
+    move_body = {"from_node": "P01", "to_node": "P02", "expected_version": 0,
+                 "client_request_id": "mysql-tombstone-move-0001"}
+    path = f"/api/v1/remote/rooms/{game_id}"
+    assert client.post(path + "/move", headers={"X-Room-Token": host["token"]},
+                       json=move_body).status_code == 200
+    created = client.post(path + "/undo-requests",
+                          headers={"X-Room-Token": host["token"]}, json={
+        "expected_version": 1, "client_request_id": "mysql-tombstone-create-0001",
+    }).json()["data"]["pending_undo"]
+    accepted = client.post(path + f"/undo-requests/{created['id']}/accept",
+                           headers={"X-Room-Token": guest["token"]}, json={
+        "expected_version": 1, "client_request_id": "mysql-tombstone-accept-0001",
+    })
+    assert accepted.status_code == 200, accepted.text
+    retried = client.post(path + "/move", headers={"X-Room-Token": host["token"]},
+                          json=move_body)
+    assert retried.status_code == 409
+    assert retried.json()["code"] == "REMOTE_REQUEST_CONFLICT"
+
+
+def test_mysql_undo_and_resign_race_has_one_atomic_winner(client, db):
+    game_id = create_game(client)
+    assert client.post(f"/api/v1/game/{game_id}/move", json={
+        "from_node": "P01", "to_node": "P02",
+    }).status_code == 200
+    barrier = Barrier(2)
+
+    def operate(operation, request_id):
+        barrier.wait()
+        return client.post(f"/api/v1/game/{game_id}/{operation}", json={
+            "expected_version": 1, "client_request_id": request_id,
+        })
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        undo = pool.submit(operate, "undo", "mysql-race-undo-0001")
+        resign = pool.submit(operate, "resign", "mysql-race-resign-0001")
+        responses = [undo.result(), resign.result()]
+    assert sorted(response.status_code for response in responses) == [200, 409]
+    with Session(db) as session:
+        game = session.get(GameModel, game_id)
+        undo_events = session.scalars(select(GameUndoEventModel).where(
+            GameUndoEventModel.game_id == game_id)).all()
+        terminal_events = session.scalars(select(GameTerminalEventModel).where(
+            GameTerminalEventModel.game_id == game_id)).all()
+        move = session.scalar(select(GameMoveModel).where(
+            GameMoveModel.game_id == game_id))
+    assert game.version == 2
+    assert len(undo_events) + len(terminal_events) == 1
+    if undo_events:
+        assert game.status == "PLAYING" and game.ply_count == 0
+        assert move.reverted_revision == 2
+    else:
+        assert game.status == "FINISHED" and game.winner_reason == "RESIGN"
+        assert game.ply_count == 1 and move.reverted_revision is None
+
+
+def test_mysql_remote_resign_event_failure_rolls_back_game_and_pending_request(client, db):
+    host = client.post("/api/v1/remote/rooms", json={
+        "device_id": "mysql-resign-host", "public": False,
+    }).json()["data"]
+    guest = client.post("/api/v1/remote/join", json={
+        "invite_code": host["invite_code"], "device_id": "mysql-resign-guest",
+    }).json()["data"]
+    game_id = host["game_id"]
+    assert client.post(f"/api/v1/remote/rooms/{game_id}/move",
+                       headers={"X-Room-Token": host["token"]}, json={
+        "from_node": "P01", "to_node": "P02", "expected_version": 0,
+        "client_request_id": "mysql-resign-anchor-0001",
+    }).status_code == 200
+    assert client.post(f"/api/v1/remote/rooms/{game_id}/undo-requests",
+                       headers={"X-Room-Token": host["token"]}, json={
+        "expected_version": 1, "client_request_id": "mysql-resign-pending-0001",
+    }).status_code == 200
+    real_flush = Session.flush
+
+    def fail_terminal_flush(session, *args, **kwargs):
+        if any(isinstance(item, GameTerminalEventModel) for item in session.new):
+            real_flush(session, *args, **kwargs)
+            raise RuntimeError("failure after terminal event insert")
+        return real_flush(session, *args, **kwargs)
+
+    with patch.object(Session, "flush", fail_terminal_flush):
+        with pytest.raises(RuntimeError, match="failure after terminal event insert"):
+            client.app.state.store._commit_remote_resign(
+                game_id, token_hash(guest["token"]),
+                RemoteOperationRequest(expected_version=1,
+                                       client_request_id="mysql-resign-rollback-0001"),
+            )
+    with Session(db) as session:
+        game = session.get(GameModel, game_id)
+        pending = session.scalar(select(RemoteUndoRequestModel).where(
+            RemoteUndoRequestModel.game_id == game_id))
+        terminal = session.scalar(select(GameTerminalEventModel).where(
+            GameTerminalEventModel.game_id == game_id))
+    assert game.status == "PLAYING" and game.version == 1 and game.ply_count == 1
+    assert pending.status == "PENDING"
+    assert terminal is None
 
 
 def _real_turn(client, game_id):

@@ -1,6 +1,6 @@
 """Persist full turn snapshots, including capture and real AI search output."""
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from backend.app.core.errors import ApiError
@@ -65,3 +65,21 @@ class MoveRepository:
                 reverted_revision=row.reverted_revision,
                 client_request_id=row.client_request_id))
         return result
+
+    def active_rows(self, game_id: str) -> list[GameMoveModel]:
+        return list(self.session.scalars(
+            select(GameMoveModel).where(
+                GameMoveModel.game_id == game_id,
+                GameMoveModel.reverted_revision.is_(None),
+            ).order_by(GameMoveModel.turn_number).with_for_update()
+        ).all())
+
+    def revert_from(self, game_id: str, anchor_turn: int, revision: int) -> int:
+        result = self.session.execute(
+            update(GameMoveModel).where(
+                GameMoveModel.game_id == game_id,
+                GameMoveModel.reverted_revision.is_(None),
+                GameMoveModel.turn_number >= anchor_turn,
+            ).values(reverted_revision=revision)
+        )
+        return result.rowcount
