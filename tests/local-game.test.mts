@@ -24,7 +24,9 @@ registerHooks({
 const {
   createLocalGameSession,
   getLocalBoardView,
+  resignLocalGame,
   tapLocalGameNode,
+  undoLocalGame,
 } = await import('../miniprogram/pages/game/local-game.ts');
 
 function sessionWithPieces(
@@ -209,4 +211,61 @@ test('restart recreates the standard game and clears selection and last move', (
   assert.equal(restarted.selectedNode, null);
   assert.deepEqual(restarted.legalDestinations, []);
   assert.equal(restarted.lastMove, null);
+  assert.equal(restarted.undoFrame, null);
+});
+
+test('local undo restores exactly the previous state and clears its single frame', () => {
+  const start = createLocalGameSession();
+  const move = RuleEngine.getAllLegalMoves(start.gameState)[0];
+  const selected = tapLocalGameNode(start, move.from).session;
+  const played = tapLocalGameNode(selected, move.to).session;
+
+  assert.deepEqual(played.undoFrame?.gameState, start.gameState);
+  assert.notEqual(played.undoFrame?.gameState, start.gameState,
+    'the undo frame must own a defensive state snapshot');
+  const undone = undoLocalGame(played);
+
+  assert.deepEqual(undone.gameState, start.gameState);
+  assert.equal(undone.selectedNode, null);
+  assert.deepEqual(undone.legalDestinations, []);
+  assert.equal(undone.lastMove, null);
+  assert.equal(undone.undoFrame, null);
+  assert.equal(undoLocalGame(undone), undone, 'undo without a frame is a stable no-op');
+});
+
+test('only the latest local move is undoable and play can continue with a fresh frame', () => {
+  const start = createLocalGameSession();
+  const first = tapLocalGameNode(tapLocalGameNode(start, 'P01').session, 'P02').session;
+  const second = tapLocalGameNode(tapLocalGameNode(first, 'P05').session, 'P04').session;
+
+  const afterUndo = undoLocalGame(second);
+  assert.deepEqual(afterUndo.gameState, first.gameState);
+  assert.deepEqual(afterUndo.lastMove, first.lastMove);
+  assert.equal(afterUndo.undoFrame, null);
+
+  const continued = tapLocalGameNode(tapLocalGameNode(afterUndo, 'P05').session, 'P03').session;
+  assert.ok(continued.undoFrame);
+  assert.deepEqual(undoLocalGame(continued).gameState, first.gameState);
+});
+
+test('local resignation awards the win to the opponent and clears interaction state', () => {
+  const selected = tapLocalGameNode(createLocalGameSession('A'), 'P01').session;
+  const resigned = resignLocalGame(selected);
+
+  assert.equal(resigned.gameState.game_status, 'FINISHED');
+  assert.equal(resigned.gameState.current_player, 'A');
+  assert.equal(resigned.gameState.winner, 'B');
+  assert.equal(resigned.gameState.winner_reason, 'RESIGN');
+  assert.equal(resigned.selectedNode, null);
+  assert.deepEqual(resigned.legalDestinations, []);
+  assert.equal(resigned.undoFrame, null);
+  assert.equal(resignLocalGame(resigned), resigned, 'a terminal game cannot be resigned twice');
+});
+
+test('legal target rendering can be hidden without changing the legal session', () => {
+  const selected = tapLocalGameNode(createLocalGameSession(), 'P01').session;
+  assert.ok(selected.legalDestinations.length > 0);
+  assert.equal(getLocalBoardView(selected, false).nodes.some(node => node.legalTarget), false);
+  assert.deepEqual(getLocalBoardView(selected, true).nodes
+    .filter(node => node.legalTarget).map(node => node.id), selected.legalDestinations);
 });

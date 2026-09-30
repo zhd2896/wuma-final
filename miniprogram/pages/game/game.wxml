@@ -24,6 +24,7 @@
         <view wx:elif="{{localSession.gameState.winner_reason == 'CAPTURE_ALL'}}" class="status-sub">对方棋子已全部被吃</view>
         <view wx:elif="{{localSession.gameState.winner_reason == 'TEMPLE_TRAP'}}" class="status-sub">对方孤棋被困于庙宇</view>
         <view wx:elif="{{localSession.gameState.winner_reason == 'LONE_PIECE_IMMOBILIZED'}}" class="status-sub">对方孤棋无路可走</view>
+        <view wx:elif="{{localSession.gameState.winner_reason == 'RESIGN'}}" class="status-sub">对方已认输</view>
         <view wx:else class="status-sub">点选己方棋子，再点击亮起的合法位置</view>
       </block>
       <block wx:elif="{{mode == 'remote'}}">
@@ -71,9 +72,17 @@
       <view wx:for="{{aiAnalysisView.threats}}" wx:key="id" class="analysis-line">{{item.label}} {{item.move}}</view>
     </view>
     <button wx:if="{{mode == 'ai' && aiReady && aiView.gameOver || mode == 'remote' && remoteReady && remoteView.gameOver}}" class="review-button" data-action="review" bindtap="onAction">查看复盘</button>
-    <view wx:if="{{showSettings}}" class="settings-area"><view class="settings-title">{{mode == 'local' ? '本地对局设置' : mode == 'remote' ? '远程对局设置' : 'AI 对弈设置'}}</view><view>当前模式：{{mode == 'local' ? '本地双人' : mode == 'remote' ? '云端双人' : '标准 AI'}}</view><view wx:if="{{mode == 'ai'}}" class="ai-first-options"><button size="mini" bindtap="restartAiGame">我先手新局</button><button size="mini" bindtap="restartAiFirstGame">AI 先手新局</button></view></view>
-    <view class="actions"><view id="action-undo" data-action="undo" bindtap="onAction"><text>↶</text><view>悔棋</view></view><view id="action-hint" class="{{mode == 'ai' && (!aiReady || aiState.gameState.game_status != 'PLAYING' || aiState.gameState.current_player != aiState.humanPlayer || aiState.isAiThinking || aiState.isSubmittingMove || aiState.isCoachLoading || aiState.needsResync) ? 'action-disabled' : ''}}" data-action="hint" bindtap="onAction"><text>✦</text><view>提示</view></view><view id="action-analysis" data-action="analysis" bindtap="onAction"><text>▥</text><view>{{mode == 'ai' ? '局面分析' : '分析'}}</view></view><view id="action-restart" data-action="restart" bindtap="onAction"><text>↻</text><view>重新开始</view></view><view id="action-settings" data-action="settings" bindtap="onAction"><text>⚙</text><view>设置</view></view></view>
+    <view wx:if="{{showSettings}}" class="settings-area"><view class="settings-title">{{mode == 'local' ? '本地对局设置' : mode == 'remote' ? '远程对局设置' : 'AI 对弈设置'}}</view><game-settings settings="{{settings}}" showAiFirstPlayer="{{mode == 'ai'}}" bind:change="onSettingsChange" /></view>
+    <view class="actions">
+      <view id="action-undo" class="{{operationBusy || mode == 'local' && (!localSession || localSession.gameState.game_status != 'PLAYING' || !localSession.undoFrame) ? 'action-disabled' : ''}}" data-action="undo" bindtap="onAction"><text>↶</text><view>悔棋</view></view>
+      <view id="action-resign" class="{{operationBusy || mode == 'local' && (!localSession || localSession.gameState.game_status != 'PLAYING') ? 'action-disabled' : ''}}" data-action="resign" bindtap="onAction"><text>旗</text><view>结束</view></view>
+      <view id="action-hint" class="{{mode == 'ai' && (!aiReady || aiState.gameState.game_status != 'PLAYING' || aiState.gameState.current_player != aiState.humanPlayer || aiState.isAiThinking || aiState.isSubmittingMove || aiState.isCoachLoading || aiState.needsResync) ? 'action-disabled' : ''}}" data-action="hint" bindtap="onAction"><text>✦</text><view>提示</view></view>
+      <view id="action-analysis" data-action="analysis" bindtap="onAction"><text>▥</text><view>{{mode == 'ai' ? '局面分析' : '分析'}}</view></view>
+      <view id="action-restart" data-action="restart" bindtap="onAction"><text>↻</text><view>重新开始</view></view>
+      <view id="action-settings" data-action="settings" bindtap="onAction"><text>⚙</text><view>设置</view></view>
+    </view>
   </view>
-  <confirm-dialog visible="{{showResign}}" title="确认结束对局？" message="当前为 UI 演示模式。确认后将显示对局结束状态。" bind:cancel="cancelResign" bind:confirm="confirmResign" />
+  <confirm-dialog visible="{{showUndoConfirm}}" title="确认悔棋？" message="将撤销最近一手。" bind:cancel="cancelUndo" bind:confirm="confirmUndo" />
+  <confirm-dialog visible="{{showResign}}" title="确认结束对局？" message="当前行棋方将认输，对方获得胜利。" bind:cancel="cancelResign" bind:confirm="confirmResign" />
   <bottom-nav current="game" />
 </view>

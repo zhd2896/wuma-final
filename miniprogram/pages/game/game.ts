@@ -2,7 +2,10 @@ import { gameService } from '../../services/index';
 import type { BoardState } from '../../types/domain';
 import { boardLines, boardNodes } from '../../mock/game';
 import { openPage, backHome } from '../../utils/navigation';
-import { createLocalGameSession, getLocalBoardView, tapLocalGameNode } from './local-game';
+import {
+  createLocalGameSession, getLocalBoardView, resignLocalGame,
+  tapLocalGameNode, undoLocalGame,
+} from './local-game';
 import type { LocalGameSession } from './local-game';
 import { mapGameStateToView } from './game-state-mapper';
 import type { GameViewModel } from './game-state-mapper';
@@ -17,6 +20,10 @@ import { createWxDeviceHistoryStore } from '../../services/device-history';
 import type { GameIdStorage } from './remote-game';
 import { mapPositionAnalysis } from '../analysis/analysis-view-model';
 import type { AnalysisViewModel } from '../analysis/analysis-view-model';
+import {
+  DEFAULT_GAME_SETTINGS, createWxGameSettingsStore, vibrateForSuccessfulAction,
+} from '../../services/game-settings';
+import type { GameSettings } from '../../services/game-settings';
 
 const activeGameIdKey = 'activeRemoteGameId';
 const activeAiGameIdKey = 'activeAiGameId';
@@ -65,11 +72,17 @@ Page({
     aiCaptureText: '',
     aiAnalysisView: null as AnalysisViewModel | null,
     mode: 'ai', showHint: false, thinking: false,
-    showResign: false, showSettings: false, resigned: false },
+    showUndoConfirm: false, showResign: false, showSettings: false,
+    operationBusy: false, resigned: false,
+    settings: { ...DEFAULT_GAME_SETTINGS } as GameSettings },
   remoteController: null as RemoteGameController | null,
   aiController: null as AiGameController | null,
   aiFirstPlayer: 'A' as Player,
   onLoad(options: { mode?: string; first?: string; gameId?: string }) {
+    let settings = { ...DEFAULT_GAME_SETTINGS };
+    try { settings = createWxGameSettingsStore().read(); }
+    catch { wx.showToast({ title: '设置读取失败，已使用默认设置', icon: 'none' }); }
+    this.setData({ settings });
     if (options.mode === 'local') this.enterLocalGame(options.gameId);
     else if (options.mode === 'remote') {
       this.setData({ mode: 'remote', board: emptyBoard, remoteReady: false,
@@ -82,7 +95,8 @@ Page({
       this.renderRemote(this.remoteController.snapshot);
       void this.remoteController.enter();
     } else {
-      this.aiFirstPlayer = options.first === 'ai' ? 'B' : 'A';
+      this.aiFirstPlayer = options.first === 'ai' ? 'B'
+        : options.first === 'human' ? 'A' : settings.aiFirstPlayer;
       this.setData({ mode: 'ai', board: emptyBoard, aiReady: false,
         showHint: false, thinking: false, showResign: false, showSettings: false });
       this.aiController = new AiGameController(
@@ -105,7 +119,7 @@ Page({
     }
     const view = snapshot.gameState ? mapGameStateToView(snapshot.gameState, {
       selectedNode: snapshot.selectedNode,
-      legalTargets: snapshot.legalTargets,
+      legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
       lastMove: snapshot.lastMove,
     }) : null;
     this.setData({ remoteState: snapshot, remoteView: view,
@@ -118,7 +132,7 @@ Page({
     }
     const view = snapshot.gameState ? mapGameStateToView(snapshot.gameState, {
       selectedNode: snapshot.selectedNode,
-      legalTargets: snapshot.legalTargets,
+      legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
       lastMove: snapshot.lastMove,
       lastCapture: snapshot.lastCapture,
     }) : null;
@@ -126,7 +140,7 @@ Page({
       ? mapPositionAnalysis(snapshot.gameState, snapshot.analysis) : null;
     this.setData({ aiState: snapshot, aiView: view,
       aiAnalysisView: analysisView,
-      aiCaptureText: snapshot.lastCapture?.was_applied
+      aiCaptureText: this.data.settings.showCaptureNotice && snapshot.lastCapture?.was_applied
         ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚`
         : '',
       aiAName: snapshot.aiPlayer === 'A' ? '标准 AI · A' : '玩家 A',
@@ -135,6 +149,7 @@ Page({
   },
   back() { backHome(); },
   onNode(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
+    if (this.data.operationBusy) return;
     if (this.data.mode === 'ai') {
       void this.aiController?.tapNode(event.detail.id);
       return;
@@ -155,12 +170,21 @@ Page({
       if (result.turn && this.data.localGameId) {
         const turns = this.data.localTurns + 1;
         if (!this.saveHistory(this.data.localGameId, 'local', result.session.gameState,
-          turns, result.session.lastMove)) return;
+          turns, result.session.lastMove, result.session.undoFrame)) return;
         this.setData({ localTurns: turns });
       }
-      this.setData({ localSession: result.session, board: getLocalBoardView(result.session) });
-      if (result.turn?.captures.failure_reason === 'INSUFFICIENT_RESERVE') {
-        wx.showToast({ title: '备用棋不足，本次吃子未生效', icon: 'none' });
+      this.setData({ localSession: result.session,
+        board: getLocalBoardView(result.session, this.data.settings.showLegalTargets) });
+      if (result.turn) {
+        if (this.data.settings.showCaptureNotice &&
+            result.turn.captures.failure_reason === 'INSUFFICIENT_RESERVE') {
+          wx.showToast({ title: '备用棋不足，本次吃子未生效', icon: 'none' });
+        } else if (this.data.settings.showCaptureNotice && result.turn.captures.was_applied) {
+          wx.showToast({
+            title: `本步吃子 ${result.turn.captures.captured_nodes.length} 枚`, icon: 'none',
+          });
+        }
+        vibrateForSuccessfulAction(this.data.settings);
       }
       return;
     }
@@ -190,9 +214,13 @@ Page({
   },
   saveHistory(id: string, mode: 'local' | 'remote' | 'ai',
               state: LocalGameSession['gameState'], turns: number,
-              lastMove: LocalGameSession['lastMove'] = null): boolean {
+              lastMove: LocalGameSession['lastMove'] = null,
+              localUndoFrame: LocalGameSession['undoFrame'] = null): boolean {
     try {
-      createWxDeviceHistoryStore().record({ id, mode, state, turns, lastMove });
+      createWxDeviceHistoryStore().record({
+        id, mode, state, turns, lastMove,
+        ...(mode === 'local' ? { localUndoFrame } : {}),
+      });
       return true;
     } catch {
       wx.showToast({ title: '历史记录保存失败', icon: 'none' });
@@ -209,13 +237,15 @@ Page({
           const session: LocalGameSession = {
             gameState: entry.localState, selectedNode: null, legalDestinations: [],
             lastMove: entry.lastMove ?? null,
+            undoFrame: entry.localUndoFrame ?? null,
           };
           wx.setStorageSync(activeLocalGameIdKey, savedId);
           this.setData({ mode: 'local', localGameId: savedId, localTurns: entry.turns,
-            localSession: session, board: getLocalBoardView(session),
+            localSession: session,
+            board: getLocalBoardView(session, this.data.settings.showLegalTargets),
             localErrorMessage: '',
-            showHint: false, thinking: false, showResign: false,
-            showSettings: false, resigned: false });
+            showHint: false, thinking: false, showUndoConfirm: false,
+            showResign: false, showSettings: false, operationBusy: false, resigned: false });
           return;
         }
       } catch {
@@ -245,21 +275,65 @@ Page({
     catch { wx.showToast({ title: '自动续局设置失败，请从历史对局打开', icon: 'none' }); }
     this.setData({
       mode: 'local', localGameId: id, localTurns: 0,
-      localSession: session, board: getLocalBoardView(session),
+      localSession: session,
+      board: getLocalBoardView(session, this.data.settings.showLegalTargets),
       localErrorMessage: '',
-      showHint: false, thinking: false, showResign: false, showSettings: false, resigned: false,
+      showHint: false, thinking: false, showUndoConfirm: false,
+      showResign: false, showSettings: false, operationBusy: false, resigned: false,
     });
   },
   restartRemoteGame() { void this.remoteController?.restart(); },
   retryRemoteGame() { void this.remoteController?.enter(); },
-  restartAiGame() { this.aiFirstPlayer = 'A'; void this.aiController?.restart('A'); },
+  restartAiGame() {
+    this.aiFirstPlayer = this.data.settings.aiFirstPlayer;
+    void this.aiController?.restart(this.aiFirstPlayer);
+  },
   restartAiFirstGame() {
-    this.aiFirstPlayer = 'B';
+    this.onSettingsChange({ detail: { ...this.data.settings, aiFirstPlayer: 'B' } });
     this.setData({ showSettings: false });
-    void this.aiController?.restart('B');
+    this.restartAiGame();
   },
   retryAiGame() { void this.aiController?.enter(this.aiFirstPlayer); },
-  undo() { wx.showToast({ title: '当前暂不支持悔棋', icon: 'none' }); },
+  undo() {
+    if (this.data.operationBusy) return;
+    if (this.data.mode !== 'local') {
+      wx.showToast({ title: '当前模式暂不支持悔棋', icon: 'none' });
+      return;
+    }
+    const session = this.data.localSession as LocalGameSession | null;
+    if (!session || session.gameState.game_status !== 'PLAYING') {
+      wx.showToast({ title: '对局已结束，无法悔棋', icon: 'none' });
+      return;
+    }
+    if (!session.undoFrame) {
+      wx.showToast({ title: '当前没有可悔的棋步', icon: 'none' });
+      return;
+    }
+    this.setData({ showUndoConfirm: true, showResign: false });
+  },
+  cancelUndo() { this.setData({ showUndoConfirm: false }); },
+  confirmUndo() {
+    if (this.data.operationBusy || this.data.mode !== 'local') return;
+    const session = this.data.localSession as LocalGameSession | null;
+    if (!session || session.gameState.game_status !== 'PLAYING' || !session.undoFrame) {
+      this.setData({ showUndoConfirm: false });
+      return;
+    }
+    this.setData({ operationBusy: true });
+    const undone = undoLocalGame(session);
+    const turns = Math.max(0, this.data.localTurns - 1);
+    if (!this.saveHistory(this.data.localGameId, 'local', undone.gameState,
+      turns, undone.lastMove, undone.undoFrame)) {
+      this.setData({ operationBusy: false });
+      return;
+    }
+    this.setData({
+      localSession: undone, localTurns: turns,
+      board: getLocalBoardView(undone, this.data.settings.showLegalTargets),
+      showUndoConfirm: false, operationBusy: false,
+    });
+    vibrateForSuccessfulAction(this.data.settings);
+  },
   hint() {
     if (this.data.mode === 'ai') {
       void this.aiController?.requestCoachHint();
@@ -290,11 +364,60 @@ Page({
     if (gameId) openPage(`/pages/review/review?gameId=${encodeURIComponent(gameId)}`);
   },
   resign() {
-    if (this.data.mode === 'local') return;
-    this.setData({ showResign: true });
+    if (this.data.operationBusy) return;
+    if (this.data.mode === 'local') {
+      const session = this.data.localSession as LocalGameSession | null;
+      if (!session || session.gameState.game_status !== 'PLAYING') {
+        wx.showToast({ title: '对局已结束', icon: 'none' });
+        return;
+      }
+    }
+    this.setData({ showResign: true, showUndoConfirm: false });
   },
   cancelResign() { this.setData({ showResign: false }); },
-  confirmResign() { this.setData({ showResign: false, resigned: true }); wx.showToast({ title: '演示对局已结束', icon: 'none' }); },
+  confirmResign() {
+    if (this.data.operationBusy) return;
+    if (this.data.mode !== 'local') {
+      this.setData({ showResign: false });
+      wx.showToast({ title: '当前模式暂不支持结束对局', icon: 'none' });
+      return;
+    }
+    const session = this.data.localSession as LocalGameSession | null;
+    if (!session || session.gameState.game_status !== 'PLAYING') {
+      this.setData({ showResign: false });
+      return;
+    }
+    this.setData({ operationBusy: true });
+    const resigned = resignLocalGame(session);
+    if (!this.saveHistory(this.data.localGameId, 'local', resigned.gameState,
+      this.data.localTurns, resigned.lastMove, resigned.undoFrame)) {
+      this.setData({ operationBusy: false });
+      return;
+    }
+    this.setData({
+      localSession: resigned,
+      board: getLocalBoardView(resigned, this.data.settings.showLegalTargets),
+      showResign: false, operationBusy: false, resigned: true,
+    });
+    vibrateForSuccessfulAction(this.data.settings);
+  },
+  onSettingsChange(event: { detail: GameSettings }) {
+    const settings = event.detail;
+    try { createWxGameSettingsStore().write(settings); }
+    catch {
+      wx.showToast({ title: '设置保存失败', icon: 'none' });
+      return;
+    }
+    this.setData({ settings });
+    const session = this.data.localSession as LocalGameSession | null;
+    if (this.data.mode === 'local' && session) {
+      this.setData({ board: getLocalBoardView(session, settings.showLegalTargets) });
+    } else if (this.data.mode === 'remote' && this.data.remoteState) {
+      this.renderRemote(this.data.remoteState);
+    } else if (this.data.mode === 'ai' && this.data.aiState) {
+      this.renderAi(this.data.aiState);
+    }
+  },
   settings() { this.setData({ showSettings: !this.data.showSettings }); },
   toggleThinking() {}
 });

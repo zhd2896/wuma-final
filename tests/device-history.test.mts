@@ -109,3 +109,62 @@ test('stores the terminal result of an actual legal game without inventing a win
   assert.equal(saved?.status, 'FINISHED');
   assert.equal(saved?.turns, sequence.length);
 });
+
+test('local undo frames survive storage with defensive copies and old records default to no frame', () => {
+  const values = new Map<string, unknown>();
+  const storage = { get: (key: string) => values.get(key),
+    set: (key: string, value: unknown) => { values.set(key, structuredClone(value)); },
+    remove: (key: string) => { values.delete(key); } };
+  const initial = createInitialGameState();
+  const turn = RuleEngine.executeTurn(initial, { from: 'P01', to: 'P02' });
+  const frame = { gameState: initial, lastMove: null };
+  const store = createDeviceHistoryStore(storage, () => 10);
+
+  store.record({ id: 'local-frame', mode: 'local', state: turn.state, turns: 1,
+    lastMove: turn.move, localUndoFrame: frame });
+  const first = store.get('local-frame')!;
+  assert.deepEqual(first.localUndoFrame, frame);
+  assert.notEqual(first.localUndoFrame, frame);
+  (first.localUndoFrame!.gameState.board.occupancy as any).P01 = null;
+  assert.equal(store.get('local-frame')?.localUndoFrame?.gameState.board.occupancy.P01, 'A');
+
+  const envelope = values.get(HISTORY_STORAGE_KEY) as any;
+  delete envelope.records[0].localUndoFrame;
+  delete envelope.records[0].lastMove;
+  values.set(HISTORY_STORAGE_KEY, envelope);
+  const legacy = createDeviceHistoryStore(storage).get('local-frame');
+  assert.equal(legacy?.localUndoFrame, null);
+  assert.equal(legacy?.lastMove, null);
+});
+
+test('damaged local undo frames are rejected instead of poisoning a resumed game', () => {
+  const initial = createInitialGameState();
+  const invalid = {
+    version: 1,
+    records: [{
+      id: 'bad-frame', mode: 'local', startedAt: 1, updatedAt: 1, turns: 1,
+      status: 'PLAYING', winner: null, winnerReason: null,
+      localState: initial, lastMove: { from: 'P01', to: 'P02' },
+      localUndoFrame: { gameState: { ...initial, current_player: 'C' }, lastMove: null },
+    }],
+  };
+  const storage = { get: () => invalid, set: () => {}, remove: () => {} };
+  assert.throws(() => createDeviceHistoryStore(storage).list(), /history/i);
+});
+
+test('undo frames must describe a playable pre-move position', () => {
+  const initial = createInitialGameState();
+  const terminal = { ...initial, game_status: 'FINISHED' as const,
+    winner: 'B' as const, winner_reason: 'RESIGN' as const };
+  const invalid = {
+    version: 1,
+    records: [{
+      id: 'terminal-frame', mode: 'local', startedAt: 1, updatedAt: 1, turns: 1,
+      status: 'PLAYING', winner: null, winnerReason: null,
+      localState: initial, lastMove: null,
+      localUndoFrame: { gameState: terminal, lastMove: null },
+    }],
+  };
+  const storage = { get: () => invalid, set: () => {}, remove: () => {} };
+  assert.throws(() => createDeviceHistoryStore(storage).list(), /history/i);
+});

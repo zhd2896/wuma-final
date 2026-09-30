@@ -9,6 +9,12 @@ export interface LocalGameSession {
   readonly selectedNode: NodeId | null;
   readonly legalDestinations: readonly NodeId[];
   readonly lastMove: Move | null;
+  readonly undoFrame: LocalUndoFrame | null;
+}
+
+export interface LocalUndoFrame {
+  readonly gameState: GameState;
+  readonly lastMove: Move | null;
 }
 
 export interface LocalTapResult {
@@ -23,15 +29,60 @@ export function createLocalGameSession(firstPlayer: Player = 'A'): LocalGameSess
     selectedNode: null,
     legalDestinations: [],
     lastMove: null,
+    undoFrame: null,
   };
 }
 
-export function getLocalBoardView(session: LocalGameSession): BoardView {
+function copyMove(move: Move | null): Move | null {
+  return move === null ? null : { from: move.from, to: move.to };
+}
+
+function copyGameState(state: GameState): GameState {
+  return {
+    ...state,
+    board: { occupancy: { ...state.board.occupancy } },
+    players: {
+      A: { reserve_count: state.players.A.reserve_count },
+      B: { reserve_count: state.players.B.reserve_count },
+    },
+  };
+}
+
+export function getLocalBoardView(session: LocalGameSession,
+                                  showLegalTargets = true): BoardView {
   return mapGameStateToView(session.gameState, {
     selectedNode: session.selectedNode,
-    legalTargets: session.legalDestinations,
-    lastMove: session.lastMove,
+    legalTargets: showLegalTargets ? session.legalDestinations : [],
+    lastMove: copyMove(session.lastMove),
   }).board;
+}
+
+export function undoLocalGame(session: LocalGameSession): LocalGameSession {
+  if (session.undoFrame === null) return session;
+  return {
+    gameState: copyGameState(session.undoFrame.gameState),
+    selectedNode: null,
+    legalDestinations: [],
+    lastMove: copyMove(session.undoFrame.lastMove),
+    undoFrame: null,
+  };
+}
+
+export function resignLocalGame(session: LocalGameSession): LocalGameSession {
+  if (session.gameState.game_status !== 'PLAYING') return session;
+  const loser = session.gameState.current_player;
+  return {
+    gameState: {
+      ...copyGameState(session.gameState),
+      game_status: 'FINISHED',
+      winner: loser === 'A' ? 'B' : 'A',
+      winner_reason: 'RESIGN',
+    },
+    selectedNode: null,
+    legalDestinations: [],
+    lastMove: session.lastMove,
+    undoFrame: null,
+  };
 }
 
 export function tapLocalGameNode(session: LocalGameSession, id: string): LocalTapResult {
@@ -64,6 +115,10 @@ export function tapLocalGameNode(session: LocalGameSession, id: string): LocalTa
         selectedNode: null,
         legalDestinations: [],
         lastMove: turn.move,
+        undoFrame: {
+          gameState: copyGameState(session.gameState),
+          lastMove: copyMove(session.lastMove),
+        },
       },
       turn,
       error: null,
