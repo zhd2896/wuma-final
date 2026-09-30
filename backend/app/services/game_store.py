@@ -11,6 +11,7 @@ from backend.app.schemas.game import (
     GameOperationRequest, GameOperationResponse, GameReview, GameState, PositionAnalysis,
     SearchResult, TurnResult,
 )
+from backend.app.schemas.remote import RemoteOperationRequest
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
@@ -81,6 +82,22 @@ class StoredRemoteRoom:
     expires_at: datetime
 
 
+@dataclass(frozen=True)
+class StoredRemoteUndoRequest:
+    id: str
+    game_id: str
+    requester: str
+    responder: str
+    create_client_request_id: str
+    base_revision: int
+    anchor_turn: int
+    revert_count: int
+    status: str = "PENDING"
+    resolve_client_request_id: str | None = None
+    resolve_expected_version: int | None = None
+    resolve_action: str | None = None
+
+
 class GameStore(Protocol):
     async def ping(self) -> None: ...
     async def register_device(self, token_hash: str) -> str: ...
@@ -140,6 +157,14 @@ class GameStore(Protocol):
     async def commit_remote_turn(self, game_id: str, token_hash: str,
                                  expected_version: int, request_id: str,
                                  turn: TurnResult) -> StoredMove: ...
+    async def get_pending_remote_undo(self, game_id: str) -> StoredRemoteUndoRequest | None: ...
+    async def create_remote_undo(self, game_id: str, token_hash: str,
+                                 request: RemoteOperationRequest) -> StoredRemoteUndoRequest: ...
+    async def resolve_remote_undo(self, game_id: str, request_id: str,
+                                  token_hash: str, request: RemoteOperationRequest,
+                                  action: str) -> StoredRemoteUndoRequest: ...
+    async def commit_remote_resign(self, game_id: str, token_hash: str,
+                                   request: RemoteOperationRequest) -> StoredTerminalEvent: ...
 
 
 class InMemoryGameStore:
@@ -159,6 +184,8 @@ class InMemoryGameStore:
         self._catalog_lock = asyncio.Lock()
         self._remote_rooms: dict[str, StoredRemoteRoom] = {}
         self._remote_requests: dict[tuple[str, str], StoredMove] = {}
+        self._remote_undo_requests: dict[str, StoredRemoteUndoRequest] = {}
+        self._remote_operation_requests: dict[tuple[str, str], tuple] = {}
         self._terminal_events: dict[str, StoredTerminalEvent] = {}
         self._undo_events: dict[tuple[str, str], StoredUndoEvent] = {}
         self._device_users: dict[str, str] = {}
@@ -485,7 +512,208 @@ class InMemoryGameStore:
 
     async def get_remote_move(self, game_id: str,
                               request_id: str) -> StoredMove | None:
-        return self._remote_requests.get((game_id, request_id))
+        move = self._remote_requests.get((game_id, request_id))
+        return self._copy_move(move) if move is not None else None
+
+    @staticmethod
+    def _remote_seat(room: StoredRemoteRoom, token_hash: str) -> str:
+        if room.host_token_hash == token_hash:
+            return "A"
+        if room.guest_token_hash == token_hash:
+            return "B"
+        raise ApiError("REMOTE_ACCESS_DENIED", "This seat is unavailable")
+
+    @staticmethod
+    def _copy_remote_undo(item: StoredRemoteUndoRequest) -> StoredRemoteUndoRequest:
+        return replace(item)
+
+    @staticmethod
+    def _remote_request_conflict() -> ApiError:
+        return ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
+
+    @staticmethod
+    def _validate_remote_game(game: StoredGame,
+                              request: RemoteOperationRequest) -> None:
+        if game.state.game_status != "PLAYING":
+            raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
+        if game.version != request.expected_version:
+            raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
+
+    async def get_pending_remote_undo(self,
+                                      game_id: str) -> StoredRemoteUndoRequest | None:
+        await self.get_remote_room(game_id)
+        pending = next((item for item in self._remote_undo_requests.values()
+                        if item.game_id == game_id and item.status == "PENDING"), None)
+        return self._copy_remote_undo(pending) if pending is not None else None
+
+    async def create_remote_undo(self, game_id: str, token_hash: str,
+                                 request: RemoteOperationRequest) -> StoredRemoteUndoRequest:
+        room = await self.get_remote_room(game_id)
+        seat = self._remote_seat(room, token_hash)
+        signature = ("CREATE_UNDO", request.expected_version, seat)
+        key = (game_id, request.client_request_id)
+        existing_signature = self._remote_operation_requests.get(key)
+        if existing_signature is not None:
+            if existing_signature != signature:
+                raise self._remote_request_conflict()
+            existing = next(
+                (item for item in self._remote_undo_requests.values()
+                 if item.game_id == game_id
+                 and item.create_client_request_id == request.client_request_id), None)
+            if existing is None:
+                raise self._remote_request_conflict()
+            return self._copy_remote_undo(existing)
+        if key in self._remote_requests:
+            raise self._remote_request_conflict()
+
+        game = await self.get_snapshot(game_id)
+        if room.status != "PLAYING":
+            raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
+        self._validate_remote_game(game, request)
+        if await self.get_pending_remote_undo(game_id) is not None:
+            raise ApiError("REMOTE_UNDO_PENDING", "An undo request is already pending")
+        active = sorted(
+            (item for item in self._moves[game_id] if item.reverted_revision is None),
+            key=lambda item: item.turn_number,
+        )
+        candidates = [item for item in active
+                      if item.turn.before_state.current_player == seat]
+        if not candidates:
+            raise ApiError("UNDO_NOT_AVAILABLE", "No move is available to undo")
+        anchor = candidates[-1]
+        item = StoredRemoteUndoRequest(
+            id=uuid4().hex, game_id=game_id, requester=seat,
+            responder="B" if seat == "A" else "A",
+            create_client_request_id=request.client_request_id,
+            base_revision=game.version, anchor_turn=anchor.turn_number,
+            revert_count=sum(move.turn_number >= anchor.turn_number for move in active),
+        )
+        self._remote_undo_requests[item.id] = item
+        self._remote_operation_requests[key] = signature
+        return self._copy_remote_undo(item)
+
+    async def resolve_remote_undo(self, game_id: str, request_id: str,
+                                  token_hash: str, request: RemoteOperationRequest,
+                                  action: str) -> StoredRemoteUndoRequest:
+        room = await self.get_remote_room(game_id)
+        seat = self._remote_seat(room, token_hash)
+        signature = (f"RESOLVE_UNDO_{action}", request.expected_version,
+                     request_id, seat)
+        key = (game_id, request.client_request_id)
+        existing_signature = self._remote_operation_requests.get(key)
+        target = self._remote_undo_requests.get(request_id)
+        if existing_signature is not None:
+            if existing_signature != signature or target is None:
+                raise self._remote_request_conflict()
+            if target.status == "STALE":
+                raise ApiError("GAME_STATE_CONFLICT", "Undo request is stale")
+            return self._copy_remote_undo(target)
+        if key in self._remote_requests:
+            raise self._remote_request_conflict()
+        if target is None or target.game_id != game_id:
+            raise ApiError("REMOTE_UNDO_NOT_FOUND", "Undo request not found")
+
+        game = await self.get_snapshot(game_id)
+        if game.state.game_status != "PLAYING":
+            raise ApiError("GAME_ALREADY_FINISHED", "Game already finished")
+        if seat != target.responder:
+            raise ApiError("REMOTE_ACCESS_DENIED", "Only the opponent can respond")
+        if target.status != "PENDING":
+            raise ApiError("REMOTE_UNDO_UNAVAILABLE", "Undo request is no longer pending")
+        if request.expected_version != target.base_revision:
+            raise ApiError("GAME_STATE_CONFLICT", "Game state changed")
+
+        active = sorted(
+            (item for item in self._moves[game_id] if item.reverted_revision is None),
+            key=lambda item: item.turn_number,
+        )
+        anchor = next((item for item in active
+                       if item.turn_number == target.anchor_turn), None)
+        if (game.version != target.base_revision or anchor is None
+                or anchor.turn.before_state.current_player != target.requester):
+            stale = replace(target, status="STALE",
+                            resolve_client_request_id=request.client_request_id,
+                            resolve_expected_version=request.expected_version,
+                            resolve_action=action)
+            self._remote_undo_requests[target.id] = stale
+            self._remote_operation_requests[key] = signature
+            raise ApiError("GAME_STATE_CONFLICT", "Undo request is stale")
+
+        if action == "ACCEPT":
+            reverted = [item for item in active
+                        if item.turn_number >= target.anchor_turn]
+            revision = game.version + 1
+            reverted_ids = {id(item) for item in reverted}
+            self._moves[game_id] = [
+                replace(item, reverted_revision=revision)
+                if id(item) in reverted_ids else item
+                for item in self._moves[game_id]
+            ]
+            for move_key, item in tuple(self._remote_requests.items()):
+                if move_key[0] == game_id and id(item) in reverted_ids:
+                    self._remote_requests[move_key] = replace(
+                        item, reverted_revision=revision)
+            state = anchor.turn.before_state.model_copy(deep=True)
+            self._games[game_id] = replace(
+                game, state=state.model_copy(deep=True), version=revision,
+                ply_count=target.anchor_turn - 1)
+            status = "ACCEPTED"
+        elif action == "DECLINE":
+            status = "DECLINED"
+        else:
+            raise ValueError(f"Unsupported remote undo action: {action}")
+        resolved = replace(
+            target, status=status,
+            resolve_client_request_id=request.client_request_id,
+            resolve_expected_version=request.expected_version,
+            resolve_action=action,
+        )
+        self._remote_undo_requests[target.id] = resolved
+        self._remote_operation_requests[key] = signature
+        return self._copy_remote_undo(resolved)
+
+    async def commit_remote_resign(self, game_id: str, token_hash: str,
+                                   request: RemoteOperationRequest) -> StoredTerminalEvent:
+        room = await self.get_remote_room(game_id)
+        seat = self._remote_seat(room, token_hash)
+        signature = ("RESIGN", request.expected_version, seat)
+        key = (game_id, request.client_request_id)
+        existing_signature = self._remote_operation_requests.get(key)
+        if existing_signature is not None:
+            if existing_signature != signature:
+                raise self._remote_request_conflict()
+            event = self._terminal_events.get(game_id)
+            if event is None or event.client_request_id != request.client_request_id:
+                raise self._remote_request_conflict()
+            return self._copy_terminal_event(event)
+        if key in self._remote_requests:
+            raise self._remote_request_conflict()
+
+        game = await self.get_snapshot(game_id)
+        if room.status != "PLAYING":
+            raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
+        self._validate_remote_game(game, request)
+        winner = "B" if seat == "A" else "A"
+        finished = game.state.model_copy(deep=True, update={
+            "game_status": "FINISHED", "winner": winner,
+            "winner_reason": "RESIGN",
+        })
+        revision = game.version + 1
+        self._games[game_id] = replace(
+            game, state=finished.model_copy(deep=True), version=revision)
+        event = StoredTerminalEvent(
+            game_id=game_id, client_request_id=request.client_request_id,
+            revision=revision, event_type="RESIGN", actor=seat, winner=winner,
+            state_before=game.state.model_copy(deep=True),
+            state_after=finished.model_copy(deep=True),
+            terminal_event_id=len(self._terminal_events) + 1,
+        )
+        self._terminal_events[game_id] = event
+        pending = await self.get_pending_remote_undo(game_id)
+        if pending is not None:
+            self._remote_undo_requests[pending.id] = replace(pending, status="STALE")
+        self._remote_operation_requests[key] = signature
+        return self._copy_terminal_event(event)
 
     async def commit_remote_turn(self, game_id: str, token_hash: str,
                                  expected_version: int, request_id: str,
@@ -497,11 +725,14 @@ class InMemoryGameStore:
             raise ApiError("REMOTE_ACCESS_DENIED", "This seat is unavailable")
         existing = await self.get_remote_move(game_id, request_id)
         if existing is not None:
-            if (existing.turn.before_state.current_player != seat or
+            if (existing.reverted_revision is not None or
+                existing.turn.before_state.current_player != seat or
                 existing.turn.move != turn.move or
                 existing.created_revision - 1 != expected_version):
                 raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
             return existing
+        if (game_id, request_id) in self._remote_operation_requests:
+            raise self._remote_request_conflict()
         game = await self.get_snapshot(game_id)
         if room.status != "PLAYING":
             raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")

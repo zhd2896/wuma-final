@@ -19,12 +19,14 @@ from backend.app.schemas.game import (
     GameOperationRequest, GameOperationResponse, GameReview, GameState, PositionAnalysis,
     SearchResult, TurnResult,
 )
+from backend.app.schemas.remote import RemoteOperationRequest
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
                                           TrainingSource)
 from backend.app.db.repositories.training import TrainingRepository
 from backend.app.services.game_store import (StoredGame, StoredMove, StoredRemoteRoom,
+                                             StoredRemoteUndoRequest,
                                              StoredTerminalEvent)
 
 
@@ -335,6 +337,24 @@ class MySQLGameStore:
                                                               expected_version, request_id, turn)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
+
+    async def get_pending_remote_undo(self,
+                                      game_id: str) -> StoredRemoteUndoRequest | None:
+        # Task 6 replaces this compatibility read with the transactional query.
+        return None
+
+    async def create_remote_undo(self, game_id: str, token_hash: str,
+                                 request: RemoteOperationRequest) -> StoredRemoteUndoRequest:
+        raise ApiError("NOT_IMPLEMENTED", "MySQL remote operations are not implemented")
+
+    async def resolve_remote_undo(self, game_id: str, request_id: str,
+                                  token_hash: str, request: RemoteOperationRequest,
+                                  action: str) -> StoredRemoteUndoRequest:
+        raise ApiError("NOT_IMPLEMENTED", "MySQL remote operations are not implemented")
+
+    async def commit_remote_resign(self, game_id: str, token_hash: str,
+                                   request: RemoteOperationRequest) -> StoredTerminalEvent:
+        raise ApiError("NOT_IMPLEMENTED", "MySQL remote operations are not implemented")
 
     async def commit_analysis(self, game_id: str, expected_version: int,
                               analysis: PositionAnalysis) -> None:

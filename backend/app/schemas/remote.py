@@ -15,6 +15,7 @@ DeviceId = Annotated[str, StringConstraints(min_length=8, max_length=64,
 InviteCode = Annotated[str, StringConstraints(min_length=8, max_length=8,
                                               pattern=r"^[A-Z0-9]+$")]
 RoomStatus = Literal["WAITING", "PLAYING", "FINISHED", "CANCELLED", "EXPIRED"]
+UndoStatus = Literal["PENDING", "ACCEPTED", "DECLINED", "STALE"]
 
 
 class CreateRoomRequest(StrictModel):
@@ -38,6 +39,21 @@ class RemoteMoveRequest(StrictModel):
     client_request_id: ClientRequestId
 
 
+class RemoteOperationRequest(StrictModel):
+    expected_version: int = Field(ge=0)
+    client_request_id: ClientRequestId
+
+
+class PendingUndoResponse(StrictModel):
+    id: str
+    requester: Player
+    responder: Player
+    base_revision: int
+    anchor_turn: int
+    revert_count: int
+    status: UndoStatus
+
+
 class RemoteRoomResponse(StrictModel):
     game_id: str
     seat: Player
@@ -49,6 +65,7 @@ class RemoteRoomResponse(StrictModel):
     ply_count: int
     state: GameState
     token: str | None = None
+    pending_undo: PendingUndoResponse | None = None
 
 
 class RemoteMoveResponse(StrictModel):

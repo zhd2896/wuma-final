@@ -9,8 +9,9 @@ from backend.app.core.errors import ApiError
 from backend.app.engine_adapter.node_worker import NodeEngineAdapter
 from backend.app.schemas.game import LegalMovesResponse, Move
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
-                                         MatchRoomRequest, RemoteMoveRequest,
-                                         RemoteMoveResponse, RemoteRoomResponse)
+                                         MatchRoomRequest, PendingUndoResponse,
+                                         RemoteMoveRequest, RemoteMoveResponse,
+                                         RemoteOperationRequest, RemoteRoomResponse)
 from backend.app.services.game_store import GameStore, StoredRemoteRoom
 
 
@@ -56,12 +57,21 @@ class RemoteService:
             status = "EXPIRED"
         if status == "PLAYING" and game.state.game_status == "FINISHED":
             status = "FINISHED"
+        pending = await self.store.get_pending_remote_undo(room.game_id)
+        pending_response = None
+        if pending is not None:
+            pending_response = PendingUndoResponse(
+                id=pending.id, requester=pending.requester,
+                responder=pending.responder, base_revision=pending.base_revision,
+                anchor_turn=pending.anchor_turn, revert_count=pending.revert_count,
+                status=pending.status,
+            )
         return RemoteRoomResponse(game_id=room.game_id, seat=seat,
                                   room_status=status, invite_code=room.invite_code,
                                   public=room.public, expires_at=room.expires_at,
                                   version=game.version, ply_count=game.ply_count,
                                   state=game.state,
-                                  token=new_token)
+                                  token=new_token, pending_undo=pending_response)
 
     async def create(self, body: CreateRoomRequest) -> RemoteRoomResponse:
         state = await self.adapter.initialize("A")
@@ -120,6 +130,8 @@ class RemoteService:
             game = await self.store.get_snapshot(game_id)
             if room.status != "PLAYING" or game.state.game_status != "PLAYING":
                 raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Room is not active")
+            if await self.store.get_pending_remote_undo(game_id) is not None:
+                raise ApiError("REMOTE_UNDO_PENDING", "An undo request is pending")
             if game.state.current_player != seat:
                 raise ApiError("NOT_YOUR_TURN", "Wait for your turn")
             moves = await self.adapter.legal_moves(game.state)
@@ -136,13 +148,16 @@ class RemoteService:
             existing = await self.store.get_remote_move(game_id, body.client_request_id)
             move = Move(from_node=body.from_node, to_node=body.to_node)
             if existing is not None:
-                if (existing.turn.before_state.current_player != seat or
+                if (existing.reverted_revision is not None or
+                    existing.turn.before_state.current_player != seat or
                     existing.turn.move != move or
                     existing.created_revision - 1 != body.expected_version):
                     raise ApiError("REMOTE_REQUEST_CONFLICT", "Request ID already used")
                 return RemoteMoveResponse(version=existing.created_revision,
                                           ply_count=existing.turn_number,
                                           turn=existing.turn)
+            if await self.store.get_pending_remote_undo(game_id) is not None:
+                raise ApiError("REMOTE_UNDO_PENDING", "An undo request is pending")
             game = await self.store.get_snapshot(game_id)
             if room.status != "PLAYING":
                 raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Opponent has not joined")
@@ -158,3 +173,34 @@ class RemoteService:
                                                          body.client_request_id, turn)
             return RemoteMoveResponse(version=stored.created_revision,
                                       ply_count=stored.turn_number, turn=stored.turn)
+
+    async def request_undo(self, game_id: str, token: str | None,
+                           body: RemoteOperationRequest) -> RemoteRoomResponse:
+        lock = await self.store.lock_for(game_id)
+        async with lock:
+            room = await self.store.get_remote_room(game_id)
+            self._seat(room, token)
+            await self.store.create_remote_undo(
+                game_id, token_hash(token or ""), body)
+            return await self._view(room, token or "")
+
+    async def resolve_undo(self, game_id: str, request_id: str,
+                           token: str | None, body: RemoteOperationRequest,
+                           action: str) -> RemoteRoomResponse:
+        lock = await self.store.lock_for(game_id)
+        async with lock:
+            room = await self.store.get_remote_room(game_id)
+            self._seat(room, token)
+            await self.store.resolve_remote_undo(
+                game_id, request_id, token_hash(token or ""), body, action)
+            return await self._view(room, token or "")
+
+    async def resign(self, game_id: str, token: str | None,
+                     body: RemoteOperationRequest) -> RemoteRoomResponse:
+        lock = await self.store.lock_for(game_id)
+        async with lock:
+            room = await self.store.get_remote_room(game_id)
+            self._seat(room, token)
+            await self.store.commit_remote_resign(
+                game_id, token_hash(token or ""), body)
+            return await self._view(room, token or "")

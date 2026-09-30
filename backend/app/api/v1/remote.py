@@ -5,7 +5,8 @@ from fastapi import APIRouter, Header, Query, Request
 from backend.app.schemas.game import ApiResponse, LegalMovesResponse, NodeId
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
                                          MatchRoomRequest, RemoteMoveRequest,
-                                         RemoteMoveResponse, RemoteRoomResponse)
+                                         RemoteMoveResponse, RemoteOperationRequest,
+                                         RemoteRoomResponse)
 
 
 router = APIRouter(prefix="/api/v1/remote", tags=["remote"])
@@ -50,3 +51,37 @@ async def legal_moves(request: Request, game_id: str,
 async def move(request: Request, game_id: str, body: RemoteMoveRequest,
                token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[RemoteMoveResponse]:
     return ApiResponse(data=await request.app.state.remote_service.move(game_id, token, body))
+
+
+@router.post("/rooms/{game_id}/undo-requests",
+             response_model=ApiResponse[RemoteRoomResponse])
+async def request_undo(request: Request, game_id: str, body: RemoteOperationRequest,
+                       token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[RemoteRoomResponse]:
+    return ApiResponse(data=await request.app.state.remote_service.request_undo(
+        game_id, token, body))
+
+
+@router.post("/rooms/{game_id}/undo-requests/{request_id}/accept",
+             response_model=ApiResponse[RemoteRoomResponse])
+async def accept_undo(request: Request, game_id: str, request_id: str,
+                      body: RemoteOperationRequest,
+                      token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[RemoteRoomResponse]:
+    return ApiResponse(data=await request.app.state.remote_service.resolve_undo(
+        game_id, request_id, token, body, "ACCEPT"))
+
+
+@router.post("/rooms/{game_id}/undo-requests/{request_id}/decline",
+             response_model=ApiResponse[RemoteRoomResponse])
+async def decline_undo(request: Request, game_id: str, request_id: str,
+                       body: RemoteOperationRequest,
+                       token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[RemoteRoomResponse]:
+    return ApiResponse(data=await request.app.state.remote_service.resolve_undo(
+        game_id, request_id, token, body, "DECLINE"))
+
+
+@router.post("/rooms/{game_id}/resign",
+             response_model=ApiResponse[RemoteRoomResponse])
+async def resign(request: Request, game_id: str, body: RemoteOperationRequest,
+                 token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[RemoteRoomResponse]:
+    return ApiResponse(data=await request.app.state.remote_service.resign(
+        game_id, token, body))
