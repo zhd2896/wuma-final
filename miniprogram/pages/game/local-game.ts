@@ -58,7 +58,7 @@ export function getLocalBoardView(session: LocalGameSession,
 }
 
 export function undoLocalGame(session: LocalGameSession): LocalGameSession {
-  if (session.undoFrame === null) return session;
+  if (session.gameState.game_status !== 'PLAYING' || session.undoFrame === null) return session;
   return {
     gameState: copyGameState(session.undoFrame.gameState),
     selectedNode: null,

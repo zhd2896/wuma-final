@@ -233,6 +233,26 @@ test('local undo restores exactly the previous state and clears its single frame
   assert.equal(undoLocalGame(undone), undone, 'undo without a frame is a stable no-op');
 });
 
+test('local undo refuses terminal sessions even when the winning move left an undo frame', () => {
+  const winning = sessionWithPieces({ P11: 'A', P12: 'B', P08: 'B', P18: 'B', P19: 'A' });
+  const terminal = tapLocalGameNode(tapLocalGameNode(winning, 'P19').session, 'P13').session;
+  assert.equal(terminal.gameState.game_status, 'FINISHED');
+  assert.ok(terminal.undoFrame);
+  assert.equal(undoLocalGame(terminal), terminal);
+
+  const played = tapLocalGameNode(tapLocalGameNode(createLocalGameSession(), 'P01').session, 'P02').session;
+  const artificialTerminal = {
+    ...played,
+    gameState: {
+      ...played.gameState,
+      game_status: 'FINISHED' as const,
+      winner: 'A' as const,
+      winner_reason: 'RESIGN' as const,
+    },
+  };
+  assert.equal(undoLocalGame(artificialTerminal), artificialTerminal);
+});
+
 test('only the latest local move is undoable and play can continue with a fresh frame', () => {
   const start = createLocalGameSession();
   const first = tapLocalGameNode(tapLocalGameNode(start, 'P01').session, 'P02').session;
