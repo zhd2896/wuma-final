@@ -56,6 +56,7 @@ function fixture() {
   const storage = { read: () => 'ai1', write: () => {}, clear: () => {} };
   return { api, storage, initial, played, undoRequests, resignRequests,
     get getCalls() { return getCalls; },
+    get authoritative() { return authoritative; },
     set authoritative(value: typeof authoritative) { authoritative = value; } };
 }
 
@@ -141,4 +142,40 @@ test('AI version conflict refreshes authority and a retry uses refreshed version
   await c.undo();
   assert.equal(f.undoRequests[1].expected_version, 4);
   assert.notEqual(f.undoRequests[0].client_request_id, f.undoRequests[1].client_request_id);
+});
+
+test('AI uses authoritative ply_count instead of a high revision number', async () => {
+  const f = fixture();
+  f.authoritative = { game_id: 'ai1', version: 97, ply_count: 2, state: f.played,
+    mode: 'AI', human_player: 'A', ai_player: 'B', ai_level: 'STANDARD' };
+  const c = new AiGameController(f.api, f.storage, () => {});
+  await c.enter();
+  assert.equal(c.snapshot.gameVersion, 97);
+  assert.equal(c.snapshot.plyCount, 2);
+});
+
+test('AI rejects a missing ply_count without replacing the current snapshot', async () => {
+  const f = fixture();
+  const c = new AiGameController(f.api, f.storage, () => {});
+  await c.enter();
+  const before = structuredClone(c.snapshot);
+  f.api.getGame = async () => ({ ...f.authoritative, version: 98, ply_count: undefined });
+  await c.enter();
+  assert.equal(c.snapshot.gameVersion, before.gameVersion);
+  assert.equal(c.snapshot.plyCount, before.plyCount);
+  assert.deepEqual(c.snapshot.gameState, before.gameState);
+  assert.equal(c.snapshot.errorMessage, '棋局数据异常，请刷新重试');
+});
+
+test('AI rejects an invalid operation ply_count without replacing the board', async () => {
+  const f = fixture();
+  const c = new AiGameController(f.api, f.storage, () => {});
+  await c.enter();
+  f.api.undo = async () => ({ version: 99, ply_count: -1,
+    state: f.initial, reverted_turns: 2 });
+  await c.undo();
+  assert.equal(c.snapshot.gameVersion, 2);
+  assert.equal(c.snapshot.plyCount, 2);
+  assert.deepEqual(c.snapshot.gameState, f.played);
+  assert.equal(c.snapshot.errorMessage, '棋局数据异常，请刷新重试');
 });

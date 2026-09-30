@@ -120,7 +120,7 @@ test('game page records and resumes real local games and indexes server games', 
     loaded.push(`${options.method} ${path}`);
     const id = path.split('/').at(-1);
     options.success({ statusCode: 200, data: { code: 0, message: 'success',
-      data: { game_id: id, version: 0, state: initial, mode: 'AI',
+      data: { game_id: id, version: 0, ply_count: 0, state: initial, mode: 'AI',
         human_player: 'A', ai_player: 'B', ai_level: 'STANDARD' } } });
   };
   failActiveWrite = true;

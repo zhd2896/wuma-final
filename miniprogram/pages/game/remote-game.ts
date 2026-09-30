@@ -1,6 +1,7 @@
 import { NODE_IDS } from '../../domain/index';
 import type { CaptureResult, GameState, Move, NodeId } from '../../domain/index';
 import { ApiError, messageForApiError } from '../../services/api-client';
+import { requirePlyCount } from '../../services/game-api';
 import type { GameApi } from '../../services/game-api';
 
 export interface GameIdStorage {
@@ -98,9 +99,10 @@ export class RemoteGameController {
         game = await this.api.createGame();
       }
       if (!this.current(generation)) return;
+      const plyCount = requirePlyCount(game);
       this.storage.write(game.game_id);
       this.publish({ gameId: game.game_id, gameVersion: game.version ?? null,
-        plyCount: game.ply_count ?? game.version ?? 0,
+        plyCount,
         gameState: game.state,
         lastMove: null, lastCapture: null, isLoadingGame: false, needsResync: false });
     } catch (error) {
@@ -118,9 +120,10 @@ export class RemoteGameController {
     try {
       const game = await this.api.createGame();
       if (!this.current(generation)) return;
+      const plyCount = requirePlyCount(game);
       this.storage.write(game.game_id);
       this.publish({ gameId: game.game_id, gameVersion: game.version ?? null,
-        plyCount: game.ply_count ?? game.version ?? 0,
+        plyCount,
         gameState: game.state,
         lastMove: null, lastCapture: null, notice: null, isLoadingGame: false,
         needsResync: false });
@@ -200,8 +203,9 @@ export class RemoteGameController {
     try {
       const game = await this.api.getGame(gameId);
       if (!this.current(generation)) return;
+      const plyCount = requirePlyCount(game);
       this.publish({ gameState: game.state, gameVersion: game.version ?? null,
-        plyCount: game.ply_count ?? game.version ?? 0,
+        plyCount,
         selectedNode: null, legalTargets: [],
         lastMove: null, lastCapture: null, errorMessage, notice, needsResync: false });
     } catch (error) {
@@ -241,8 +245,9 @@ export class RemoteGameController {
         expected_version: pending.expectedVersion, client_request_id: pending.id,
       });
       if (!this.current(generation) || this.state.gameId !== gameId) return false;
+      const plyCount = requirePlyCount(result);
       this[field] = null;
-      this.publish({ gameVersion: result.version, plyCount: result.ply_count,
+      this.publish({ gameVersion: result.version, plyCount,
         gameState: result.state, selectedNode: null, legalTargets: [],
         lastMove: null, lastCapture: null, needsResync: false, errorMessage: null,
         notice: kind === 'undo' ? `已悔棋 ${result.reverted_turns} 手` : '已认输' });
@@ -257,10 +262,13 @@ export class RemoteGameController {
       if (uncertain || conflict) {
         try {
           const game = await this.api.getGame(gameId);
-          if (this.current(generation)) this.publish({ gameState: game.state,
-            gameVersion: game.version ?? null, plyCount: game.ply_count ?? game.version ?? 0,
+          if (this.current(generation)) {
+            const plyCount = requirePlyCount(game);
+            this.publish({ gameState: game.state,
+            gameVersion: game.version ?? null, plyCount,
             selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
             needsResync: false, errorMessage: messageForApiError(error) });
+          }
         } catch (reloadError) {
           if (this.current(generation)) this.publish({ needsResync: true,
             errorMessage: messageForApiError(reloadError) });

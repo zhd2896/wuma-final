@@ -2,6 +2,7 @@ import { NODE_IDS } from '../../domain/index';
 import type { CaptureResult, GameState, Move, NodeId, Player } from '../../domain/index';
 import { ApiError, messageForApiError } from '../../services/api-client';
 import type { CoachHintDto, GameDto, PositionAnalysisDto, SearchResultDto } from '../../services/api-contract';
+import { requirePlyCount } from '../../services/game-api';
 import type { GameApi } from '../../services/game-api';
 import type { GameIdStorage } from './remote-game';
 
@@ -79,13 +80,14 @@ export class AiGameController {
   }
 
   private accept(game: GameDto): void {
+    const plyCount = requirePlyCount(game);
     if (game.mode !== 'AI' || !game.ai_player || !game.human_player || !game.ai_level) {
       throw new ApiError('AI_MODE_REQUIRED', 409);
     }
     this.storage.write(game.game_id);
     this.legalGeneration++;
     this.publish({ gameId: game.game_id, gameVersion: game.version ?? null,
-      plyCount: game.ply_count ?? game.version ?? 0,
+      plyCount,
       gameState: game.state,
       humanPlayer: game.human_player, aiPlayer: game.ai_player, aiLevel: game.ai_level,
       selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
@@ -294,8 +296,9 @@ export class AiGameController {
         expected_version: pending.expectedVersion, client_request_id: pending.id,
       });
       if (!this.current(generation) || this.state.gameId !== gameId) return false;
+      const plyCount = requirePlyCount(result);
       this[field] = null;
-      this.publish({ gameVersion: result.version, plyCount: result.ply_count,
+      this.publish({ gameVersion: result.version, plyCount,
         gameState: result.state, selectedNode: null, legalTargets: [],
         lastMove: null, lastCapture: null, lastSearch: null,
         analysis: null, analysisErrorMessage: null, isAnalyzing: false,

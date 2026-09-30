@@ -1,4 +1,5 @@
 import type { NodeId } from '../domain/index';
+import { ApiError } from './api-client';
 import type { ApiClient } from './api-client';
 import type { AiMoveRequestDto, AiMoveResponseDto, CreateGameRequestDto, GameDto, LegalMovesDto,
   MoveRequestDto, MoveResponseDto, PositionAnalysisDto, GameReviewDto,
@@ -18,6 +19,13 @@ export interface GameApi {
   createReview(gameId: string, reviewedPlayer?: 'A' | 'B'): Promise<GameReviewDto>;
   getReviewExplanation(gameId: string, reviewedPlayer?: 'A' | 'B'): Promise<ExplainedReviewDto>;
   explainReview(gameId: string, reviewedPlayer?: 'A' | 'B'): Promise<ExplainedReviewDto>;
+}
+
+export function requirePlyCount(response: { readonly ply_count?: unknown }): number {
+  if (!Number.isInteger(response.ply_count) || (response.ply_count as number) < 0) {
+    throw new ApiError('INVALID_GAME_RESPONSE', 502);
+  }
+  return response.ply_count as number;
 }
 
 export function createGameApi(client: ApiClient): GameApi {

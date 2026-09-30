@@ -96,6 +96,8 @@ test('game operation errors have actionable Chinese messages', () => {
     ['GAME_STATE_CONFLICT', '棋局状态已更新'],
     ['GAME_ALREADY_FINISHED', '本局已结束'],
     ['AUTH_FORBIDDEN', '这条记录不属于当前设备账号'],
+    ['REMOTE_UNDO_PENDING', '已有待处理的悔棋申请'],
+    ['INVALID_GAME_RESPONSE', '棋局数据异常，请刷新重试'],
   ]);
   for (const [code, message] of expected) {
     assert.equal(messageForApiError(new ApiError(code, 409)), message);

@@ -47,6 +47,7 @@ function fixture(aiPlayer: Player = 'B') {
   let analysisCalls = 0;
   let coachCalls = 0;
   const game = () => ({ game_id: `g${creates}`, version: humanCalls + aiCalls,
+    ply_count: humanCalls + aiCalls,
     state, mode: 'AI' as const,
     human_player: aiPlayer === 'A' ? 'B' as const : 'A' as const,
     ai_player: aiPlayer, ai_level: 'STANDARD' as const });
@@ -290,7 +291,7 @@ test('AI network timeout GETs before retry and never invents a move', async () =
   const controller = new AiGameController(f.api, f.storage, () => {});
   await controller.enter();
   let gets = 0;
-  f.api.getGame = async () => { gets++; return { game_id: 'g1', state: f.state,
+  f.api.getGame = async () => { gets++; return { game_id: 'g1', version: 0, ply_count: 0, state: f.state,
     mode: 'AI' as const, human_player: 'A' as const, ai_player: 'B' as const,
     ai_level: 'STANDARD' as const }; };
   f.api.aiMove = async () => { throw new ApiError('NETWORK_ERROR', 0); };
@@ -319,7 +320,7 @@ test('failed GET after lost Human response locks stale board until successful re
   const legalBefore = f.legalCalls;
   await controller.tapNode('P06');
   assert.equal(f.legalCalls, legalBefore);
-  f.api.getGame = async () => ({ game_id: 'g1', state: f.state, mode: 'AI' as const,
+  f.api.getGame = async () => ({ game_id: 'g1', version: 0, ply_count: 0, state: f.state, mode: 'AI' as const,
     human_player: 'A' as const, ai_player: 'B' as const, ai_level: 'STANDARD' as const });
   await controller.enter();
   assert.equal(controller.snapshot.needsResync, false);
@@ -331,7 +332,7 @@ test('human move response loss also GETs server before another move', async () =
   const controller = new AiGameController(f.api, f.storage, () => {});
   await controller.enter();
   let gets = 0;
-  f.api.getGame = async () => { gets++; return { game_id: 'g1', state: f.state,
+  f.api.getGame = async () => { gets++; return { game_id: 'g1', version: 0, ply_count: 0, state: f.state,
     mode: 'AI' as const, human_player: 'A' as const, ai_player: 'B' as const,
     ai_level: 'STANDARD' as const }; };
   f.api.move = async (_id: string, move: {from_node: NodeId; to_node: NodeId}) => {

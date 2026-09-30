@@ -42,8 +42,11 @@ function fixture() {
     clear: () => { saved = null; },
   };
   const api = {
-    createGame: async () => { createCount++; return { game_id: `g${createCount}`, state: initial }; },
-    getGame: async (gameId: string) => ({ game_id: gameId, state: current }),
+    createGame: async () => { createCount++; return { game_id: `g${createCount}`,
+      version: 0, ply_count: 0, state: initial }; },
+    getGame: async (gameId: string) => ({ game_id: gameId,
+      version: current === initial ? 0 : 1, ply_count: current === initial ? 0 : 1,
+      state: current }),
     getLegalMoves: async () => { legalCount++; return { moves: [{ from: 'P01' as const, to: 'P02' as const }] }; },
     move: async () => { moveCount++; current = turn.state; return { turn }; },
     aiMove: async () => { throw new Error('AI is outside Phase 18'); },
@@ -115,7 +118,8 @@ test('server capture result drives replacement pieces, reserve and terminal disp
   Object.assign(occupancy, { P11: 'A', P12: 'B', P08: 'B', P18: 'B', P19: 'A' });
   const position = { ...f.initial, board: { occupancy } };
   const capture = RuleEngine.executeTurn(position, { from: 'P19', to: 'P13' });
-  f.api.createGame = async () => ({ game_id: 'capture', state: position });
+  f.api.createGame = async () => ({ game_id: 'capture', version: 0, ply_count: 0,
+    state: position });
   f.api.getLegalMoves = async () => ({ moves: [{ from: 'P19', to: 'P13' }] });
   f.api.move = async () => ({ turn: capture });
   const controller = new RemoteGameController(f.api, f.storage, () => {});
@@ -132,14 +136,14 @@ test('server capture result drives replacement pieces, reserve and terminal disp
 
 test('duplicate game creation is blocked while the first request is pending', async () => {
   const f = fixture();
-  const pending = deferred<{ game_id: string; state: GameState }>();
+  const pending = deferred<{ game_id: string; version: number; ply_count: number; state: GameState }>();
   let calls = 0;
   f.api.createGame = async () => { calls++; return pending.promise; };
   const controller = new RemoteGameController(f.api, f.storage, () => {});
   const first = controller.enter();
   await controller.enter();
   assert.equal(calls, 1);
-  pending.resolve({ game_id: 'g1', state: f.initial });
+  pending.resolve({ game_id: 'g1', version: 0, ply_count: 0, state: f.initial });
   await first;
   assert.equal(controller.snapshot.gameId, 'g1');
 });
@@ -200,7 +204,7 @@ test('failed conflict reload locks stale board until a successful retry', async 
   let reloadFails = false;
   f.api.getGame = async gameId => {
     if (reloadFails) throw new ApiError('NETWORK_ERROR', 0);
-    return { game_id: gameId, state: f.turn.state };
+    return { game_id: gameId, version: 1, ply_count: 1, state: f.turn.state };
   };
   f.api.move = async () => { throw new ApiError('GAME_STATE_CONFLICT', 409); };
   const controller = new RemoteGameController(f.api, f.storage, () => {});
@@ -276,14 +280,14 @@ test('terminal server result blocks further taps and restart creates a new game 
 
 test('disposed page ignores late request response', async () => {
   const f = fixture();
-  const pending = deferred<{ game_id: string; state: GameState }>();
+  const pending = deferred<{ game_id: string; version: number; ply_count: number; state: GameState }>();
   f.api.createGame = async () => pending.promise;
   let updates = 0;
   const controller = new RemoteGameController(f.api, f.storage, () => { updates++; });
   const started = controller.enter();
   const beforeDispose = updates;
   controller.dispose();
-  pending.resolve({ game_id: 'late', state: f.initial });
+  pending.resolve({ game_id: 'late', version: 0, ply_count: 0, state: f.initial });
   await started;
   assert.equal(updates, beforeDispose);
   assert.equal(f.saved, null);
@@ -314,4 +318,39 @@ test('compatible LOCAL remote controller applies authoritative one-ply undo and 
   await c.resign();
   assert.equal(c.snapshot.gameState?.winner_reason, 'RESIGN');
   assert.equal(c.snapshot.isOperating, false);
+});
+
+test('compatible controller never treats revision as ply count', async () => {
+  const f = fixture();
+  f.api.createGame = async () => ({ game_id: 'g1', version: 81, ply_count: 1,
+    state: f.turn.state });
+  const c = new RemoteGameController(f.api as any, f.storage, () => {});
+  await c.enter();
+  assert.equal(c.snapshot.gameVersion, 81);
+  assert.equal(c.snapshot.plyCount, 1);
+});
+
+test('compatible controller rejects missing and invalid operation ply counts', async () => {
+  const f = fixture();
+  f.api.createGame = async () => ({ game_id: 'g1', version: 5, ply_count: 1,
+    state: f.turn.state });
+  const c = new RemoteGameController(f.api as any, f.storage, () => {});
+  await c.enter();
+  (f.api as any).undo = async () => ({ version: 6, ply_count: 1.5,
+    state: f.initial, reverted_turns: 1 });
+  await c.undo();
+  assert.equal(c.snapshot.gameVersion, 5);
+  assert.equal(c.snapshot.plyCount, 1);
+  assert.deepEqual(c.snapshot.gameState, f.turn.state);
+  assert.equal(c.snapshot.errorMessage, '棋局数据异常，请刷新重试');
+
+  const broken = fixture();
+  broken.api.createGame = async () => ({ game_id: 'bad', version: 42,
+    state: broken.initial } as any);
+  const rejected = new RemoteGameController(broken.api as any, broken.storage, () => {});
+  await rejected.enter();
+  assert.equal(rejected.snapshot.gameId, null);
+  assert.equal(rejected.snapshot.plyCount, 0);
+  assert.equal(broken.saved, null);
+  assert.equal(rejected.snapshot.errorMessage, '棋局数据异常，请刷新重试');
 });
