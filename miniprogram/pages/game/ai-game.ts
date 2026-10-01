@@ -69,6 +69,8 @@ export class AiGameController {
 
   get snapshot(): AiGameSnapshot { return this.state; }
 
+  private get hasPendingOperation(): boolean { return !!(this.pendingUndo || this.pendingResign); }
+
   private publish(patch: Partial<AiGameSnapshot>): void {
     if (this.disposed) return;
     this.state = { ...this.state, ...patch };
@@ -106,16 +108,17 @@ export class AiGameController {
     if (this.disposed || this.state.isOperating || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isLoadingGame || this.state.isSubmittingMove ||
         this.state.isAiThinking) return;
     const generation = ++this.generation;
+    const pendingError = this.hasPendingOperation ? this.state.errorMessage : null;
     this.legalGeneration++;
     this.publish({ isLoadingGame: true, needsResync: true, errorMessage: null,
       selectedNode: null, legalTargets: [], isLoadingLegalMoves: false });
     try {
-      const saved = this.storage.read();
+      const saved = this.hasPendingOperation ? this.state.gameId : this.storage.read();
       let game: GameDto;
       if (saved) {
         try { game = await this.api.getGame(saved); }
         catch (error) {
-          const canReplaceSavedGame = error instanceof ApiError &&
+          const canReplaceSavedGame = !this.hasPendingOperation && error instanceof ApiError &&
             (error.code === 'GAME_NOT_FOUND' ||
               (this.createOnMissing && error.code === 'AUTH_FORBIDDEN'));
           if (!canReplaceSavedGame) throw error;
@@ -130,6 +133,7 @@ export class AiGameController {
       }
       if (!this.current(generation)) return;
       this.accept(game);
+      if (this.hasPendingOperation) this.publish({ errorMessage: pendingError });
       await this.maybePlayAi(generation);
     } catch (error) {
       if (this.current(generation)) this.publish({ isLoadingGame: false,
@@ -138,7 +142,7 @@ export class AiGameController {
   }
 
   async restart(firstPlayer: Player = 'A'): Promise<void> {
-    if (this.disposed || this.state.isOperating || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isLoadingGame || this.state.isSubmittingMove ||
+    if (this.disposed || this.hasPendingOperation || this.state.isOperating || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isLoadingGame || this.state.isSubmittingMove ||
         this.state.isAiThinking) return;
     const generation = ++this.generation;
     this.legalGeneration++;
@@ -156,7 +160,7 @@ export class AiGameController {
   }
 
   private canHumanInteract(): boolean {
-    return !this.disposed && !this.state.isOperating && !this.state.isAnalyzing && !this.state.isCoachLoading && !this.state.isLoadingGame && !this.state.isSubmittingMove &&
+    return !this.disposed && !this.hasPendingOperation && !this.state.isOperating && !this.state.isAnalyzing && !this.state.isCoachLoading && !this.state.isLoadingGame && !this.state.isSubmittingMove &&
       !this.state.isAiThinking && !this.state.needsResync && !!this.state.gameId &&
       this.state.gameState?.game_status === 'PLAYING' &&
       this.state.gameState.current_player === this.state.humanPlayer;
@@ -219,7 +223,7 @@ export class AiGameController {
   }
 
   private async maybePlayAi(generation: number): Promise<void> {
-    if (!this.current(generation) || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isAiThinking || this.state.needsResync ||
+    if (!this.current(generation) || this.hasPendingOperation || this.state.isAnalyzing || this.state.isCoachLoading || this.state.isAiThinking || this.state.needsResync ||
         this.state.gameState?.game_status !== 'PLAYING' ||
         this.state.gameState.current_player !== this.state.aiPlayer || !this.state.gameId) return;
     const gameId = this.state.gameId;
@@ -277,15 +281,17 @@ export class AiGameController {
   }
 
   private async operate(kind: 'undo' | 'resign'): Promise<boolean> {
+    const field = kind === 'undo' ? 'pendingUndo' : 'pendingResign';
+    const retrying = this[field] !== null;
     if (this.disposed || this.state.isOperating || this.state.isLoadingGame ||
         this.state.isSubmittingMove || this.state.isAiThinking || this.state.isAnalyzing ||
-        this.state.isCoachLoading || this.state.needsResync || !this.state.gameId ||
-        this.state.gameVersion === null || this.state.gameState?.game_status !== 'PLAYING') return false;
+        this.state.isCoachLoading || !this.state.gameId ||
+        (!retrying && (this.hasPendingOperation || this.state.needsResync ||
+          this.state.gameVersion === null || this.state.gameState?.game_status !== 'PLAYING'))) return false;
     const gameId = this.state.gameId;
     const generation = this.generation;
-    const field = kind === 'undo' ? 'pendingUndo' : 'pendingResign';
     const pending = this[field] ?? {
-      id: this.requestId(kind), expectedVersion: this.state.gameVersion,
+      id: this.requestId(kind), expectedVersion: this.state.gameVersion!,
     };
     this[field] = pending;
     this.legalGeneration++;
@@ -309,8 +315,10 @@ export class AiGameController {
     } catch (error) {
       if (!this.current(generation)) return false;
       const uncertain = !(error instanceof ApiError) || error.code === 'NETWORK_ERROR' ||
-        error.code === 'SERVER_UNAVAILABLE' || error.code === 'DATABASE_UNAVAILABLE';
-      const conflict = error instanceof ApiError && error.code === 'GAME_STATE_CONFLICT';
+        error.code === 'SERVER_UNAVAILABLE' || error.code === 'DATABASE_UNAVAILABLE' ||
+        error.code === 'INVALID_GAME_RESPONSE';
+      const conflict = error instanceof ApiError &&
+        ['GAME_STATE_CONFLICT', 'OPERATION_REQUEST_CONFLICT', 'GAME_ALREADY_FINISHED'].includes(error.code);
       if (!uncertain) this[field] = null;
       this.publish({ needsResync: uncertain || conflict, errorMessage: messageForApiError(error) });
       if (uncertain || conflict) {
@@ -334,8 +342,14 @@ export class AiGameController {
   undo(): Promise<boolean> { return this.operate('undo'); }
   resign(): Promise<boolean> { return this.operate('resign'); }
 
+  async retry(firstPlayer: Player = 'A'): Promise<void> {
+    if (this.pendingUndo) await this.undo();
+    else if (this.pendingResign) await this.resign();
+    else await this.enter(firstPlayer);
+  }
+
   async analyze(): Promise<void> {
-    if (this.disposed || !this.state.gameId || !this.state.gameState ||
+    if (this.disposed || this.hasPendingOperation || !this.state.gameId || !this.state.gameState ||
         this.state.isOperating || this.state.isLoadingGame || this.state.isSubmittingMove ||
         this.state.isAiThinking || this.state.isAnalyzing || this.state.isCoachLoading || this.state.needsResync) return;
     const gameId = this.state.gameId;

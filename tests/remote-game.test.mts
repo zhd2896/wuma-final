@@ -336,6 +336,8 @@ test('compatible controller rejects missing and invalid operation ply counts', a
     state: f.turn.state });
   const c = new RemoteGameController(f.api as any, f.storage, () => {});
   await c.enter();
+  f.api.getGame = async gameId => ({ game_id: gameId, version: 5, ply_count: 1,
+    state: f.turn.state });
   (f.api as any).undo = async () => ({ version: 6, ply_count: 1.5,
     state: f.initial, reverted_turns: 1 });
   await c.undo();

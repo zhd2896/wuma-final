@@ -84,6 +84,15 @@ test('local page persists moves, confirms undo and resignation separately, and h
   page.aiController = { restart: (first: string) => { restartedWith = first; } };
   page.restartAiGame();
   assert.equal(restartedWith, 'A');
+
+  const retried: string[] = [];
+  page.aiController = { retry: (first: string) => { retried.push(`ai:${first}`); },
+    enter: () => { retried.push('ai:refresh'); } };
+  page.remoteController = { retry: () => { retried.push('remote'); },
+    enter: () => { retried.push('remote:refresh'); } };
+  page.retryAiGame();
+  page.retryRemoteGame();
+  assert.deepEqual(retried, ['ai:A', 'remote']);
 });
 
 test('game page exposes real operation controls, shared settings, and separate dialogs', () => {

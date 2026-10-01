@@ -294,7 +294,7 @@ Page({
     });
   },
   restartRemoteGame() { void this.remoteController?.restart(); },
-  retryRemoteGame() { void this.remoteController?.enter(); },
+  retryRemoteGame() { void this.remoteController?.retry(); },
   restartAiGame() {
     this.aiFirstPlayer = this.data.settings.aiFirstPlayer;
     void this.aiController?.restart(this.aiFirstPlayer);
@@ -304,7 +304,7 @@ Page({
     this.setData({ showSettings: false });
     this.restartAiGame();
   },
-  retryAiGame() { void this.aiController?.enter(this.aiFirstPlayer); },
+  retryAiGame() { void this.aiController?.retry(this.aiFirstPlayer); },
   undo() {
     if (this.data.operationBusy) return;
     if (this.data.mode === 'ai') {

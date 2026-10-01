@@ -62,6 +62,8 @@ export class RemoteGameController {
 
   get snapshot(): RemoteGameSnapshot { return this.state; }
 
+  private get hasPendingOperation(): boolean { return !!(this.pendingUndo || this.pendingResign); }
+
   private publish(patch: Partial<RemoteGameSnapshot>): void {
     if (this.disposed) return;
     this.state = { ...this.state, ...patch };
@@ -75,17 +77,18 @@ export class RemoteGameController {
   async enter(): Promise<void> {
     if (this.disposed || this.state.isOperating || this.state.isLoadingGame || this.state.isSubmittingMove) return;
     const generation = ++this.requestGeneration;
+    const pendingError = this.hasPendingOperation ? this.state.errorMessage : null;
     this.legalGeneration++;
     this.publish({ isLoadingGame: true, errorMessage: null, notice: null,
       selectedNode: null, legalTargets: [], isLoadingLegalMoves: false });
     try {
-      const saved = this.storage.read();
+      const saved = this.hasPendingOperation ? this.state.gameId : this.storage.read();
       let game;
       if (saved) {
         try {
           game = await this.api.getGame(saved);
         } catch (error) {
-          const canReplaceSavedGame = error instanceof ApiError &&
+          const canReplaceSavedGame = !this.hasPendingOperation && error instanceof ApiError &&
             (error.code === 'GAME_NOT_FOUND' ||
               (this.createOnMissing && error.code === 'AUTH_FORBIDDEN'));
           if (!canReplaceSavedGame) throw error;
@@ -104,7 +107,8 @@ export class RemoteGameController {
       this.publish({ gameId: game.game_id, gameVersion: game.version ?? null,
         plyCount,
         gameState: game.state,
-        lastMove: null, lastCapture: null, isLoadingGame: false, needsResync: false });
+        lastMove: null, lastCapture: null, isLoadingGame: false, needsResync: false,
+        errorMessage: pendingError });
     } catch (error) {
       if (this.current(generation)) this.publish({ isLoadingGame: false,
         errorMessage: messageForApiError(error) });
@@ -112,7 +116,7 @@ export class RemoteGameController {
   }
 
   async restart(): Promise<void> {
-    if (this.disposed || this.state.isOperating || this.state.isLoadingGame || this.state.isSubmittingMove) return;
+    if (this.disposed || this.hasPendingOperation || this.state.isOperating || this.state.isLoadingGame || this.state.isSubmittingMove) return;
     const generation = ++this.requestGeneration;
     this.legalGeneration++;
     this.publish({ isLoadingGame: true, errorMessage: null,
@@ -134,7 +138,7 @@ export class RemoteGameController {
   }
 
   async tapNode(id: string): Promise<void> {
-    if (this.disposed || this.state.isOperating || this.state.isLoadingGame || this.state.isSubmittingMove ||
+    if (this.disposed || this.hasPendingOperation || this.state.isOperating || this.state.isLoadingGame || this.state.isSubmittingMove ||
         this.state.needsResync ||
         this.state.gameState?.game_status !== 'PLAYING' || !this.state.gameId ||
         !NODE_IDS.includes(id as NodeId)) return;
@@ -227,14 +231,16 @@ export class RemoteGameController {
   }
 
   private async operate(kind: 'undo' | 'resign'): Promise<boolean> {
+    const field = kind === 'undo' ? 'pendingUndo' : 'pendingResign';
+    const retrying = this[field] !== null;
     if (this.disposed || this.state.isOperating || this.state.isLoadingGame ||
-        this.state.isSubmittingMove || this.state.needsResync || !this.state.gameId ||
-        this.state.gameVersion === null || this.state.gameState?.game_status !== 'PLAYING') return false;
+        this.state.isSubmittingMove || !this.state.gameId ||
+        (!retrying && (this.hasPendingOperation || this.state.needsResync ||
+          this.state.gameVersion === null || this.state.gameState?.game_status !== 'PLAYING'))) return false;
     const gameId = this.state.gameId;
     const generation = this.requestGeneration;
-    const field = kind === 'undo' ? 'pendingUndo' : 'pendingResign';
     const pending = this[field] ?? {
-      id: this.requestId(kind), expectedVersion: this.state.gameVersion,
+      id: this.requestId(kind), expectedVersion: this.state.gameVersion!,
     };
     this[field] = pending;
     this.legalGeneration++;
@@ -255,8 +261,10 @@ export class RemoteGameController {
     } catch (error) {
       if (!this.current(generation)) return false;
       const uncertain = !(error instanceof ApiError) || error.code === 'NETWORK_ERROR' ||
-        error.code === 'SERVER_UNAVAILABLE' || error.code === 'DATABASE_UNAVAILABLE';
-      const conflict = error instanceof ApiError && error.code === 'GAME_STATE_CONFLICT';
+        error.code === 'SERVER_UNAVAILABLE' || error.code === 'DATABASE_UNAVAILABLE' ||
+        error.code === 'INVALID_GAME_RESPONSE';
+      const conflict = error instanceof ApiError &&
+        ['GAME_STATE_CONFLICT', 'OPERATION_REQUEST_CONFLICT', 'GAME_ALREADY_FINISHED'].includes(error.code);
       if (!uncertain) this[field] = null;
       this.publish({ needsResync: uncertain || conflict, errorMessage: messageForApiError(error) });
       if (uncertain || conflict) {
@@ -282,6 +290,12 @@ export class RemoteGameController {
 
   undo(): Promise<boolean> { return this.operate('undo'); }
   resign(): Promise<boolean> { return this.operate('resign'); }
+
+  async retry(): Promise<void> {
+    if (this.pendingUndo) await this.undo();
+    else if (this.pendingResign) await this.resign();
+    else await this.enter();
+  }
 
   dispose(): void {
     this.disposed = true;
