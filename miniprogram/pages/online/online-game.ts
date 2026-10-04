@@ -1,17 +1,12 @@
 import { NODE_IDS } from '../../domain/index';
 import type { CaptureResult, Move, NodeId } from '../../domain/index';
 import { ApiError, messageForApiError } from '../../services/api-client';
-import type { OnlineApi, OnlineMoveRequest, OnlineRoom } from '../../services/online-api';
-
-export const ACTIVE_ONLINE_KEY = 'wuma:online:active';
-const DEVICE_KEY = 'wuma:online:device';
-const seatKey = (id: string) => `wuma:online:seat:${id}`;
-
-export interface OnlineStorage {
-  read(key: string): unknown;
-  write(key: string, value: unknown): void;
-  remove(key: string): void;
-}
+import { requirePlyCount } from '../../services/game-api';
+import { requireOnlineRoom } from '../../services/online-api';
+import type { OnlineApi, OnlineMoveRequest, OnlineOperationRequest, OnlineRoom } from '../../services/online-api';
+import { ACTIVE_ONLINE_KEY, DEVICE_ONLINE_KEY, readOnlineSeat, writeOnlineSeat } from '../../services/online-credentials';
+import type { OnlineStorage } from '../../services/online-credentials';
+export type { OnlineStorage } from '../../services/online-credentials';
 
 export interface OnlineSnapshot {
   readonly room: OnlineRoom | null;
@@ -22,10 +17,35 @@ export interface OnlineSnapshot {
   readonly busy: boolean;
   readonly error: string;
   readonly pendingMove: boolean;
+  readonly pendingOperation: boolean;
+  readonly isOperating: boolean;
+  readonly canRequestUndo: boolean;
+  readonly canRespondToUndo: boolean;
+  readonly canResign: boolean;
+  readonly operationNotice: string;
+  readonly successfulAction: number;
+}
+
+type OperationAction = 'requestUndo' | 'acceptUndo' | 'declineUndo' | 'resign';
+interface PendingOperation {
+  readonly gameId: string;
+  readonly action: OperationAction;
+  readonly target: string | null;
+  readonly request: OnlineOperationRequest;
 }
 
 function identifier(): string {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+}
+
+function definitiveRejection(error: unknown): boolean {
+  return error instanceof ApiError && [
+    'GAME_STATE_CONFLICT', 'GAME_ALREADY_FINISHED', 'UNDO_NOT_AVAILABLE',
+    'OPERATION_REQUEST_CONFLICT', 'OPERATION_ALREADY_PENDING', 'REMOTE_UNDO_PENDING',
+    'OPERATION_NOT_ALLOWED', 'REMOTE_REQUEST_CONFLICT', 'NOT_YOUR_TURN',
+    'REMOTE_ROOM_NOT_FOUND', 'REMOTE_ACCESS_DENIED', 'REMOTE_ROOM_UNAVAILABLE',
+    'INVALID_MOVE', 'PATH_BLOCKED', 'TARGET_OCCUPIED', 'NODE_NOT_FOUND',
+  ].includes(error.code);
 }
 
 export class OnlineGameController {
@@ -35,9 +55,12 @@ export class OnlineGameController {
   private state: OnlineSnapshot = {
     room: null, selectedNode: null, legalTargets: [], lastMove: null,
     lastCapture: null, busy: false, error: '', pendingMove: false,
+    pendingOperation: false, isOperating: false, canRequestUndo: false,
+    canRespondToUndo: false, canResign: false, operationNotice: '', successfulAction: 0,
   };
   private token = '';
   private pending: OnlineMoveRequest | null = null;
+  private operation: PendingOperation | null = null;
   private refreshing = false;
   private generation = 0;
   private disposed = false;
@@ -48,29 +71,42 @@ export class OnlineGameController {
   }
 
   get snapshot(): OnlineSnapshot { return this.state; }
+  private get hasPending(): boolean { return !!(this.pending || this.operation); }
 
   private publish(patch: Partial<OnlineSnapshot>): void {
     if (this.disposed) return;
-    this.state = { ...this.state, ...patch };
+    const next = { ...this.state, ...patch };
+    const playable = next.room?.room_status === 'PLAYING' && next.room.state.game_status === 'PLAYING';
+    const available = !!playable && !next.busy && !this.hasPending;
+    this.state = { ...next,
+      pendingOperation: !!this.operation,
+      canRequestUndo: available && !next.room?.pending_undo && (next.room?.ply_count ?? 0) > 0,
+      canRespondToUndo: available && !!next.room?.pending_undo &&
+        next.room.pending_undo.responder === next.room.seat,
+      canResign: available,
+    };
     this.onChange(this.state);
   }
 
+  private invalidateRefresh(): void { this.generation++; this.refreshing = false; }
+
   private deviceId(): string {
-    const stored = this.storage.read(DEVICE_KEY);
-    if (typeof stored === 'string' && stored.length >= 8) return stored;
+    const stored = this.storage.read(DEVICE_ONLINE_KEY);
+    if (typeof stored === 'string' && /^[A-Za-z0-9_-]{8,64}$/.test(stored)) return stored;
     const id = identifier();
-    this.storage.write(DEVICE_KEY, id);
+    this.storage.write(DEVICE_ONLINE_KEY, id);
     return id;
   }
 
-  private saveRoom(room: OnlineRoom): void {
-    if (!room.token) throw new Error('Room did not issue a seat token');
+  private saveRoom(value: OnlineRoom): void {
+    const room = requireOnlineRoom(value);
+    if (typeof room.token !== 'string' || !room.token.trim()) throw new ApiError('INVALID_GAME_RESPONSE', 502);
     this.token = room.token;
-    this.pending = null;
+    this.invalidateRefresh();
     this.publish({ room, selectedNode: null, legalTargets: [], lastMove: null,
-      lastCapture: null, pendingMove: false, error: '' });
+      lastCapture: null, pendingMove: false, error: '', operationNotice: '' });
     try {
-      this.storage.write(seatKey(room.game_id), room.token);
+      writeOnlineSeat(this.storage, room.game_id, room.token);
       this.storage.write(ACTIVE_ONLINE_KEY, room.game_id);
     } catch {
       this.publish({ error: '本机无法保存席位凭证，退出后可能无法重连' });
@@ -78,7 +114,7 @@ export class OnlineGameController {
   }
 
   private async begin(action: () => Promise<OnlineRoom>): Promise<void> {
-    if (this.state.busy) return;
+    if (this.disposed || this.state.busy || this.hasPending) return;
     this.publish({ busy: true, error: '' });
     try { this.saveRoom(await action()); }
     catch (error) { this.publish({ error: messageForApiError(error) }); }
@@ -88,31 +124,27 @@ export class OnlineGameController {
   create(publicRoom: boolean): Promise<void> {
     return this.begin(() => this.api.create(this.deviceId(), publicRoom));
   }
-
-  match(): Promise<void> {
-    return this.begin(() => this.api.match(this.deviceId()));
-  }
-
+  match(): Promise<void> { return this.begin(() => this.api.match(this.deviceId())); }
   join(code: string): Promise<void> {
+    if (this.disposed || this.hasPending || this.state.busy) return Promise.resolve();
     const normalized = code.trim().toUpperCase();
     if (!/^[A-Z0-9]{8}$/.test(normalized)) {
-      this.publish({ error: '请输入 8 位房间码' });
-      return Promise.resolve();
+      this.publish({ error: '请输入 8 位房间码' }); return Promise.resolve();
     }
     return this.begin(() => this.api.join(this.deviceId(), normalized));
   }
 
   async restore(id?: string): Promise<void> {
-    const gameId = id ?? this.storage.read(ACTIVE_ONLINE_KEY);
-    if (typeof gameId !== 'string' || !gameId) return;
-    const token = this.storage.read(seatKey(gameId));
-    if (typeof token !== 'string' || !token) {
-      this.publish({ error: '本机没有这个房间的席位凭证' });
-      return;
-    }
-    this.token = token;
-    this.storage.write(ACTIVE_ONLINE_KEY, gameId);
-    await this.refresh(gameId);
+    if (this.disposed || this.state.busy || this.hasPending) return;
+    try {
+      const gameId = id ?? this.storage.read(ACTIVE_ONLINE_KEY);
+      if (typeof gameId !== 'string' || !gameId.trim()) return;
+      const token = readOnlineSeat(this.storage, gameId);
+      if (!token) { this.publish({ error: '本机没有这个房间的席位凭证' }); return; }
+      this.token = token;
+      this.storage.write(ACTIVE_ONLINE_KEY, gameId);
+      await this.refresh(gameId);
+    } catch (error) { this.publish({ error: messageForApiError(error) }); }
   }
 
   async refresh(requestedId?: string): Promise<void> {
@@ -122,29 +154,29 @@ export class OnlineGameController {
     const generation = ++this.generation;
     this.refreshing = true;
     try {
-      const room = await this.api.get(id, this.token);
+      const room = requireOnlineRoom(await this.api.get(id, this.token), { game_id: id, seat: current?.seat });
       if (this.disposed || generation !== this.generation) return;
       const latest = this.state.room;
       if (latest && (latest.game_id !== room.game_id || room.version < latest.version)) return;
       const changed = latest?.version !== room.version;
-      this.publish({ room, error: '',
-        ...(changed ? { selectedNode: null, legalTargets: [] } : {}) });
+      this.publish({ room, error: this.hasPending ? this.state.error : '',
+        ...(changed || room.pending_undo || room.room_status !== 'PLAYING' || room.state.game_status === 'FINISHED'
+          ? { selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null } : {}) });
     } catch (error) {
       if (this.disposed || generation !== this.generation) return;
-      this.publish({ error: messageForApiError(error) });
+      this.publish({ error: this.hasPending && this.state.error ? this.state.error : messageForApiError(error) });
     } finally {
-      this.refreshing = false;
+      if (generation === this.generation) this.refreshing = false;
     }
   }
 
   async cancel(): Promise<void> {
     const room = this.state.room;
-    if (!room || room.room_status !== 'WAITING' || room.seat !== 'A' || this.state.busy) return;
+    if (!room || room.room_status !== 'WAITING' || room.seat !== 'A' || this.state.busy || this.hasPending || this.disposed) return;
+    this.invalidateRefresh();
     this.publish({ busy: true, error: '' });
     try {
-      const cancelled = await this.api.cancel(room.game_id, this.token);
-      this.generation++;
-      this.publish({ room: cancelled });
+      requireOnlineRoom(await this.api.cancel(room.game_id, this.token), room);
       this.storage.remove(ACTIVE_ONLINE_KEY);
       this.publish({ room: null, selectedNode: null, legalTargets: [] });
     } catch (error) { this.publish({ error: messageForApiError(error) }); }
@@ -152,73 +184,132 @@ export class OnlineGameController {
   }
 
   leave(): void {
-    if (this.state.busy) return;
+    if (this.disposed || this.state.busy || this.hasPending) return;
     this.storage.remove(ACTIVE_ONLINE_KEY);
     this.token = '';
-    this.pending = null;
-    this.generation++;
-    this.publish({ room: null, selectedNode: null, legalTargets: [],
-      pendingMove: false, error: '' });
+    this.invalidateRefresh();
+    this.publish({ room: null, selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
+      pendingMove: false, error: '', operationNotice: '' });
   }
 
   async tapNode(id: string): Promise<void> {
     const room = this.state.room;
-    if (!room || !NODE_IDS.includes(id as NodeId) || this.state.busy || this.pending ||
-        room.room_status !== 'PLAYING' || room.state.current_player !== room.seat) return;
+    if (!room || !NODE_IDS.includes(id as NodeId) || this.state.busy || this.hasPending || this.disposed ||
+        room.pending_undo || room.room_status !== 'PLAYING' || room.state.game_status !== 'PLAYING' ||
+        room.state.current_player !== room.seat) return;
     const node = id as NodeId;
     if (this.state.selectedNode && this.state.legalTargets.includes(node)) {
       this.pending = { from_node: this.state.selectedNode, to_node: node,
         expected_version: room.version, client_request_id: identifier() };
-      await this.submitPending();
-      return;
+      await this.submitPending(); return;
     }
     if (room.state.board.occupancy[node] !== room.seat) {
-      this.publish({ selectedNode: null, legalTargets: [] });
-      return;
+      this.publish({ selectedNode: null, legalTargets: [] }); return;
     }
     this.publish({ busy: true, selectedNode: node, legalTargets: [], error: '' });
-    try {
-      const legal = await this.api.legal(room.game_id, this.token, node);
-      if (this.state.room?.version === room.version && this.state.selectedNode === node)
-        this.publish({ legalTargets: legal.moves.map(move => move.to) });
-    } catch (error) {
-      this.publish({ selectedNode: null, error: messageForApiError(error) });
-      if (error instanceof ApiError && (error.code === 'GAME_STATE_CONFLICT' ||
-          error.code === 'NOT_YOUR_TURN')) await this.refresh();
-    } finally { this.publish({ busy: false }); }
-  }
-
-  async retryMove(): Promise<void> { if (this.pending) await this.submitPending(); }
-
-  private async submitPending(): Promise<void> {
-    const room = this.state.room;
-    const request = this.pending;
-    if (!room || !request || this.state.busy) return;
-    this.publish({ busy: true, pendingMove: true, error: '' });
     let resync = false;
     try {
-      const result = await this.api.move(room.game_id, this.token, request);
-      this.pending = null;
-      const latest = this.state.room;
-      if (latest && latest.game_id === room.game_id && latest.version > result.version) {
-        this.publish({ pendingMove: false, selectedNode: null, legalTargets: [] });
-        return;
-      }
-      this.publish({ room: { ...room, version: result.version, state: result.turn.state,
-        room_status: result.turn.state.game_status === 'FINISHED' ? 'FINISHED' : 'PLAYING' },
-        selectedNode: null, legalTargets: [], lastMove: result.turn.move,
-        lastCapture: result.turn.capture, pendingMove: false });
+      const legal = await this.api.legal(room.game_id, this.token, node);
+      if (this.state.room?.version === room.version && this.state.selectedNode === node && !this.state.room.pending_undo)
+        this.publish({ legalTargets: legal.moves.filter(move => move.from === node).map(move => move.to) });
     } catch (error) {
-      if (error instanceof ApiError && error.code !== 'NETWORK_ERROR' &&
-          error.code !== 'SERVER_UNAVAILABLE' && error.code !== 'DATABASE_UNAVAILABLE') {
-        this.pending = null;
-        this.publish({ pendingMove: false });
-      }
-      this.publish({ error: messageForApiError(error) });
-      resync = !this.pending;
+      this.publish({ selectedNode: null, error: messageForApiError(error) });
+      resync = definitiveRejection(error);
     } finally { this.publish({ busy: false }); }
     if (resync) await this.refresh();
   }
 
-  dispose(): void { this.disposed = true; this.generation++; }
+  async retryMove(): Promise<void> { if (this.pending) await this.submitPending(); }
+  async retry(): Promise<void> {
+    if (this.operation) await this.submitOperation();
+    else if (this.pending) await this.submitPending();
+    else await this.refresh();
+  }
+
+  requestUndo(): Promise<boolean> { return this.startOperation('requestUndo'); }
+  acceptUndo(): Promise<boolean> { return this.startOperation('acceptUndo'); }
+  declineUndo(): Promise<boolean> { return this.startOperation('declineUndo'); }
+  resign(): Promise<boolean> { return this.startOperation('resign'); }
+
+  private async startOperation(action: OperationAction): Promise<boolean> {
+    const room = this.state.room;
+    if (!room || this.disposed || this.state.busy || this.hasPending) return false;
+    if (action === 'requestUndo' ? !this.state.canRequestUndo :
+        action === 'resign' ? !this.state.canResign : !this.state.canRespondToUndo) return false;
+    this.operation = { gameId: room.game_id, action,
+      target: action === 'acceptUndo' || action === 'declineUndo' ? room.pending_undo!.id : null,
+      request: { expected_version: room.version, client_request_id: identifier() } };
+    return this.submitOperation();
+  }
+
+  private async submitOperation(): Promise<boolean> {
+    const pending = this.operation;
+    const before = this.state.room;
+    if (!pending || !before || this.state.busy || this.disposed) return false;
+    this.invalidateRefresh();
+    this.publish({ busy: true, isOperating: true, error: '', selectedNode: null,
+      legalTargets: [], lastMove: null, lastCapture: null, operationNotice: '' });
+    let success = false;
+    try {
+      const result = pending.action === 'acceptUndo' || pending.action === 'declineUndo'
+        ? await this.api[pending.action](pending.gameId, this.token, pending.target!, pending.request)
+        : await this.api[pending.action](pending.gameId, this.token, pending.request);
+      const room = requireOnlineRoom(result, before);
+      if (room.version < pending.request.expected_version ||
+          (pending.action === 'resign' && (room.version <= pending.request.expected_version ||
+            room.room_status !== 'FINISHED' || room.state.winner_reason !== 'RESIGN' || room.state.winner === before.seat))) {
+        throw new ApiError('INVALID_GAME_RESPONSE', 502);
+      }
+      this.operation = null;
+      success = true;
+      const latest = this.state.room;
+      this.publish({ ...(latest && latest.version > room.version ? {} : { room }),
+        successfulAction: this.state.successfulAction + 1,
+        operationNotice: pending.action === 'requestUndo' ? '悔棋申请已发送，等待对方处理' :
+          pending.action === 'acceptUndo' ? '已同意悔棋' : pending.action === 'declineUndo' ? '已拒绝悔棋' : '已认输' });
+    } catch (error) {
+      if (definitiveRejection(error)) this.operation = null;
+      this.publish({ error: messageForApiError(error),
+        operationNotice: this.operation ? '操作结果尚未确认，请重试原请求' : '' });
+    } finally { this.publish({ busy: false, isOperating: false }); }
+    await this.refresh();
+    return success;
+  }
+
+  private async submitPending(): Promise<void> {
+    const room = this.state.room;
+    const request = this.pending;
+    if (!room || !request || this.state.busy || this.disposed) return;
+    this.invalidateRefresh();
+    this.publish({ busy: true, pendingMove: true, error: '' });
+    let resync = false;
+    try {
+      const result = await this.api.move(room.game_id, this.token, request);
+      const plyCount = requirePlyCount(result);
+      const capture = result.turn?.capture;
+      if (!Number.isInteger(result.version) || result.version <= request.expected_version ||
+          result.turn?.move?.from !== request.from_node || result.turn?.move?.to !== request.to_node || !capture ||
+          typeof capture.was_applied !== 'boolean' || !Number.isInteger(capture.reserve_used) || capture.reserve_used < 0 ||
+          !Array.isArray(capture.captured_nodes) || !capture.captured_nodes.every(node => NODE_IDS.includes(node)) ||
+          !Array.isArray(capture.replacement_nodes) || !capture.replacement_nodes.every(node => NODE_IDS.includes(node))) {
+        throw new ApiError('INVALID_GAME_RESPONSE', 502);
+      }
+      const updated = requireOnlineRoom({ ...room, version: result.version, ply_count: plyCount,
+        pending_undo: null, state: result.turn.state,
+        room_status: result.turn.state.game_status === 'FINISHED' ? 'FINISHED' : 'PLAYING' }, room);
+      this.pending = null;
+      const latest = this.state.room;
+      this.publish({ ...(latest && latest.version > result.version ? {} : { room: updated,
+        lastMove: result.turn.move, lastCapture: result.turn.capture }),
+        pendingMove: false, selectedNode: null, legalTargets: [],
+        successfulAction: this.state.successfulAction + 1, operationNotice: '' });
+    } catch (error) {
+      if (definitiveRejection(error)) this.pending = null;
+      this.publish({ pendingMove: !!this.pending, error: messageForApiError(error) });
+      resync = true;
+    } finally { this.publish({ busy: false }); }
+    if (resync) await this.refresh();
+  }
+
+  dispose(): void { this.disposed = true; this.invalidateRefresh(); }
 }

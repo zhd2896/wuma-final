@@ -25,7 +25,7 @@ test('two devices hold separate seats, synchronize turns, and restore their own 
   const room = (seat: 'A' | 'B', issue = false) => ({
     game_id: 'online-1', seat, room_status: 'PLAYING' as const,
     invite_code: 'ABCDEFGH', public: false, expires_at: new Date().toISOString(),
-    version, state, token: issue ? tokens[seat] : null,
+    version, ply_count: version, pending_undo: null, state, token: issue ? tokens[seat] : null,
   });
   const calls: Array<{ name: string; token?: string; request?: any }> = [];
   const api = {
@@ -43,7 +43,7 @@ test('two devices hold separate seats, synchronize turns, and restore their own 
       assert.equal(token, tokens.A);
       assert.equal(request.expected_version, 0);
       state = turn.state; version = 1;
-      return { version, turn };
+      return { version, ply_count: version, turn };
     },
   };
   const hostStorage = new Map<string, unknown>();
@@ -93,7 +93,7 @@ test('seat token is sent as a request header and lost response retries the same 
   const turn = RuleEngine.executeTurn(initial, { from: 'P01', to: 'P02' });
   const room = { game_id: 'g1', seat: 'A' as const, room_status: 'PLAYING' as const,
     invite_code: 'ABCDEFGH', public: false, expires_at: new Date().toISOString(),
-    version: 0, state: initial, token: 'secret-seat' };
+    version: 0, ply_count: 0, pending_undo: null, state: initial, token: 'secret-seat' };
   const attempts: any[] = [];
   const storage = new Map<string, unknown>();
   const controller = new OnlineGameController({
@@ -106,7 +106,7 @@ test('seat token is sent as a request header and lost response retries the same 
     move: async (_id: string, _token: string, request: any) => {
       attempts.push(request);
       if (attempts.length === 1) throw new ApiError('NETWORK_ERROR', 0);
-      return { version: 1, turn };
+      return { version: 1, ply_count: 1, turn };
     },
   } as any, {
     read: key => storage.get(key), write: (key, value) => { storage.set(key, value); },
@@ -136,13 +136,13 @@ test('a slow room refresh never rewinds a confirmed local turn', async () => {
   const turn = RuleEngine.executeTurn(initial, { from: 'P01', to: 'P02' });
   const room = { game_id: 'slow-room', seat: 'A' as const,
     room_status: 'PLAYING' as const, invite_code: 'ABCDEFGH', public: false,
-    expires_at: new Date().toISOString(), version: 0, state: initial, token: 'secret' };
+    expires_at: new Date().toISOString(), version: 0, ply_count: 0, pending_undo: null, state: initial, token: 'secret' };
   let resolveRefresh!: (value: any) => void;
   const api = {
     create: async () => room,
     get: () => new Promise(resolve => { resolveRefresh = resolve; }),
     legal: async () => ({ moves: [{ from: 'P01', to: 'P02' }] }),
-    move: async () => ({ version: 1, turn }),
+    move: async () => ({ version: 1, ply_count: 1, turn }),
   };
   const values = new Map<string, unknown>();
   const controller = new OnlineGameController(api as any, {
@@ -167,17 +167,17 @@ test('idempotent retry response does not rewind a newer opponent position', asyn
   const second = RuleEngine.executeTurn(first.state, { from: 'P05', to: 'P04' });
   const room = { game_id: 'retry-room', seat: 'A' as const,
     room_status: 'PLAYING' as const, invite_code: 'ABCDEFGH', public: false,
-    expires_at: new Date().toISOString(), version: 0, state: initial, token: 'secret' };
+    expires_at: new Date().toISOString(), version: 0, ply_count: 0, pending_undo: null, state: initial, token: 'secret' };
   let moves = 0;
   const values = new Map<string, unknown>();
   const controller = new OnlineGameController({
     create: async () => room,
-    get: async () => ({ ...room, version: 2, state: second.state, token: null }),
+    get: async () => ({ ...room, version: 2, ply_count: 2, state: second.state, token: null }),
     legal: async () => ({ moves: [{ from: 'P01', to: 'P02' }] }),
     move: async () => {
       moves++;
       if (moves === 1) throw new ApiError('NETWORK_ERROR', 0);
-      return { version: 1, turn: first };
+      return { version: 1, ply_count: 1, turn: first };
     },
   } as any, {
     read: key => values.get(key), write: (key, value) => { values.set(key, value); },
@@ -198,7 +198,7 @@ test('a cancelled waiting room stays closed when an older poll returns late', as
   const initial = createInitialGameState();
   const waiting = { game_id: 'cancel-room', seat: 'A' as const,
     room_status: 'WAITING' as const, invite_code: 'ABCDEFGH', public: false,
-    expires_at: new Date().toISOString(), version: 0, state: initial, token: 'host-seat' };
+    expires_at: new Date().toISOString(), version: 0, ply_count: 0, pending_undo: null, state: initial, token: 'host-seat' };
   let resolvePoll!: (value: any) => void;
   const values = new Map<string, unknown>();
   const controller = new OnlineGameController({
