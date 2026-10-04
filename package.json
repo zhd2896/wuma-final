@@ -16,6 +16,7 @@
     "test:e2e:history": "node scripts/history-devtool-e2e.cjs",
     "test:e2e:history-review": "node scripts/history-review-devtool-e2e.cjs",
     "test:e2e:analysis": "node scripts/independent-analysis-devtool-e2e.cjs",
+    "test:e2e:game-operations": "node scripts/game-operations-devtool-e2e.cjs",
     "test:e2e:home-review": "node scripts/home-review-devtool-e2e.cjs",
     "test:e2e:docker": "node scripts/phase27-docker-e2e.mjs",
     "benchmark:ai": "node scripts/benchmark-ai.mts",

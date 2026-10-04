@@ -76,7 +76,7 @@ Compose 创建数据库 `wuma` 和同名用户，并映射到本机 `3306` 端�
 .\backend\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-第二条命令会持续运行，保留此终端。若改用已有 MySQL，先在此终端设置匹配的 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`；若设置了 `DATABASE_URL`，请确认它指向**开发库**。当前迁移最终版本为 `0010_personal_history_indexes`。
+第二条命令会持续运行，保留此终端。若改用已有 MySQL，先在此终端设置匹配的 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`；若设置了 `DATABASE_URL`，请确认它指向**开发库**。当前迁移唯一最终版本为 `0013_remote_undo_revert_count`（含 `0011_game_operations` 与 `0012_remote_undo_idempotency`）。
 
 在另一 PowerShell 窗口确认引擎和数据库都可用：
 
@@ -166,3 +166,67 @@ docker compose -f backend/docker-compose.mysql.yml down
 | `docs/`、`results/` | 阶段说明与基准实验结果。 |
 
 后端接口、数据存储及复盘说明见 [后端文档](backend/README.md)。
+
+
+## 对局操作阶段记录（2026-10-04）
+
+**代码完成，尚未满足验收条件。** 本阶段没有整体完成，不能据此进入下一产品阶段。以下为本实现工作树的结果，既有阶段记录保留各自当时的验收状态。
+
+已实现：本地悔棋回退最近一手并保存可恢复快照；AI 悔棋按人类决策回退相应棋步；旧服务器 `LOCAL` 悔棋回退一手；真正联机 `REMOTE` 由对方同意后回退 1 或 2 手，待处理申请阻止落子，拒绝后可继续。认输写入真实 `RESIGN` 胜负，终局不再接受落子。服务端操作使用版本校验、幂等请求和事务；手数使用有效 `ply_count`，与单调递增版本分开。历史/结构化复盘排除撤销棋步，支持零手认输及远程席位鉴权。设置保存可走位置、吃子提示、振动和新 AI 局先手，重进页面保留；先手修改在下一新局生效。
+
+| 2026-10-04 实跑检查 | 结果 |
+| --- | --- |
+| `npm test` | 421 passed，0 failed，0 skipped（已有 Node 模块类型警告）。 |
+| `npm run typecheck`、`npm run check` | 通过；9 个注册页面、18 个组件静态检查。 |
+| `python -m pytest backend/tests -q` | 138 passed、32 skipped；跳过项都是未配置独立库的真实 MySQL 用例。 |
+| `node --test scripts/game-operations-devtool-e2e.test.cjs`、`node --check scripts/game-operations-devtool-e2e.cjs` | 5 项脚本安全/超时检查通过，语法检查通过；不是 IDE 端到端证据。 |
+| `python -m alembic -c backend/alembic.ini heads` | 唯一 head：`0013_remote_undo_revert_count`。 |
+| `python -m alembic -c backend/alembic.ini upgrade head --sql` | 离线 SQL 生成通过，包含 0011→0012→0013；没有对真实数据库执行迁移。 |
+| `npm run test:e2e:game-operations` | exit 1：首先被未配置 `WUMA_TEST_DATABASE_URL` 阻止，未操作数据库或小程序存储。 |
+
+本机同时缺少 IDE 自动化和 API 服务：默认 9420、8000 均未监听，`WUMA_WECHAT_AUTO_ENDPOINT` 未配置。本机 3306 虽有监听，默认后端配置的只读连接检查返回 `OperationalError`；没有猜测数据库凭证或操作该库。因此真实 MySQL 32 项、开发者工具端到端、两设备联机均未验收。
+
+### 隔离环境复跑
+
+微信开发者工具必须打开并编译**包含本阶段提交的实现工作树**；当前为主目录中的 `.worktrees/game-operations`，不能连接仍使用旧提交的主目录项目。后端也从同一工作树启动。小程序 `miniprogram/config/api.ts` 的开发 API 地址必须与 `WUMA_GAME_OPERATIONS_API` 一致（默认 `http://127.0.0.1:8000`）。
+
+在该工作树的 PowerShell 中，使用现有 Python 环境（`WUMA_PYTHON` 指向可运行后端的解释器），把 `WUMA_TEST_DATABASE_URL` 设置为自己有权限的独立 MySQL `*_test` 库。不要使用开发库或生产库。URL 可含 `charset=utf8mb4` 和连接/读写超时参数，不接受覆盖 database/host 等参数。
+
+```powershell
+# 先自行设置 WUMA_PYTHON 与 WUMA_TEST_DATABASE_URL，不把凭证写入仓库
+if (-not $env:WUMA_TEST_DATABASE_URL) { throw '需要已授权的独立 MySQL *_test 数据库' }
+$env:DATABASE_URL = $env:WUMA_TEST_DATABASE_URL
+& $env:WUMA_PYTHON -m alembic -c backend/alembic.ini upgrade head
+& $env:WUMA_PYTHON -m pytest backend/tests/test_mysql_persistence.py -q
+# 必须 32 项真实通过，不能把 SKIP 当成功；保留本终端运行后端
+& $env:WUMA_PYTHON -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
+```
+
+另开终端，在同一工作树启动微信 IDE 自动化：`cli.bat auto --project <本实现工作树绝对路径> --auto-port 9420 --trust-project`。准备一个隔离测试账号及其 `LOCAL` 探针棋局（也可提供已有测试账号/棋局），再运行：
+
+```powershell
+# 这些环境变量也须在本终端设置：WUMA_PYTHON、WUMA_TEST_DATABASE_URL
+$env:WUMA_WECHAT_AUTO_ENDPOINT = 'ws://127.0.0.1:9420'
+$env:WUMA_GAME_OPERATIONS_API = 'http://127.0.0.1:8000'
+$probeAccount = Invoke-RestMethod -Method Post -Uri "$env:WUMA_GAME_OPERATIONS_API/api/v1/auth/device"
+$env:WUMA_GAME_OPERATIONS_DEVICE_TOKEN = $probeAccount.data.token
+$probeHeaders = @{ Authorization = "Bearer $env:WUMA_GAME_OPERATIONS_DEVICE_TOKEN" }
+$probeGame = Invoke-RestMethod -Method Post -Uri "$env:WUMA_GAME_OPERATIONS_API/api/v1/game" -Headers $probeHeaders -ContentType 'application/json' -Body '{"mode":"LOCAL","first_player":"A"}'
+$env:WUMA_GAME_OPERATIONS_PROBE_GAME_ID = $probeGame.data.game_id
+npm run test:e2e:game-operations
+```
+
+脚本在写入前只读对比探针在数据库与 API 中的版本和棋盘，避免混用测试库与其他服务。它使用棋盘组件与可见按钮验证本地走一步/悔棋/重进/认输、真实 AI 应手/悔棋/认输、设置开关与重进持久化，以及真实联机页面两席位申请/重连/同意状态。联机部分在同一模拟器切换新测试房间的两个令牌，明确输出 `SIMULATED`，不代表双设备验收。连接和断言失败返回非零，超时会报告操作名称。脚本只删除自身新建的本机历史行/测试席位键，恢复自身改变的活动 ID、测试账号键和设置；不清空用户历史或既有席位/设备凭证。测试库中的探针、AI 局与房间保留供复核。
+
+### 仍需完成的验收门槛
+
+补齐真实 MySQL 32 项（含迁移到 0013）、本工作树 IDE 端到端通过，然后在能访问同一 HTTPS 测试 API 的两台独立设备执行并记录以下六项：
+
+1. A 刚落子申请，B 同意；双方回退 1 手且版本一致。
+2. A 落子、B 应手后，A 申请、B 同意；双方回退 2 手。
+3. 对方拒绝后，双方继续合法落子。
+4. 申请期间退出重进，双方恢复同一待处理申请。
+5. A、B 各认输一次；双方终局、历史与复盘一致。
+6. 断网后以原请求编号重试，不出现重复落子、重复悔棋或重复终局。
+
+上述门槛没有全部通过前，本阶段保持“代码完成，尚未满足验收条件”。
