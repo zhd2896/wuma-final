@@ -1017,7 +1017,7 @@ Run: `python -m pytest backend/tests/test_mysql_persistence.py -q`
 
 Run: `python -m alembic -c backend/alembic.ini upgrade head`
 
-Expected: 全部 PASS，MySQL 用例不得 SKIP，数据库位于最新迁移 `0011`。
+Expected: 全部 PASS，MySQL 用例不得 SKIP，数据库位于最新迁移 `0013_remote_undo_revert_count`。`0012_remote_undo_idempotency` 与 `0013_remote_undo_revert_count` 为实现期间幂等审查补充；此处是验收要求，不代表真实数据库已验收。
 
 - [ ] **Step 4: 运行开发者工具端到端测试**
 
