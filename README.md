@@ -179,7 +179,7 @@ docker compose -f backend/docker-compose.mysql.yml down
 | `npm test` | 421 passed，0 failed，0 skipped（已有 Node 模块类型警告）。 |
 | `npm run typecheck`、`npm run check` | 通过；9 个注册页面、18 个组件静态检查。 |
 | `python -m pytest backend/tests -q` | 138 passed、32 skipped；跳过项都是未配置独立库的真实 MySQL 用例。 |
-| `node --test scripts/game-operations-devtool-e2e.test.cjs`、`node --check scripts/game-operations-devtool-e2e.cjs` | 5 项脚本安全/超时检查通过，语法检查通过；不是 IDE 端到端证据。 |
+| `node --test scripts/game-operations-devtool-e2e.test.cjs`、`node --check scripts/game-operations-devtool-e2e.cjs` | 10 项脚本安全/超时及主流程隔离/清理回归通过，语法检查通过；不是 IDE 端到端证据。 |
 | `python -m alembic -c backend/alembic.ini heads` | 唯一 head：`0013_remote_undo_revert_count`。 |
 | `python -m alembic -c backend/alembic.ini upgrade head --sql` | 离线 SQL 生成通过，包含 0011→0012→0013；没有对真实数据库执行迁移。 |
 | `npm run test:e2e:game-operations` | exit 1：首先被未配置 `WUMA_TEST_DATABASE_URL` 阻止，未操作数据库或小程序存储。 |
@@ -216,7 +216,7 @@ $env:WUMA_GAME_OPERATIONS_PROBE_GAME_ID = $probeGame.data.game_id
 npm run test:e2e:game-operations
 ```
 
-脚本在写入前只读对比探针在数据库与 API 中的版本和棋盘，避免混用测试库与其他服务。它使用棋盘组件与可见按钮验证本地走一步/悔棋/重进/认输、真实 AI 应手/悔棋/认输、设置开关与重进持久化，以及真实联机页面两席位申请/重连/同意状态。联机部分在同一模拟器切换新测试房间的两个令牌，明确输出 `SIMULATED`，不代表双设备验收。连接和断言失败返回非零，超时会报告操作名称。脚本只删除自身新建的本机历史行/测试席位键，恢复自身改变的活动 ID、测试账号键和设置；不清空用户历史或既有席位/设备凭证。测试库中的探针、AI 局与房间保留供复核。
+脚本在写入前只读对比探针在数据库与 API 中的版本和棋盘，避免混用测试库与其他服务。随后在首个页面/后端写入前安装真实 `wx.request` 目的地白名单，仅转发已核验测试 API 的请求给原函数；IDE 编译地址不同会被拦截并返回非零，安装失败也不打开页面。退出时恢复原请求函数。它使用棋盘组件与可见按钮验证本地走一步/悔棋/重进/认输、真实 AI 应手/悔棋/认输、设置开关与重进持久化，以及真实联机页面两席位申请/重连/同意状态。联机部分在同一模拟器切换新测试房间的两个令牌，明确输出 `SIMULATED`，不代表双设备验收。连接和断言失败返回非零，超时会报告操作名称。脚本只删除自身新建的本机历史行/测试席位键，恢复自身改变的活动 ID、测试账号键和设置（页面加载前保存原值及键存在状态，坏设置自动修复后即使加载失败也恢复原值）；不清空用户历史或既有席位/设备凭证。测试库中的探针、AI 局与房间保留供复核。
 
 ### 仍需完成的验收门槛
 

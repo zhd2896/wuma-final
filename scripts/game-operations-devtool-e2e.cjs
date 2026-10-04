@@ -72,20 +72,27 @@ async function probeEndpoint(endpoint) {
   });
 }
 
-async function main() {
+async function main(dependencies = {}) {
+  const env = dependencies.env || process.env;
+  const fetchApi = dependencies.fetch || fetch;
   const root = path.resolve(__dirname, '..');
-  const database = requireTestDatabase(process.env.WUMA_TEST_DATABASE_URL);
-  const endpoint = process.env.WUMA_WECHAT_AUTO_ENDPOINT || 'ws://127.0.0.1:9420';
+  const database = requireTestDatabase(env.WUMA_TEST_DATABASE_URL);
+  const endpoint = env.WUMA_WECHAT_AUTO_ENDPOINT || 'ws://127.0.0.1:9420';
   // A pre-existing test fixture proves API and DB agreement before any API writes.
-  const probeId = process.env.WUMA_GAME_OPERATIONS_PROBE_GAME_ID;
-  const accountToken = process.env.WUMA_GAME_OPERATIONS_DEVICE_TOKEN;
+  const probeId = env.WUMA_GAME_OPERATIONS_PROBE_GAME_ID;
+  const accountToken = env.WUMA_GAME_OPERATIONS_DEVICE_TOKEN;
   if (!probeId || !/^[0-9a-f]{64}$/.test(accountToken || '')) {
     throw new Error('Set WUMA_GAME_OPERATIONS_PROBE_GAME_ID and WUMA_GAME_OPERATIONS_DEVICE_TOKEN to an isolated test-account fixture owned by that token');
   }
-  const apiBase = (process.env.WUMA_GAME_OPERATIONS_API || 'http://127.0.0.1:8000').replace(/\/$/, '');
-  const python = process.env.WUMA_PYTHON || path.join(root, 'backend/.venv/Scripts/python.exe');
+  const apiBase = (env.WUMA_GAME_OPERATIONS_API || 'http://127.0.0.1:8000').replace(/\/$/, '');
+  const python = env.WUMA_PYTHON || path.join(root, 'backend/.venv/Scripts/python.exe');
+  let assertRequestGuard = null;
   async function api(method, route, body, seatToken) {
-    const response = await fetch(`${apiBase}/api/v1${route}`, {
+    if (method !== 'GET') {
+      assert.ok(assertRequestGuard, 'IDE request guard must be installed before API writes');
+      await assertRequestGuard();
+    }
+    const response = await fetchApi(`${apiBase}/api/v1${route}`, {
       method, headers: { Authorization: `Bearer ${accountToken}`, 'content-type': 'application/json',
         ...(seatToken ? { 'X-Room-Token': seatToken } : {}) },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(15000),
@@ -97,7 +104,7 @@ async function main() {
   }
   let probe;
   try {
-    probe = JSON.parse(execFileSync(python, [path.join(root, 'scripts/phase21_review_db_probe.py'), probeId],
+    probe = dependencies.readDatabaseProbe ? await dependencies.readDatabaseProbe(probeId) : JSON.parse(execFileSync(python, [path.join(root, 'scripts/phase21_review_db_probe.py'), probeId],
       { cwd: root, encoding: 'utf8', timeout: 15000, stdio: ['ignore', 'pipe', 'pipe'] }));
   } catch {
     throw new Error('Read-only isolated database fixture probe failed; check WUMA_PYTHON, test database migration/access and fixture ID');
@@ -106,20 +113,71 @@ async function main() {
   assert.equal(fixture.version, probe.version, 'API is not serving the supplied test database fixture');
   assert.deepEqual(fixture.state, probe.current_state, 'API/test database fixture mismatch');
   console.log(`ISOLATION verified database=${database}; project=${root}`);
-  await probeEndpoint(endpoint);
-  const automator = require('miniprogram-automator');
-  const mini = await timed(automator.connect({ wsEndpoint: endpoint }), 'DevTools connection', 5000);
+  await (dependencies.probeEndpoint || probeEndpoint)(endpoint);
+  const connect = dependencies.connect || require('miniprogram-automator').connect;
+  const mini = await timed(connect({ wsEndpoint: endpoint }), 'DevTools connection', 5000);
   const accountKey = `wuma:device-account-token:v1:${apiBase}`;
   const keys = ['activeLocalGameId', 'activeAiGameId', 'wuma:online:active', accountKey,
     'wuma:game-settings:v1'];
   const saved = new Map();
+  let originallyPresent = new Set();
   const ownedIds = new Set();
   const testSeatKeys = new Set();
-  let settingsWritten;
+  let settingsNeedRestore = false;
+  let pagesStarted = false;
+  let guardAttempted = false;
+  const guardKey = `__wumaGameOperationsRequestGuard_${randomUUID()}`;
   let failure;
   const storage = (method, key, ...args) => timed(mini.callWxMethod(method, key, ...args), `${method} ${key}`);
-  const open = route => timed(mini.reLaunch(route), `open ${route}`, 15000);
+  const navigate = route => timed(mini.reLaunch(route), `open ${route}`, 15000);
+  const open = async route => {
+    await assertRequestGuard();
+    // onLoad may repair damaged settings before returning data or throwing.
+    settingsNeedRestore = true;
+    pagesStarted = true;
+    const page = await navigate(route);
+    await assertRequestGuard();
+    return page;
+  };
   try {
+    // This wrapper intercepts the real IDE wx.request before any page/storage/API
+    // writes. It does not substitute responses: allowed calls use the original API.
+    guardAttempted = true;
+    await timed(mini.evaluate((key, base) => {
+      const app = getApp();
+      if (!app || app[key] || typeof wx.request !== 'function') throw new Error('Cannot install IDE request guard');
+      const original = wx.request;
+      const state = { original, wrapper: null, blocked: 0 };
+      const prefix = `${base}/api/v1/`;
+      state.wrapper = function(options) {
+        if (typeof options?.url !== 'string' || !options.url.startsWith(prefix)) {
+          state.blocked++;
+          throw new Error('IDE request destination differs from the verified test API');
+        }
+        return original.call(wx, options);
+      };
+      app[key] = state;
+      try {
+        wx.request = state.wrapper;
+        if (wx.request !== state.wrapper) throw new Error('Cannot install IDE request guard');
+      } catch (error) {
+        wx.request = original;
+        delete app[key];
+        throw error;
+      }
+    }, guardKey, apiBase), 'install IDE request guard');
+    assertRequestGuard = async () => {
+      const state = await timed(mini.evaluate(key => {
+        const guard = getApp()?.[key];
+        return { installed: !!guard && wx.request === guard.wrapper, blocked: guard?.blocked || 0 };
+      }, guardKey), 'verify IDE request guard');
+      assert.equal(state.installed, true, 'IDE request guard changed; refusing further operations');
+      assert.equal(state.blocked, 0, 'IDE request destination differs from the verified test API; compile this worktree with the matching API config');
+    };
+    await assertRequestGuard();
+    const storageInfo = await timed(mini.callWxMethod('getStorageInfoSync'), 'snapshot storage key presence');
+    assert.ok(Array.isArray(storageInfo?.keys), 'Cannot snapshot original storage key presence');
+    originallyPresent = new Set(storageInfo.keys);
     for (const key of keys) saved.set(key, await storage('getStorageSync', key));
     const history = await storage('getStorageSync', 'wuma:history:v1');
     assert.ok(!history || (history.version === 1 && Array.isArray(history.records)),
@@ -130,7 +188,6 @@ async function main() {
     let data = await until(page, value => value.localGameId && value.localSession, 'fresh local game');
     const localId = data.localGameId; ownedIds.add(localId);
     const initial = data.localSession.gameState;
-    settingsWritten = await storage('getStorageSync', 'wuma:game-settings:v1');
     await move(page, 'P01', 'P02');
     await until(page, value => value.localTurns === 1, 'one local move');
     await tap(page, '#action-undo'); await confirm(page, 'showUndoConfirm');
@@ -152,19 +209,15 @@ async function main() {
     const switches = await timed(component.$$('switch'), 'settings switches');
     assert.equal(switches.length, 3);
     const beforeSettings = data.settings;
-    settingsWritten = { version: 1, settings: { ...beforeSettings, showLegalTargets: !beforeSettings.showLegalTargets } };
     await timed(switches[0].tap(), 'toggle legal-target setting');
     data = await until(page, value => value.settings.showLegalTargets !== beforeSettings.showLegalTargets, 'settings save');
-    settingsWritten = await storage('getStorageSync', 'wuma:game-settings:v1');
     page = await open(`/pages/game/game?mode=local&gameId=${encodeURIComponent(localId)}`);
     data = await until(page, value => value.localSession, 'settings reload');
     assert.equal(data.settings.showLegalTargets, !beforeSettings.showLegalTargets);
     await tap(page, '#action-settings');
     const settings = await timed(page.$('game-settings'), 'settings after reload');
-    settingsWritten = { version: 1, settings: beforeSettings };
     await timed((await settings.$$('switch'))[0].tap(), 'restore legal targets for board checks');
     await until(page, value => value.settings.showLegalTargets === beforeSettings.showLegalTargets, 'restore test setting');
-    settingsWritten = await storage('getStorageSync', 'wuma:game-settings:v1');
     console.log('PASS settings switch/store/reload');
 
     const ai = await api('POST', '/game', { mode: 'AI', first_player: 'A', ai_player: 'B', ai_level: 'STANDARD' });
@@ -236,7 +289,7 @@ async function main() {
       catch (error) { cleanupErrors.push(error); console.error(`CLEANUP FAILED ${label}: ${error.message}`); }
     }
     try {
-      await cleanup('stop page controllers', () => open('/pages/index/index'));
+      if (pagesStarted) await cleanup('stop page controllers', () => navigate('/pages/index/index'));
       await cleanup('remove only test history records', async () => {
         const history = await storage('getStorageSync', 'wuma:history:v1');
         if (history?.version === 1 && Array.isArray(history.records)) {
@@ -248,20 +301,28 @@ async function main() {
       });
       for (const key of testSeatKeys) await cleanup(key, () => storage('removeStorageSync', key));
       for (const [key, value] of saved) await cleanup(key, async () => {
-        if (key === 'wuma:game-settings:v1' && !settingsWritten) return;
-        if (key === 'wuma:game-settings:v1') {
-          const current = await storage('getStorageSync', key);
-          assert.deepEqual(current, settingsWritten, 'Settings changed externally; refusing to overwrite them in cleanup');
-        }
-        if (value === '' || value === undefined || value === null) await storage('removeStorageSync', key);
+        if (key === 'wuma:game-settings:v1' && !settingsNeedRestore) return;
+        if (!originallyPresent.has(key)) await storage('removeStorageSync', key);
         else await storage('setStorageSync', key, value);
+      });
+      if (guardAttempted) await cleanup('restore real IDE request function', async () => {
+        const blocked = await timed(mini.evaluate(key => {
+          const app = getApp();
+          const guard = app?.[key];
+          if (!guard) return 0;
+          wx.request = guard.original;
+          if (wx.request !== guard.original) throw new Error('Cannot restore IDE request guard original');
+          delete app[key];
+          return guard.blocked;
+        }, guardKey), 'restore IDE request guard');
+        if (blocked && !failure) throw new Error('IDE request destination differs from the verified test API');
       });
       if (cleanupErrors.length) failure ||= new AggregateError(cleanupErrors, 'Test storage cleanup failed; see operation errors above');
     } finally { mini.disconnect(); }
   }
   if (failure) throw failure;
 }
-module.exports = { requireTestDatabase, timed };
+module.exports = { requireTestDatabase, timed, main };
 if (require.main === module) main().catch(error => {
   console.error(`FAIL game-operations: ${error.message}`);
   process.exit(1); // also terminates an uncancellable automator connection after timeout
