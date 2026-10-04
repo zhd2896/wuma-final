@@ -326,3 +326,57 @@ test('malformed capture data keeps the original move retry and refreshes safely'
   assert.deepEqual(attempts[1], attempts[0]);
   assert.equal(f.controller.snapshot.pendingMove, false);
 });
+
+for (const code of ['REMOTE_UNDO_UNAVAILABLE', 'REMOTE_UNDO_NOT_FOUND']) {
+  for (const action of ['acceptUndo', 'declineUndo']) {
+    test(`${action} ${code} releases the stale target after fresh GET and permits valid actions`, async () => {
+      const { ApiError } = await import('../miniprogram/services/api-client.ts');
+      const f = await fixture({ pending_undo: undo() });
+      let attempts = 0;
+      f.api[action] = async () => {
+        attempts++;
+        throw new ApiError(code, code === 'REMOTE_UNDO_NOT_FOUND' ? 404 : 409);
+      };
+      f.setRoom({ pending_undo: null });
+      await f.controller[action]();
+      assert.equal(f.controller.snapshot.pendingOperation, false);
+      assert.equal(f.controller.snapshot.room?.pending_undo, null);
+      assert.equal(f.calls.filter(call => call.action === 'get').length, 1);
+      assert.equal(f.controller.snapshot.canRequestUndo, true);
+      assert.equal(f.controller.snapshot.canResign, true);
+      await f.controller.retry();
+      assert.equal(attempts, 1, 'retry refreshes instead of resubmitting the stale target');
+      await f.controller.tapNode('P02');
+      assert.deepEqual(f.controller.snapshot.legalTargets, ['P03']);
+      await f.controller.requestUndo();
+      assert.equal(f.calls.filter(call => call.action === 'requestUndo').length, 1);
+      await f.controller.resign();
+      assert.equal(f.controller.snapshot.room?.room_status, 'FINISHED');
+      f.controller.leave();
+      assert.equal(f.controller.snapshot.room, null);
+    });
+  }
+}
+
+for (const code of ['NETWORK_ERROR', 'INVALID_GAME_RESPONSE', 'UNKNOWN_OPERATION_ERROR']) {
+  test(`undo ${code} keeps the original context even when GET shows no pending request`, async () => {
+    const { ApiError } = await import('../miniprogram/services/api-client.ts');
+    const f = await fixture({ pending_undo: undo() });
+    const attempts: any[] = [];
+    f.api.acceptUndo = async (_id: string, _token: string, target: string, request: any) => {
+      attempts.push({ target, request: { ...request } });
+      throw new ApiError(code, code === 'NETWORK_ERROR' ? 0 : 502);
+    };
+    f.setRoom({ pending_undo: null });
+    await f.controller.acceptUndo();
+    assert.equal(f.controller.snapshot.pendingOperation, true);
+    assert.equal(f.controller.snapshot.room?.pending_undo, null);
+    assert.equal(f.controller.snapshot.canRequestUndo, false);
+    assert.equal(f.controller.snapshot.canResign, false);
+    f.controller.leave();
+    assert.equal(f.controller.snapshot.room?.game_id, 'online-ops');
+    await f.controller.retry();
+    assert.deepEqual(attempts[1], attempts[0]);
+    assert.equal(f.controller.snapshot.pendingOperation, true);
+  });
+}
