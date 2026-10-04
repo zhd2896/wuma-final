@@ -82,7 +82,7 @@ Page({
       legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
       lastMove: snapshot.lastMove,
       lastCapture: this.data.settings.showCaptureNotice ? snapshot.lastCapture : null,
-    }) : null;
+    }, room.seat) : null;
     if (snapshot.successfulAction > this.lastSuccessfulAction) {
       this.lastSuccessfulAction = snapshot.successfulAction;
       vibrateForSuccessfulAction(this.data.settings);

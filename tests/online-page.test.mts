@@ -187,3 +187,36 @@ test('online markup binds implemented operations and shared confirmation/setting
   assert.equal(manifest.usingComponents['confirm-dialog'], '../../components/confirm-dialog/confirm-dialog');
   assert.equal(manifest.usingComponents['game-settings'], '../../components/game-settings/game-settings');
 });
+
+
+test('online page restores terminal resignation using its seat for either winner', async () => {
+  for (const seat of ['A', 'B']) for (const winner of ['A', 'B']) {
+    const storage = new Map<string, unknown>([['wuma:online:seat:online-resigned', 'seat-token']]);
+    let definition: any;
+    (globalThis as any).Page = (value: any) => { definition = value; };
+    (globalThis as any).wx = {
+      getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+      getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
+        ? 'a'.repeat(64) : storage.get(key) ?? '',
+      setStorageSync: (key: string, value: unknown) => storage.set(key, value),
+      removeStorageSync: (key: string) => storage.delete(key),
+      request: (options: any) => {
+        assert.equal(options.header['X-Room-Token'], 'seat-token');
+        options.success({ statusCode: 200, data: { code: 0, data: {
+          game_id: 'online-resigned', seat, version: 1, ply_count: 0, pending_undo: null,
+          room_status: 'FINISHED', token: null,
+          state: { ...createInitialGameState(), game_status: 'FINISHED', winner, winner_reason: 'RESIGN' },
+        } } });
+      },
+    };
+    await import(`../miniprogram/pages/online/online.ts?resignation-${seat}-${winner}`);
+    const page = { ...definition, data: { ...definition.data },
+      setData(patch: any) { Object.assign(this.data, patch); } };
+    page.onLoad({ gameId: 'online-resigned' });
+    for (let i = 0; i < 6; i++) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(page.data.snapshot.room.seat, seat);
+    assert.equal(page.data.view.winner, winner);
+    assert.equal(page.data.view.winnerMessage, seat === winner ? '对方已认输' : '你已认输');
+    page.onUnload();
+  }
+});

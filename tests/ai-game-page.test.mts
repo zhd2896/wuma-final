@@ -162,3 +162,38 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   const thinking = readFileSync(new URL('../miniprogram/components/ai-thinking/ai-thinking.wxml', import.meta.url), 'utf8');
   assert.match(thinking, /AI 正在思考/);
 });
+
+
+test('AI page restores terminal resignation using the human seat for both winners', async () => {
+  for (const human of ['A', 'B']) for (const winner of ['A', 'B']) {
+    const storage = new Map<string, unknown>();
+    const requests: string[] = [];
+    let definition: any;
+    (globalThis as any).Page = (value: any) => { definition = value; };
+    (globalThis as any).wx = {
+      getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+      getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
+        ? 'a'.repeat(64) : storage.get(key) ?? '',
+      setStorageSync: (key: string, value: unknown) => storage.set(key, value),
+      removeStorageSync: (key: string) => storage.delete(key), showToast: () => {},
+      request: (options: any) => {
+        requests.push(new URL(options.url).pathname);
+        options.success({ statusCode: 200, data: { code: 0, data: {
+          game_id: 'ai-resigned', version: 1, ply_count: 0, mode: 'AI',
+          human_player: human, ai_player: human === 'A' ? 'B' : 'A', ai_level: 'STANDARD',
+          state: { ...createInitialGameState(), game_status: 'FINISHED', winner, winner_reason: 'RESIGN' },
+        } } });
+      },
+    };
+    await import(`../miniprogram/pages/game/game.ts?resignation-${human}-${winner}`);
+    const page = { ...definition, data: { ...definition.data },
+      setData(patch: any) { Object.assign(this.data, patch); } };
+    page.onLoad({ mode: 'ai', gameId: 'ai-resigned' });
+    for (let i = 0; i < 8; i++) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(page.data.aiReady, true);
+    assert.equal(page.data.aiView.winner, winner);
+    assert.equal(page.data.aiView.winnerMessage, human === winner ? '对方已认输' : '你已认输');
+    assert.deepEqual(requests, ['/api/v1/game/ai-resigned']);
+    page.onUnload();
+  }
+});

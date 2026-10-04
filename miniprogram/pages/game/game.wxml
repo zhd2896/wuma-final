@@ -25,7 +25,7 @@
         <view wx:elif="{{localSession.gameState.winner_reason == 'CAPTURE_ALL'}}" class="status-sub">对方棋子已全部被吃</view>
         <view wx:elif="{{localSession.gameState.winner_reason == 'TEMPLE_TRAP'}}" class="status-sub">对方孤棋被困于庙宇</view>
         <view wx:elif="{{localSession.gameState.winner_reason == 'LONE_PIECE_IMMOBILIZED'}}" class="status-sub">对方孤棋无路可走</view>
-        <view wx:elif="{{localSession.gameState.winner_reason == 'RESIGN'}}" class="status-sub">对方已认输</view>
+        <view wx:elif="{{localSession.gameState.winner_reason == 'RESIGN'}}" class="status-sub">{{localWinnerMessage}}</view>
         <view wx:else class="status-sub">点选己方棋子，再点击亮起的合法位置</view>
       </block>
       <block wx:elif="{{mode == 'remote'}}">

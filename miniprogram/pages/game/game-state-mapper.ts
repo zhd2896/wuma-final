@@ -23,12 +23,13 @@ const reasonMessages: Readonly<Record<NonNullable<GameState['winner_reason']>, s
   CAPTURE_ALL: '对方棋子已全部被吃',
   TEMPLE_TRAP: '对方孤棋被困于庙宇',
   LONE_PIECE_IMMOBILIZED: '对方孤棋无路可走',
-  RESIGN: '对方已认输',
+  RESIGN: '认输',
 };
 
 export function mapGameStateToView(
   state: GameState,
   interaction: BoardInteraction = { selectedNode: null, legalTargets: [], lastMove: null },
+  viewer?: Player | null,
 ): GameViewModel {
   const targets = new Set(interaction.legalTargets);
   const captured = new Set(interaction.lastCapture?.was_applied ? interaction.lastCapture.captured_nodes : []);
@@ -56,6 +57,9 @@ export function mapGameStateToView(
     reserve: { A: state.players.A.reserve_count, B: state.players.B.reserve_count },
     gameOver: state.game_status === 'FINISHED',
     winner: state.winner,
-    winnerMessage: state.winner_reason ? reasonMessages[state.winner_reason] : '',
+    winnerMessage: state.winner_reason === 'RESIGN' && state.winner
+      ? viewer ? (viewer === state.winner ? '对方已认输' : '你已认输')
+        : `玩家 ${state.winner === 'A' ? 'B' : 'A'} 认输`
+      : state.winner_reason ? reasonMessages[state.winner_reason] : '',
   };
 }

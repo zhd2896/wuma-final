@@ -64,7 +64,7 @@ function storageForRoute(base: GameIdStorage, requestedId?: string): GameIdStora
 
 Page({
   data: { board: gameService.getBoard(), localSession: null as LocalGameSession | null,
-    localGameId: '', localTurns: 0, localErrorMessage: '',
+    localGameId: '', localTurns: 0, localErrorMessage: '', localWinnerMessage: '',
     remoteState: null as RemoteGameSnapshot | null, remoteView: null as GameViewModel | null,
     remoteReady: false, aiState: null as AiGameSnapshot | null,
     aiView: null as GameViewModel | null, aiReady: false,
@@ -143,7 +143,7 @@ Page({
       legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
       lastMove: snapshot.lastMove,
       lastCapture: snapshot.lastCapture,
-    }) : null;
+    }, snapshot.humanPlayer) : null;
     const analysisView = snapshot.analysis && snapshot.gameState
       ? mapPositionAnalysis(snapshot.gameState, snapshot.analysis) : null;
     if (previous?.gameId === snapshot.gameId && snapshot.plyCount > previous.plyCount &&
@@ -252,7 +252,7 @@ Page({
           };
           wx.setStorageSync(activeLocalGameIdKey, savedId);
           this.setData({ mode: 'local', localGameId: savedId, localTurns: entry.turns,
-            localSession: session,
+            localSession: session, localWinnerMessage: mapGameStateToView(session.gameState).winnerMessage,
             board: getLocalBoardView(session, this.data.settings.showLegalTargets),
             localErrorMessage: '',
             showHint: false, thinking: false, showUndoConfirm: false,
@@ -286,7 +286,7 @@ Page({
     catch { wx.showToast({ title: '自动续局设置失败，请从历史对局打开', icon: 'none' }); }
     this.setData({
       mode: 'local', localGameId: id, localTurns: 0,
-      localSession: session,
+      localSession: session, localWinnerMessage: mapGameStateToView(session.gameState).winnerMessage,
       board: getLocalBoardView(session, this.data.settings.showLegalTargets),
       localErrorMessage: '',
       showHint: false, thinking: false, showUndoConfirm: false,
@@ -445,7 +445,7 @@ Page({
       return;
     }
     this.setData({
-      localSession: resigned,
+      localSession: resigned, localWinnerMessage: mapGameStateToView(resigned.gameState).winnerMessage,
       board: getLocalBoardView(resigned, this.data.settings.showLegalTargets),
       showResign: false, operationBusy: false, resigned: true,
     });

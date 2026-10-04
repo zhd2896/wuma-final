@@ -189,3 +189,42 @@ test('game page records and resumes real local games and indexes server games', 
   assert.equal(createWxDeviceHistoryStore().list().length, beforeMissingLocal);
   missingLocal.onUnload();
 });
+
+test('shared local resignation and restored terminal name the actual resigning player', async () => {
+  const { readFileSync } = await import('node:fs');
+  const storage = new Map<string, unknown>();
+  let definition: any;
+  (globalThis as any).Page = (value: any) => { definition = value; };
+  (globalThis as any).wx = {
+    getStorageSync: (key: string) => storage.get(key) ?? '',
+    setStorageSync: (key: string, value: unknown) => storage.set(key, structuredClone(value)),
+    removeStorageSync: (key: string) => storage.delete(key), showToast: () => {},
+  };
+  await import('../miniprogram/pages/game/game.ts?shared-resignation');
+  const makePage = () => ({ ...definition, data: { ...definition.data },
+    setData(patch: any) { Object.assign(this.data, patch); } });
+  for (const loser of ['A', 'B']) {
+    storage.clear();
+    const page = makePage();
+    page.onLoad({ mode: 'local' });
+    if (loser === 'B') {
+      page.onNode({ detail: { id: 'P01' } });
+      page.onNode({ detail: { id: 'P02' } });
+    }
+    assert.equal(page.data.localSession.gameState.current_player, loser);
+    page.resign(); await page.confirmResign();
+    assert.equal(page.data.localWinnerMessage, `玩家 ${loser} 认输`);
+    const restored = makePage();
+    restored.onLoad({ mode: 'local', gameId: page.data.localGameId });
+    assert.equal(restored.data.localWinnerMessage, `玩家 ${loser} 认输`);
+    restored.renderRemote({ gameId: `compat-resigned-${loser}`, plyCount: 0, gameVersion: 1,
+      gameState: restored.data.localSession.gameState, selectedNode: null,
+      legalTargets: [], lastMove: null, lastCapture: null });
+    assert.equal(restored.data.remoteView.winnerMessage, `玩家 ${loser} 认输`);
+    restored.restartLocalGame();
+    assert.equal(restored.data.localWinnerMessage, '');
+    page.onUnload(); restored.onUnload();
+  }
+  const markup = readFileSync('miniprogram/pages/game/game.wxml', 'utf8');
+  assert.match(markup, /winner_reason == 'RESIGN'[^>]*>\{\{localWinnerMessage\}\}/);
+});

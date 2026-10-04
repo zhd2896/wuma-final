@@ -63,7 +63,7 @@ for (const [reason, message] of [
   ['CAPTURE_ALL', '对方棋子已全部被吃'],
   ['TEMPLE_TRAP', '对方孤棋被困于庙宇'],
   ['LONE_PIECE_IMMOBILIZED', '对方孤棋无路可走'],
-  ['RESIGN', '对方已认输'],
+  ['RESIGN', '玩家 B 认输'],
 ] as const) {
   test(`maps ${reason} winner text without inferring board rules`, () => {
     const initial = createInitialGameState();
@@ -73,5 +73,17 @@ for (const [reason, message] of [
     assert.equal(view.gameOver, true);
     assert.equal(view.winner, 'A');
     assert.equal(view.winnerMessage, message);
+  });
+}
+
+
+for (const winner of ['A', 'B'] as const) {
+  test(`resignation to winner ${winner} is rendered from either viewer or a shared board`, () => {
+    const state = { ...createInitialGameState(), game_status: 'FINISHED' as const,
+      winner, winner_reason: 'RESIGN' as const };
+    const loser = winner === 'A' ? 'B' : 'A';
+    assert.equal(mapGameStateToView(state, undefined, winner).winnerMessage, '对方已认输');
+    assert.equal(mapGameStateToView(state, undefined, loser).winnerMessage, '你已认输');
+    assert.equal(mapGameStateToView(state).winnerMessage, `玩家 ${loser} 认输`);
   });
 }
