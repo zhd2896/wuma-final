@@ -38,7 +38,9 @@ def fallback_game(review: GameReview) -> GameExplanationText:
                f"{review.bestMoveRate * 100:.1f}%；"
                + (f"主要转折点为第 {turns} 手。" if turns else "无明显失误转折点。"))
     if review.winner is not None and review.winnerReason is not None:
-        summary += f"最终玩家 {review.winner} 获胜；终局原因为{_WINNER_REASON[review.winnerReason]}。"
+        reason = (f"玩家 {'B' if review.winner == 'A' else 'A'} 认输"
+                  if review.winnerReason == "RESIGN" else _WINNER_REASON[review.winnerReason])
+        summary += f"最终玩家 {review.winner} 获胜；终局原因为{reason}。"
     return GameExplanationText(overall_summary=summary,
         strengths=[f"有 {review.goodMoves} 手与引擎最佳方案同分。"] if review.goodMoves else [],
         main_problems=[f"有 {review.mistakes + review.blunders} 手评分损失较明显。"]

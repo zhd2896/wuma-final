@@ -28,6 +28,7 @@
         <view class="turn-status"><view wx:if="{{view.gameOver}}">{{view.winner == snapshot.room.seat ? '你获胜' : '对手获胜'}} · {{view.winnerMessage}}</view><view wx:elif="{{snapshot.room.pending_undo}}">悔棋协商中，棋盘已暂停</view><view wx:elif="{{snapshot.pendingOperation || snapshot.pendingMove}}">操作结果尚未确认，请重试原请求</view><view wx:elif="{{view.currentPlayer == snapshot.room.seat}}">你的回合 · 点选棋子和目标位置</view><view wx:else>等待对手落子…</view></view>
       </view>
       <view wx:if="{{snapshot.operationNotice}}" class="operation-notice">{{snapshot.operationNotice}}</view>
+      <button wx:if="{{snapshot.room.room_status == 'FINISHED'}}" id="online-review" bindtap="viewReview">查看复盘</button>
       <view class="operation-actions"><button id="online-request-undo" disabled="{{operationBusy || !snapshot.canRequestUndo}}" bindtap="requestUndo">申请悔棋</button><button id="online-resign" disabled="{{operationBusy || !snapshot.canResign}}" bindtap="resign">认输</button><button id="online-settings" bindtap="settings">设置</button></view>
       <view wx:if="{{showSettings}}" class="settings-area"><game-settings settings="{{settings}}" bind:change="onSettingsChange" /></view>
       <view class="room-actions"><button disabled="{{operationBusy}}" bindtap="refreshRoom">刷新棋局</button><button disabled="{{operationBusy || snapshot.pendingOperation || snapshot.pendingMove}}" bindtap="leaveRoom">返回房间大厅</button></view>

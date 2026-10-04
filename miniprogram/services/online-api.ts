@@ -3,6 +3,7 @@ import type { GameState, Move, NodeId, Player, TurnResult } from '../domain/inde
 import { ApiError } from './api-client';
 import type { ApiClient } from './api-client';
 import { requirePlyCount } from './game-api';
+import type { GameReviewDto } from './api-contract';
 
 export interface PendingOnlineUndo {
   readonly id: string;
@@ -41,6 +42,8 @@ export interface OnlineMoveRequest {
 }
 
 export interface OnlineApi {
+  getReview(id: string, token: string): Promise<GameReviewDto>;
+  createReview(id: string, token: string): Promise<GameReviewDto>;
   create(deviceId: string, publicRoom: boolean): Promise<OnlineRoom>;
   join(deviceId: string, inviteCode: string): Promise<OnlineRoom>;
   match(deviceId: string): Promise<OnlineRoom>;
@@ -90,6 +93,8 @@ export function createOnlineApi(client: ApiClient): OnlineApi {
   const auth = (token: string) => ({ 'X-Room-Token': token,
     'content-type': 'application/json' });
   return {
+    getReview: (id, token) => client.request('GET', `${base(id)}/review`, undefined, 10000, auth(token)),
+    createReview: (id, token) => client.request('POST', `${base(id)}/review`, {}, 120000, auth(token)),
     create: (deviceId, publicRoom) => client.request('POST', '/api/v1/remote/rooms',
       { device_id: deviceId, public: publicRoom }),
     join: (deviceId, inviteCode) => client.request('POST', '/api/v1/remote/join',

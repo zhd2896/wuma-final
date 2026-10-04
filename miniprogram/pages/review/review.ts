@@ -1,4 +1,6 @@
 import { createApiClient, ApiError, messageForApiError } from '../../services/api-client';
+import { createOnlineApi, requireOnlineRoom } from '../../services/online-api';
+import { requireOnlineSeat } from '../../services/online-credentials';
 import { createGameApi } from '../../services/game-api';
 import { createTrainingApi } from '../../services/training-api';
 import type { GameExplanationDto, GameReviewDto } from '../../services/api-contract';
@@ -14,15 +16,15 @@ type ReviewRow = GameReviewDto['moveReviews'][number] & {
 
 Page({
   data: {
-    gameId: '', state: 'loading', errorMessage: '',
+    gameId: '', mode: '', state: 'loading', errorMessage: '', terminalText: '',
     review: null as GameReviewDto | null,
     bestMoveRateText: '', turningText: '', rows: [] as ReviewRow[],
     gameExplanation: null as GameExplanationDto | null,
     explanationState: 'idle', isGeneratingExplanation: false,
     isGeneratingTraining: false, trainingError: '',
   },
-  onLoad(options: { gameId?: string }) {
-    this.setData({ gameId: options.gameId ?? '' });
+  onLoad(options: { gameId?: string; mode?: string }) {
+    this.setData({ gameId: options.gameId ?? '', mode: options.mode === 'online' ? 'online' : '' });
     void this.load(options.gameId ?? '');
   },
   async load(gameId: string) {
@@ -31,31 +33,53 @@ Page({
       return;
     }
     this.setData({ state: 'loading', errorMessage: '', explanationState: 'idle',
-      gameExplanation: null, isGeneratingExplanation: false });
-    const api = createGameApi(createApiClient());
+      gameExplanation: null, isGeneratingExplanation: false, review: null, rows: [], terminalText: '' });
     try {
+      const online = this.data.mode === 'online';
+      let seat: 'A' | 'B' | undefined;
+      let api: Pick<GameApi, 'getReview' | 'createReview'>;
+      let localApi: GameApi | undefined;
+      if (online) {
+        const token = requireOnlineSeat({ read: key => wx.getStorageSync(key),
+          write: (key, value) => wx.setStorageSync(key, value),
+          remove: key => wx.removeStorageSync(key) }, gameId);
+        const roomApi = createOnlineApi(createApiClient());
+        const room = requireOnlineRoom(await roomApi.get(gameId, token), { game_id: gameId });
+        seat = room.seat;
+        api = { getReview: id => roomApi.getReview(id, token),
+          createReview: id => roomApi.createReview(id, token) };
+      } else {
+        localApi = createGameApi(createApiClient());
+        api = localApi;
+      }
       let review: GameReviewDto;
       try { review = await api.getReview(gameId); }
       catch (error) {
         if (!(error instanceof ApiError) || error.code !== 'REVIEW_NOT_FOUND') throw error;
         review = await api.createReview(gameId);
       }
+      if (online && (review.gameId !== gameId || review.reviewedPlayer !== seat))
+        throw new ApiError('INVALID_GAME_RESPONSE', 502);
+      const terminalText = review.winnerReason === 'RESIGN'
+        ? `${review.winner === review.reviewedPlayer ? '对方已认输' : '你已认输'}（玩家 ${review.winner === 'A' ? 'B' : 'A'} 认输）`
+        : `终局 ${review.winnerReason}`;
       const rows = review.moveReviews.map(move => ({ ...move,
         actualText: `${move.actualMove.from} → ${move.actualMove.to}`,
         bestText: `${move.bestMove.from} → ${move.bestMove.to}`,
         naturalExplanation: '', naturalSuggestion: '', explanationFallbackUsed: false,
       }));
-      this.setData({ state: 'success', review, rows,
+      this.setData({ state: 'success', review, rows, terminalText,
         bestMoveRateText: `${(review.bestMoveRate * 100).toFixed(1)}%`,
         turningText: review.turningPoints.length
           ? review.turningPoints.map(turn => `第 ${turn} 手`).join('、') : '无明显失误转折点',
       });
-      await this.loadExplanation(api, gameId);
+      if (localApi) await this.loadExplanation(localApi, gameId);
     } catch (error) {
       this.setData({ state: 'error', errorMessage: messageForApiError(error) });
     }
   },
   async loadExplanation(api: GameApi, gameId: string) {
+    if (this.data.mode === 'online') return;
     this.setData({ explanationState: 'loading', isGeneratingExplanation: true });
     try {
       let explained;
@@ -81,13 +105,13 @@ Page({
     }
   },
   retryExplanation() {
-    if (this.data.gameId && this.data.review) {
+    if (this.data.mode !== 'online' && this.data.gameId && this.data.review) {
       void this.loadExplanation(createGameApi(createApiClient()), this.data.gameId);
     }
   },
   retry() { void this.load(this.data.gameId); },
   async generateTraining() {
-    if (!this.data.gameId || !this.data.review || this.data.isGeneratingTraining) return;
+    if (this.data.mode === 'online' || !this.data.gameId || !this.data.review || this.data.isGeneratingTraining) return;
     this.setData({ isGeneratingTraining: true, trainingError: '' });
     try {
       await createTrainingApi(createApiClient()).generate(this.data.gameId);

@@ -165,6 +165,10 @@ test('online page confirms real operations, uses ply count and settings, and nev
   let retries = 0;
   page.controller = { retry: async () => { retries++; }, dispose: () => {} };
   page.retryOperation(); assert.equal(retries, 1);
+  const routes: string[] = [];
+  (globalThis as any).wx.navigateTo = ({ url }: any) => { routes.push(url); };
+  page.viewReview();
+  assert.deepEqual(routes, ['/pages/review/review?mode=online&gameId=page-ops']);
   page.onUnload();
 });
 
@@ -173,7 +177,7 @@ test('online markup binds implemented operations and shared confirmation/setting
   const root = new URL('../miniprogram/pages/online/', import.meta.url);
   const wxml = readFileSync(new URL('online.wxml', root), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('online.json', root), 'utf8'));
-  for (const method of ['requestUndo', 'acceptUndo', 'declineUndo', 'resign', 'settings', 'retryOperation'])
+  for (const method of ['requestUndo', 'acceptUndo', 'declineUndo', 'resign', 'settings', 'retryOperation', 'viewReview'])
     assert.match(wxml, new RegExp(`bindtap="${method}"`));
   assert.match(wxml, /pending_undo.revert_count/);
   assert.match(wxml, /snapshot.room.ply_count/);

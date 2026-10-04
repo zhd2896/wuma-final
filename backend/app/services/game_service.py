@@ -164,9 +164,11 @@ class GameService:
                                **analysis.model_dump())
 
     @staticmethod
-    def _reviewed_player(snapshot, requested: str | None) -> str:
+    def _reviewed_player(snapshot, requested: str | None, *, remote: bool = False) -> str:
         if snapshot.mode == "REMOTE":
-            raise ApiError("REMOTE_ACTION_REQUIRED", "Remote room review requires a seat token")
+            if not remote or requested not in ("A", "B"):
+                raise ApiError("REMOTE_ACTION_REQUIRED", "Remote room review requires a seat token")
+            return requested
         human = GameService._human(snapshot.ai_player)
         if snapshot.mode == "AI":
             if requested is not None and requested != human:
@@ -175,8 +177,12 @@ class GameService:
         return requested or "A"
 
     async def get_review(self, game_id: str, reviewed_player: str | None = None) -> GameReview:
+        return await self._get_review(game_id, reviewed_player)
+
+    async def _get_review(self, game_id: str, reviewed_player: str | None, *,
+                          remote: bool = False) -> GameReview:
         snapshot = await self.store.get_snapshot(game_id)
-        player = self._reviewed_player(snapshot, reviewed_player)
+        player = self._reviewed_player(snapshot, reviewed_player, remote=remote)
         review = await self.store.get_review(game_id, player, ReviewConfig().version)
         if review is None:
             raise ApiError("REVIEW_NOT_FOUND", "Review has not been generated")
@@ -184,13 +190,15 @@ class GameService:
 
     async def create_review(self, game_id: str,
                             reviewed_player: str | None = None) -> GameReview:
+        return await self._create_review(game_id, reviewed_player)
+
+    async def _create_review(self, game_id: str, reviewed_player: str | None, *,
+                             remote: bool = False) -> GameReview:
         config = ReviewConfig()
         snapshot, moves = await self.store.read_replay(game_id)
-        if snapshot.mode == "REMOTE":
-            raise ApiError("REMOTE_ACTION_REQUIRED", "Remote room review requires a seat token")
+        player = self._reviewed_player(snapshot, reviewed_player, remote=remote)
         if snapshot.state.game_status != "FINISHED":
             raise ApiError("GAME_NOT_FINISHED", "Game has not finished")
-        player = self._reviewed_player(snapshot, reviewed_player)
         await self._validated_replay(snapshot, moves)
         existing = await self.store.get_review(game_id, player, config.version)
         if existing is not None:

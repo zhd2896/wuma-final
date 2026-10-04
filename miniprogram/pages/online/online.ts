@@ -4,7 +4,7 @@ import { createWxDeviceHistoryStore } from '../../services/device-history';
 import { DEFAULT_GAME_SETTINGS, createWxGameSettingsStore, vibrateForSuccessfulAction } from '../../services/game-settings';
 import type { GameSettings } from '../../services/game-settings';
 import { boardLines, boardNodes } from '../../mock/game';
-import { backHome } from '../../utils/navigation';
+import { backHome, openPage } from '../../utils/navigation';
 import { mapGameStateToView } from '../game/game-state-mapper';
 import type { GameViewModel } from '../game/game-state-mapper';
 import type { BoardState } from '../../types/domain';
@@ -96,6 +96,11 @@ Page({
     });
   },
   back() { backHome(); },
+  viewReview() {
+    const room = this.data.snapshot?.room;
+    if (room?.room_status === 'FINISHED')
+      openPage(`/pages/review/review?mode=online&gameId=${encodeURIComponent(room.game_id)}`);
+  },
   createPrivate() { void this.controller?.create(false); },
   matchPublic() { void this.controller?.match(); },
   codeInput(event: WechatMiniprogram.Input) {

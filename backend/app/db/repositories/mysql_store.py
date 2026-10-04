@@ -94,6 +94,7 @@ class MySQLGameStore:
                 for row in selected:
                     result.append({"gameId": row.id, "mode": row.mode,
                                    "status": row.status, "winner": row.winner,
+                                   "winnerReason": row.winner_reason,
                                    "startedAt": row.started_at.replace(tzinfo=timezone.utc).isoformat(),
                                    "finishedAt": row.finished_at.replace(tzinfo=timezone.utc).isoformat()
                                    if row.finished_at else None,

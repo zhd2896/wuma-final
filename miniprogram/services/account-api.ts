@@ -1,3 +1,4 @@
+import type { WinnerReason } from '../domain/index';
 import type { ApiClient } from './api-client';
 
 export interface PersonalGameDto {
@@ -5,6 +6,7 @@ export interface PersonalGameDto {
   readonly mode: 'AI' | 'LOCAL';
   readonly status: 'PLAYING' | 'FINISHED';
   readonly winner: 'A' | 'B' | null;
+  readonly winnerReason?: WinnerReason | null;
   readonly startedAt: string;
   readonly finishedAt: string | null;
   readonly turns: number;

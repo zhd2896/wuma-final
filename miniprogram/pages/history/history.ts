@@ -27,16 +27,20 @@ function rowForDevice(entry: DeviceHistoryEntry): HistoryRow {
   const finished = entry.status === 'FINISHED';
   return { id: entry.id, mode: entry.mode, status: entry.status,
     title: entry.mode === 'online' ? '远程双人' : '本地双人',
-    result: finished ? (entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
+    result: finished ? (entry.winnerReason === 'RESIGN' && entry.winner
+      ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
+      : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
     date: dateText(entry.updatedAt), updatedAt: entry.updatedAt, turns: entry.turns,
-    action: finished ? '查看终局' : '继续对弈' };
+    action: finished ? (entry.mode === 'online' ? '查看复盘' : '查看终局') : '继续对弈' };
 }
 function rowForCloud(entry: PersonalGameDto): HistoryRow {
   const finished = entry.status === 'FINISHED';
   const updatedAt = Date.parse(entry.finishedAt || entry.startedAt);
   return { id: entry.gameId, mode: entry.mode === 'AI' ? 'ai' : 'remote',
     status: entry.status, title: entry.mode === 'AI' ? 'AI 对弈' : '云端双人',
-    result: finished ? (entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
+    result: finished ? (entry.winnerReason === 'RESIGN' && entry.winner
+      ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
+      : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
     date: dateText(updatedAt), updatedAt, turns: entry.turns,
     action: finished ? '查看复盘' : '继续对弈' };
 }
@@ -71,13 +75,13 @@ Page({
     const cloud = this.cloud.map(rowForCloud).filter(item => !ids.has(item.id));
     const records = [...local, ...cloud].filter(item => this.data.filter === 'all' ||
       (item.status === 'FINISHED' &&
-        (this.data.filter !== 'reviewable' || item.mode === 'ai' || item.mode === 'remote')))
+        (this.data.filter !== 'reviewable' || item.mode === 'ai' || item.mode === 'remote' || item.mode === 'online')))
       .sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id));
     this.setData({ records, state: records.length ? 'success' : 'empty',
       emptyTitle: this.data.filter === 'reviewable' ? '还没有可复盘的棋局'
         : this.data.filter === 'finished' ? '还没有已结束的棋局' : '还没有对局记录',
       emptySubtitle: this.data.filter === 'reviewable'
-        ? '完成一局 AI 或云端对弈后，可从这里进入复盘'
+        ? '完成一局 AI、云端或远程双人对弈后，可从这里进入复盘'
         : '开始一局对弈后，这里会保存真实记录',
       emptyAction: this.data.filter === 'reviewable' ? '开始 AI 对弈' : '开始对弈' });
   },
@@ -113,7 +117,9 @@ Page({
     const row = this.data.records.find(item => item.id === id);
     if (!row) return;
     const encoded = encodeURIComponent(id);
-    if (row.mode === 'online') openPage(`/pages/online/online?gameId=${encoded}`);
+    if (row.mode === 'online') openPage(row.status === 'FINISHED'
+      ? `/pages/review/review?mode=online&gameId=${encoded}`
+      : `/pages/online/online?gameId=${encoded}`);
     else if (row.status === 'FINISHED' && row.mode !== 'local')
       openPage(`/pages/review/review?gameId=${encoded}`);
     else openPage(`/pages/game/game?mode=${row.mode}&gameId=${encoded}`);

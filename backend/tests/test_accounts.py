@@ -93,3 +93,18 @@ def test_training_and_legacy_data_stay_outside_other_accounts():
             "from_node": best["from"], "to_node": best["to"],
             "client_attempt_id": "account-training-0002"}).status_code == 403
         assert client.get("/api/v1/me/profile").json()["data"]["training"] == 0
+
+
+def test_account_history_returns_authoritative_resignation_reason():
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=True)) as client:
+        token = client.post('/api/v1/auth/device').json()['data']['token']
+        client.headers['Authorization'] = 'Bearer ' + token
+        game_id = client.post('/api/v1/game', json={'mode': 'AI', 'first_player': 'A'}).json()['data']['game_id']
+        playing = client.get('/api/v1/me/games').json()['data']['items'][0]
+        assert playing['winnerReason'] is None
+        response = client.post(f'/api/v1/game/{game_id}/resign', json={
+            'expected_version': 0, 'client_request_id': 'history-ai-resign'})
+        assert response.status_code == 200
+        row = client.get('/api/v1/me/games?status=FINISHED').json()['data']['items'][0]
+        assert row['winner'] == 'B' and row['winnerReason'] == 'RESIGN'
+        assert row['turns'] == 0

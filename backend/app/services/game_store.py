@@ -218,7 +218,8 @@ class InMemoryGameStore:
 
     def _personal_row(self, date: datetime, game: StoredGame) -> dict:
         return {"gameId": game.game_id, "mode": game.mode, "status": game.state.game_status,
-                "winner": game.state.winner, "startedAt": date.isoformat(),
+                "winner": game.state.winner, "winnerReason": game.state.winner_reason,
+                "startedAt": date.isoformat(),
                 "finishedAt": None, "turns": game.ply_count,
                 "reviewAvailable": any(key[0] == game.game_id for key in self._reviews),
                 "cursorDate": date.isoformat()}

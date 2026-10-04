@@ -16,7 +16,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   }
 } });
 
-test('online history restores its room for both active and finished games', async () => {
+test('online history restores active rooms and opens real review for finished games', async () => {
   const storage = new Map<string, unknown>();
   const routes: string[] = [];
   let definition: Record<string, any> | null = null;
@@ -33,7 +33,7 @@ test('online history restores its room for both active and finished games', asyn
   history.record({ id: 'online-active', mode: 'online', state: initial, turns: 1 });
   history.record({ id: 'online-finished', mode: 'online',
     state: { ...initial, game_status: 'FINISHED', winner: 'A',
-      winner_reason: 'CAPTURE_ALL' }, turns: 9 });
+      winner_reason: 'RESIGN' }, turns: 0 });
   await import('../miniprogram/pages/history/history.ts');
   const page = { ...definition!, data: { ...definition!.data },
     setData(patch: Record<string, unknown>) { this.data = { ...this.data, ...patch }; } };
@@ -43,10 +43,13 @@ test('online history restores its room for both active and finished games', asyn
   page.openRecord({ currentTarget: { dataset: { id: 'online-finished' } } });
   assert.deepEqual(routes, [
     '/pages/online/online?gameId=online-active',
-    '/pages/online/online?gameId=online-finished',
+    '/pages/review/review?mode=online&gameId=online-finished',
   ]);
   const reviewable = { ...definition!, data: { ...definition!.data },
     setData(patch: Record<string, unknown>) { this.data = { ...this.data, ...patch }; } };
   reviewable.onLoad({ filter: 'reviewable' });
-  assert.equal(reviewable.data.records.length, 0);
+  assert.equal(reviewable.data.records.length, 1);
+  assert.equal(reviewable.data.records[0].turns, 0);
+  assert.equal(reviewable.data.records[0].action, '查看复盘');
+  assert.match(reviewable.data.records[0].result, /玩家 B 认输/);
 });

@@ -81,7 +81,7 @@ test('history page shows real local records and routes each status to a usable d
       data: path === '/api/v1/auth/device' ? { userId: 'u1', token } : {
         items: [{ gameId: 'current-ai', mode: 'AI', status: 'FINISHED', winner: 'A',
           startedAt: '2026-09-28T08:00:00+00:00', finishedAt: '2026-09-28T09:00:00+00:00',
-          turns: 6, reviewAvailable: true }], nextCursor: null,
+          turns: 0, winnerReason: 'RESIGN', reviewAvailable: true }], nextCursor: null,
       } } });
   };
   const legacy = makePage();
@@ -89,7 +89,8 @@ test('history page shows real local records and routes each status to a usable d
   for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(fetched, ['/api/v1/auth/device', '/api/v1/me/games']);
   assert.equal(legacy.data.records.find((item: any) => item.id === 'legacy-ai'), undefined);
-  assert.equal(legacy.data.records.find((item: any) => item.id === 'current-ai')?.turns, 6);
+  assert.equal(legacy.data.records.find((item: any) => item.id === 'current-ai')?.turns, 0);
+  assert.match(legacy.data.records.find((item: any) => item.id === 'current-ai')?.result, /玩家 B 认输/);
   legacy.openRecord({ currentTarget: { dataset: { id: 'current-ai' } } });
   assert.equal(destinations.at(-1), '/pages/review/review?gameId=current-ai');
   (globalThis as any).wx.request = (options: any) => options.fail({ errMsg: 'offline' });

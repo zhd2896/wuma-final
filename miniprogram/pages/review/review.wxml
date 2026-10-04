@@ -6,12 +6,13 @@
     <block wx:else>
       <view class="match-summary card">
         <view class="match-title">玩家 {{review.reviewedPlayer}} · 棋局复盘</view>
-        <view class="match-meta"><text>胜方 {{review.winner}}</text><text>终局 {{review.winnerReason}}</text><text>{{rows.length}} 手已分析</text></view>
+        <view class="match-meta"><text>胜方 {{review.winner}}</text><text>{{terminalText}}</text><text>{{rows.length}} 手已分析</text></view>
       </view>
       <section-title title="整体统计" />
       <view class="review-stats card"><view>GOOD {{review.goodMoves}}</view><view>NORMAL {{review.normalMoves}}</view><view>MISTAKE {{review.mistakes}}</view><view>BLUNDER {{review.blunders}}</view></view>
       <view class="review-metric card">同分最佳走法比例：{{bestMoveRateText}}</view>
       <view class="review-metric card">关键转折：{{turningText}}</view>
+      <block wx:if="{{mode != 'online'}}">
       <button id="generate-training" class="gold-btn" loading="{{isGeneratingTraining}}" disabled="{{isGeneratingTraining}}" bindtap="generateTraining">从本局生成训练题</button>
       <view wx:if="{{trainingError}}" class="review-metric card">{{trainingError}}</view>
       <view wx:if="{{explanationState == 'loading'}}" class="review-metric card">正在生成复盘解释…</view>
@@ -23,6 +24,8 @@
         <view wx:for="{{gameExplanation.main_problems}}" wx:for-item="problem" wx:key="*this">重点：{{problem}}</view>
         <view wx:for="{{gameExplanation.practice_suggestions}}" wx:for-item="tip" wx:key="*this">建议：{{tip}}</view>
       </view>
+      </block>
+      <view wx:if="{{rows.length == 0}}" class="review-metric card">本方没有可分析的有效落子，未生成走法评分。</view>
       <section-title title="逐步复盘" subtitle="以实际落子方为评分视角" />
       <view wx:for="{{rows}}" wx:key="turn" class="review-move card">
         <view class="review-move-head">第 {{item.turn}} 手 · 玩家 {{item.player}}<text class="category">{{item.category}}</text></view>

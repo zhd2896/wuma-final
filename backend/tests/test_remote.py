@@ -379,3 +379,51 @@ def test_remote_operations_require_valid_seat_and_reject_stale_versions():
                                      f"version-{path.replace('-', '')}-a1")
             assert stale.status_code == 409
             assert stale.json()["code"] == "GAME_STATE_CONFLICT"
+
+@pytest.mark.parametrize('loser', ['A', 'B'])
+def test_remote_zero_move_review_is_seat_authenticated_and_cached_separately(loser):
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as client:
+        game_id, a, b = playing_room(client)
+        data(remote_operation(client, game_id, 'resign', a if loser == 'A' else b, 0,
+                              'review-zero-resign'))
+        path = f'/api/v1/remote/rooms/{game_id}/review'
+        for method in (client.get, client.post):
+            for headers in ({}, {'X-Room-Token': 'wrong'}):
+                response = method(path, headers=headers)
+                assert response.status_code == 403
+                assert response.json()['code'] == 'REMOTE_ACCESS_DENIED'
+            assert method('/api/v1/remote/rooms/missing/review', headers=a).status_code == 404
+        reviews = []
+        for seat, headers in [('A', a), ('B', b)]:
+            missing = client.get(path, headers=headers)
+            assert missing.json()['code'] == 'REVIEW_NOT_FOUND'
+            review = data(client.post(path, headers=headers, json={'reviewed_player': 'B' if seat == 'A' else 'A'}))
+            assert review['reviewedPlayer'] == seat
+            assert review['winner'] == ('B' if loser == 'A' else 'A')
+            assert review['winnerReason'] == 'RESIGN'
+            assert review['moveReviews'] == [] and review['overallScore'] is None
+            assert data(client.get(path, headers=headers)) == review
+            assert data(client.post(path, headers=headers)) == review
+            reviews.append(review)
+        assert reviews[0]['id'] != reviews[1]['id']
+        for method in (client.get, client.post):
+            assert method(f'/api/v1/game/{game_id}/review', headers=a).status_code == 403
+
+
+def test_remote_review_analyzes_only_active_moves_from_each_seat():
+    with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as client:
+        game_id, a, b = playing_room(client)
+        data(remote_move(client, game_id, a, 'P01', 'P02', 0, 'review-old-a'))
+        data(remote_move(client, game_id, b, 'P05', 'P04', 1, 'review-old-b'))
+        pending = data(remote_operation(client, game_id, 'undo-requests', a, 2, 'review-undo'))['pending_undo']
+        data(remote_operation(client, game_id, f"undo-requests/{pending['id']}/accept", b, 2, 'review-accept'))
+        data(remote_move(client, game_id, a, 'P01', 'P19', 3, 'review-new-a'))
+        data(remote_move(client, game_id, b, 'P05', 'P01', 4, 'review-new-b'))
+        data(remote_operation(client, game_id, 'resign', b, 5, 'review-resign'))
+        for seat, headers, source, target, turn in [('A', a, 'P01', 'P19', 1), ('B', b, 'P05', 'P01', 2)]:
+            review = data(client.post(f'/api/v1/remote/rooms/{game_id}/review', headers=headers))
+            assert review['reviewedPlayer'] == seat
+            assert len(review['moveReviews']) == 1
+            move = review['moveReviews'][0]
+            assert move['turn'] == turn and move['scorePerspective'] == seat
+            assert move['actualMove'] == {'from': source, 'to': target}

@@ -44,7 +44,7 @@ def create_app(settings: Settings | None = None, store: GameStore | None = None,
         app.state.store = active_store
         app.state.require_auth = require_auth
         app.state.service = GameService(adapter, active_store, settings)
-        app.state.remote_service = RemoteService(adapter, active_store)
+        app.state.remote_service = RemoteService(adapter, active_store, app.state.service)
         provider = llm_provider
         if provider is None and settings.llm_api_key and settings.llm_base_url and settings.llm_model:
             provider = ConfiguredLLMProvider(settings)

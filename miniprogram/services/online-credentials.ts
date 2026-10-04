@@ -1,3 +1,5 @@
+import { ApiError } from './api-client';
+
 export const ACTIVE_ONLINE_KEY = 'wuma:online:active';
 export const DEVICE_ONLINE_KEY = 'wuma:online:device';
 
@@ -24,4 +26,10 @@ export function writeOnlineSeat(storage: OnlineStorage, gameId: string, token: s
 
 export function removeOnlineSeat(storage: OnlineStorage, gameId: string): void {
   if (nonemptyString(gameId)) storage.remove(seatKey(gameId));
+}
+
+export function requireOnlineSeat(storage: OnlineStorage, gameId: string): string {
+  const token = readOnlineSeat(storage, gameId);
+  if (!token) throw new ApiError('REMOTE_ACCESS_DENIED', 403);
+  return token;
 }

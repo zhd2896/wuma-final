@@ -7,7 +7,8 @@ import secrets
 
 from backend.app.core.errors import ApiError
 from backend.app.engine_adapter.node_worker import NodeEngineAdapter
-from backend.app.schemas.game import LegalMovesResponse, Move
+from backend.app.schemas.game import GameReview, LegalMovesResponse, Move
+from backend.app.services.game_service import GameService
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
                                          MatchRoomRequest, PendingUndoResponse,
                                          RemoteMoveRequest, RemoteMoveResponse,
@@ -24,9 +25,10 @@ def token_hash(token: str) -> str:
 
 
 class RemoteService:
-    def __init__(self, adapter: NodeEngineAdapter, store: GameStore):
+    def __init__(self, adapter: NodeEngineAdapter, store: GameStore, game_service: GameService):
         self.adapter = adapter
         self.store = store
+        self.game_service = game_service
 
     @staticmethod
     def _new_token() -> str:
@@ -204,3 +206,13 @@ class RemoteService:
             await self.store.commit_remote_resign(
                 game_id, token_hash(token or ""), body)
             return await self._view(room, token or "")
+
+    async def get_review(self, game_id: str, token: str | None) -> GameReview:
+        room = await self.store.get_remote_room(game_id)
+        seat = self._seat(room, token)
+        return await self.game_service._get_review(game_id, seat, remote=True)
+
+    async def create_review(self, game_id: str, token: str | None) -> GameReview:
+        room = await self.store.get_remote_room(game_id)
+        seat = self._seat(room, token)
+        return await self.game_service._create_review(game_id, seat, remote=True)

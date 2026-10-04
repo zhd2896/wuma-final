@@ -61,3 +61,81 @@ test('review page reads or creates review, explains it, and keeps structured fie
   assert.match(readFileSync('miniprogram/pages/review/review.wxml', 'utf8'), /scoreLoss/);
   assert.match(readFileSync('miniprogram/pages/review/review.wxml', 'utf8'), /naturalExplanation/);
 });
+
+
+test('online review verifies its saved seat and only requests room review, including zero move resignation', async () => {
+  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  for (const seat of ['A', 'B']) {
+    const requests: any[] = [];
+    const review = { id: 'remote-review', gameId: 'online/id', reviewedPlayer: seat,
+      winner: 'B', winnerReason: 'RESIGN', goodMoves: 0, normalMoves: 0,
+      mistakes: 0, blunders: 0, bestMoveRate: 0, turningPoints: [], moveReviews: [] };
+    let definition: any;
+    (globalThis as any).Page = (value: any) => { definition = value; };
+    (globalThis as any).wx = {
+      getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+      getStorageSync: (key: string) => key === 'wuma:online:seat:online/id' ? 'room-token'
+        : key.startsWith('wuma:device-account-token:') ? 'a'.repeat(64) : '',
+      request: (options: any) => {
+        requests.push(options);
+        assert.equal(options.header['X-Room-Token'], 'room-token');
+        const path = new URL(options.url).pathname;
+        if (path.endsWith('/review') && options.method === 'GET')
+          options.success({ statusCode: 404, data: { code: 'REVIEW_NOT_FOUND' } });
+        else options.success({ statusCode: 200, data: { code: 0, data: path.endsWith('/review') ? review : {
+          game_id: 'online/id', seat, version: 8, ply_count: 0, room_status: 'FINISHED', pending_undo: null,
+          state: { ...createInitialGameState(), game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' },
+        } } });
+      },
+    };
+    await import(`../miniprogram/pages/review/review.ts?online-${seat}`);
+    const page = { ...definition, data: { ...definition.data },
+      setData(patch: any) { Object.assign(this.data, patch); } };
+    page.onLoad({ gameId: 'online/id', mode: 'online' });
+    for (let i = 0; i < 6; i++) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(page.data.state, 'success');
+    assert.equal(page.data.review.reviewedPlayer, seat);
+    assert.deepEqual(page.data.rows, []);
+    assert.match(page.data.terminalText, seat === 'A' ? /你已认输/ : /对方已认输/);
+    assert.equal(page.data.explanationState, 'idle');
+    await page.generateTraining(); page.retryExplanation();
+    assert.deepEqual(requests.map(r => `${r.method} ${new URL(r.url).pathname}`), [
+      'GET /api/v1/remote/rooms/online%2Fid',
+      'GET /api/v1/remote/rooms/online%2Fid/review',
+      'POST /api/v1/remote/rooms/online%2Fid/review',
+    ]);
+  }
+  const wxml = readFileSync('miniprogram/pages/review/review.wxml', 'utf8');
+  assert.match(wxml, /wx:if="\{\{mode != 'online'\}\}"/);
+  assert.match(wxml, /terminalText/);
+});
+
+test('online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback', async () => {
+  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  for (const failure of ['missing', 'invalid', 'mismatch']) {
+    const paths: string[] = [];
+    let definition: any;
+    (globalThis as any).Page = (value: any) => { definition = value; };
+    (globalThis as any).wx = {
+      getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+      getStorageSync: (key: string) => key.startsWith('wuma:online:seat:')
+        ? (failure === 'missing' ? '' : 'bad-token') : 'a'.repeat(64),
+      request: (options: any) => {
+        const path = new URL(options.url).pathname; paths.push(path);
+        if (failure === 'invalid') options.success({ statusCode: 403, data: { code: 'REMOTE_ACCESS_DENIED' } });
+        else options.success({ statusCode: 200, data: { code: 0, data: path.endsWith('/review')
+          ? { gameId: 'g1', reviewedPlayer: 'B' } : { game_id: 'g1', seat: 'A', version: 1,
+            ply_count: 0, room_status: 'FINISHED', pending_undo: null, state: {
+              ...createInitialGameState(), game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' } } } });
+      },
+    };
+    await import(`../miniprogram/pages/review/review.ts?${failure}`);
+    const page = { ...definition, data: { ...definition.data }, setData(patch: any) { Object.assign(this.data, patch); } };
+    page.onLoad({ gameId: 'g1', mode: 'online' });
+    for (let i = 0; i < 6; i++) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(page.data.state, 'error');
+    assert.match(page.data.errorMessage, failure === 'mismatch' ? /数据异常/ : /凭证/);
+    assert.ok(paths.every(path => path.startsWith('/api/v1/remote/rooms/')));
+    if (failure === 'missing') assert.deepEqual(paths, []);
+  }
+});

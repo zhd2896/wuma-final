@@ -246,3 +246,29 @@ def test_resignation_replay_rejects_state_changes_beyond_terminal_metadata(clien
         client.portal.call(client.app.state.service.replay_game, game_id)
 
     assert error.value.code == "REPLAY_INTEGRITY_ERROR"
+
+@pytest.mark.parametrize('reviewed_player', ['A', 'B'])
+def test_resignation_fallback_names_actual_resigning_player(client, reviewed_player):
+    created = client.post('/api/v1/game', json={'first_player': 'A', 'mode': 'LOCAL'}).json()['data']
+    game_id = created['game_id']
+    resigned = client.post(f'/api/v1/game/{game_id}/resign', json={
+        'expected_version': 0, 'client_request_id': 'fallback-zero-resign'})
+    assert resigned.status_code == 200
+    response = client.post(f'/api/v1/game/{game_id}/review', json={'reviewed_player': reviewed_player})
+    assert response.status_code == 200
+    review = GameReview.model_validate(response.json()['data'])
+    assert review.moveReviews == [] and review.overallScore is None
+    assert '玩家 A 认输' in fallback_game(review).overall_summary
+
+
+def test_local_review_ignores_reverted_branch_and_preserves_resignation_snapshot(client):
+    game_id = client.post('/api/v1/game', json={'first_player': 'A', 'mode': 'LOCAL'}).json()['data']['game_id']
+    base = f'/api/v1/game/{game_id}'
+    assert client.post(f'{base}/move', json={'from_node': 'P01', 'to_node': 'P02'}).status_code == 200
+    assert client.post(f'{base}/undo', json={'expected_version': 1, 'client_request_id': 'local-review-undo'}).status_code == 200
+    assert client.post(f'{base}/move', json={'from_node': 'P01', 'to_node': 'P19'}).status_code == 200
+    assert client.post(f'{base}/resign', json={'expected_version': 3, 'client_request_id': 'local-review-resign'}).status_code == 200
+    review = client.post(f'{base}/review', json={}).json()['data']
+    assert review['winner'] == 'A' and review['winnerReason'] == 'RESIGN'
+    assert [move['actualMove'] for move in review['moveReviews']] == [{'from': 'P01', 'to': 'P19'}]
+    assert review['moveReviews'][0]['turn'] == 1

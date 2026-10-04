@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Header, Query, Request
 
-from backend.app.schemas.game import ApiResponse, LegalMovesResponse, NodeId
+from backend.app.schemas.game import ApiResponse, GameReview, LegalMovesResponse, NodeId
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
                                          MatchRoomRequest, RemoteMoveRequest,
                                          RemoteMoveResponse, RemoteOperationRequest,
@@ -85,3 +85,15 @@ async def resign(request: Request, game_id: str, body: RemoteOperationRequest,
                  token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[RemoteRoomResponse]:
     return ApiResponse(data=await request.app.state.remote_service.resign(
         game_id, token, body))
+
+
+@router.get("/rooms/{game_id}/review", response_model=ApiResponse[GameReview])
+async def get_review(request: Request, game_id: str,
+                     token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[GameReview]:
+    return ApiResponse(data=await request.app.state.remote_service.get_review(game_id, token))
+
+
+@router.post("/rooms/{game_id}/review", response_model=ApiResponse[GameReview])
+async def create_review(request: Request, game_id: str,
+                        token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[GameReview]:
+    return ApiResponse(data=await request.app.state.remote_service.create_review(game_id, token))
