@@ -1,6 +1,8 @@
 # 对局操作分支测试报告（2026-10-05）
 
-分支：`codex/game-operations`；目录：`.worktrees/game-operations`。未合并 `main`。
+测试分支：`codex/game-operations`；测试目录：`.worktrees/game-operations`。测试报告形成时尚未合并；2026-10-05 随后按用户明确要求快进合并到 `main`。合并不改变下述未完成验收的阶段判定。
+
+合并后在主项目目录复跑：前端 422 项、后端 181 项通过，均无失败或跳过；真实 MySQL 32 项及全新测试库迁移包含在后端全量测试中。类型检查及 9 个页面、18 个组件检查通过。主目录本地配置保持原样；实施分支和工作树保留供后续验收。对应日志为证据目录中的 `main-frontend-tests.log` 与 `main-backend-tests.log`。
 
 ## 阶段判定
 
