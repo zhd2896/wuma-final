@@ -1,0 +1,6 @@
+ISOLATION verified database=wuma_acceptance_test; project=E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations
+PASS local move/undo/reload/resign id=local-1791181531206-pz649ssdqrp
+PASS settings switch/store/reload
+PASS real AI API undo/resign id=4162922fb98e4979914b1f7106c07dd0
+PASS AI history -> real zero-ply resignation review
+FAIL game-operations: timeout

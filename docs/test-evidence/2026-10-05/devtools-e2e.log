@@ -1,0 +1,10 @@
+
+> yizhi-wuma-ui@0.1.0 test:e2e:game-operations
+> node scripts/game-operations-devtool-e2e.cjs
+
+ISOLATION verified database=wuma_acceptance_test; project=E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations
+PASS local move/undo/reload/resign id=local-1791181316241-qsgx1374z
+PASS settings switch/store/reload
+PASS real AI API undo/resign id=408ca7463a144455aa4ab6c6dfe91a4b
+PASS SIMULATED online A/B request/reconnect/accept id=90366c9f1888416399315925278e5b7f; two-device acceptance NOT performed
+RESULT game-operations devtool=PASS (live MySQL and two-device acceptance remain separate gates)

@@ -1,0 +1,635 @@
+
+> yizhi-wuma-ui@0.1.0 test
+> node --test tests/*.test.mts
+
+(node:23276) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AI undo replaces all derived state with authoritative server result (6.4199ms)
+✔ AI resign uses server terminal state and operation mutex blocks a second operation (1.4363ms)
+✔ AI uncertain undo refreshes and reuses request id on retry (1.3432ms)
+✔ AI version conflict refreshes authority and a retry uses refreshed version (1.5292ms)
+✔ AI uses authoritative ply_count instead of a high revision number (3.2603ms)
+✔ AI rejects a missing ply_count without replacing the current snapshot (2.1669ms)
+✔ AI rejects an invalid operation ply_count without replacing the board (1.2367ms)
+(node:22216) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing AI page displays server game, thinking, AI move and AI-first restart (229.5902ms)
+✔ AI page restores terminal resignation using the human seat for both winners (160.6692ms)
+(node:18772) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ inaccessible stored game from an older device account is replaced (4.5217ms)
+✔ coach reveals levels progressively, never moves, and clears after human move (310.3067ms)
+✔ pending coach locks board and restart until its result arrives (0.7982ms)
+✔ manual analysis uses current state and clears after the next real turn (85.9779ms)
+✔ pending analysis blocks board actions and restart and ignores late result after unload (87.254ms)
+✔ stale analysis response resynchronizes the game before another analysis (1.3221ms)
+✔ human first automatically completes two human and AI rounds from server turns (1.6807ms)
+✔ AI first starts automatically and prevents duplicate AI requests (19.5253ms)
+✔ AI identity is restored from server and AI turn resumes once after reopen (0.915ms)
+✔ restoring an already completed AI turn does not submit another AI move (0.9453ms)
+✔ AI network timeout GETs before retry and never invents a move (6.132ms)
+✔ failed GET after lost Human response locks stale board until successful resync (0.7411ms)
+✔ human move response loss also GETs server before another move (1.159ms)
+✔ disposed AI page ignores late search result (3.2684ms)
+✔ human CAPTURE_ALL terminal displays server winner and never starts AI (1.5957ms)
+✔ human TEMPLE_TRAP terminal displays server winner and never starts AI (0.7755ms)
+✔ human LONE_PIECE_IMMOBILIZED terminal displays server winner and never starts AI (0.7287ms)
+✔ AI terminal result updates capture, reserve and blocks further human input (0.7918ms)
+(node:7144) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ TT search computes a full Zobrist hash only for the root (3669.5103ms)
+✔ two different real legal move sequences reach the same searchable position (1.74ms)
+✔ TT scores and every exact root candidate match all three baselines at depths 1–3 (1909.1825ms)
+✔ search-local TT gets a real hit from the commuting move sequences (1876.629ms)
+ℹ {"fixture":"commuting A moves P01→P02 and P06→P07, B P05→P04","depth":3,"score":0,"bestMove":{"from":"P01","to":"P03"},"withoutNodes":526,"withoutCutoffs":141,"withoutTimeMs":966,"withNodes":526,"withCutoffs":141,"probes":525,"hits":119,"ttCutoffs":101,"stores":412,"size":399,"withTimeMs":910}
+✔ immediate win, defensive reply and faster mate keep their choices (236.2757ms)
+✔ depth four slow loss keeps exact candidate scores and input immutability (15599.9783ms)
+ℹ {"fixture":"P03 lone B, seven A blockers","depth":4,"minimaxScore":-999996,"plainScore":-999996,"orderedScore":-999996,"ttScore":-999996,"bestMove":{"from":"P03","to":"P02"},"withoutNodes":3100,"withoutCutoffs":86,"withoutTimeMs":3376,"withNodes":1615,"withCutoffs":86,"probes":1614,"ttHits":400,"ttCutoffs":400,"stores":1196,"size":1182,"withTimeMs":1833}
+✔ all three finished winner reasons retain signed mate scores (0.5319ms)
+✔ each search starts with an empty TT and different perspectives do not share scores (96.7103ms)
+✔ RULE_AMBIGUITY is still thrown and cannot become a cached score (0.8824ms)
+(node:1852) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ depth zero evaluates the root without expanding moves (24.7433ms)
+✔ depths one and two preserve every exact candidate score for both root perspectives (703.914ms)
+✔ depth three matches Minimax and really prunes without changing natural move order (653.1139ms)
+✔ immediate capture win remains preferred (28.9301ms)
+✔ depth two avoids the move that lets the opponent win next turn (38.9449ms)
+✔ fast wins outrank slower wins with the same mate scoring as Minimax (600.8076ms)
+✔ slow defeat matches Minimax and records real nodes, cutoffs and elapsed time (11135.4797ms)
+ℹ {"fixture":"P03 lone B, seven A blockers","depth":4,"minimaxNodes":8528,"alphaBetaNodes":3580,"cutoffs":86,"minimaxTimeMs":8109.01,"alphaBetaTimeMs":3025}
+✔ all three real winner reasons stop immediately at the same mate score (0.6826ms)
+✔ equal scores choose the first legal move on every run (155.1086ms)
+✔ both players can search without modifying the supplied GameState (77.8699ms)
+✔ nonterminal no-move ambiguity and invalid depth match Minimax (1.1496ms)
+✔ both searches report ambiguity when a real turn reaches a nonterminal no-move child (89.9674ms)
+(node:15712) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ local source analyzes the exact saved state without calling the server (144.5832ms)
+✔ local source falls back to active game and reports empty for no valid record (116.1932ms)
+✔ active local storage failure becomes a retryable page error (0.9622ms)
+✔ server source reads the authoritative version before requesting analysis (92.2825ms)
+✔ server conflict discards stale results and retry reloads the new version (95.0409ms)
+✔ duplicate loading and disposed late response cannot overwrite state (102.7595ms)
+(node:12964) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent page analyzes saved local state offline and authoritative server version (1225.1057ms)
+✔ analysis templates bind real fields and contain no demo labels (2.477ms)
+(node:26504) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ maps a real position into board, score rows, occupied key pieces and candidates (147.7894ms)
+✔ terminal analysis has no invented recommendation or candidates (0.7252ms)
+(node:12448) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a current-player piece can move to an adjacent empty node on a BoardLine (4.9552ms)
+✔ a piece may cross several empty line nodes in either direction (0.6994ms)
+✔ V3 permits P29 to P03 through empty P27 (1.7379ms)
+✔ an empty or opponent-owned origin is illegal (1.0579ms)
+✔ an occupied destination cannot be overwritten by a basic move (0.8417ms)
+✔ graph connectivity and turns do not make an off-line move legal (0.3559ms)
+✔ both friendly and enemy pieces block longer moves on the same line (0.3369ms)
+✔ blocking P27 rejects P29 to P03 despite the empty P26 temple turn (0.3563ms)
+✔ blocking P27 rejects P29 to P03 despite the empty P28 temple turn (0.4347ms)
+✔ when two declared lines share endpoints, a clear one suffices (0.6654ms)
+✔ generated destinations include long moves but stop at blockers (0.6504ms)
+✔ generated moves are legal for the current player and do not change the turn (0.6202ms)
+✔ applying a basic move copies board occupancy without changing reserves or turn (0.3744ms)
+✔ applying an illegal basic move rejects it without mutating the input (1.1387ms)
+(node:7724) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ position suite replays eight legal live states with evidence for required categories (110.6169ms)
+✔ fixed-depth harness excludes warm-ups and verifies real algorithm scores (550.6434ms)
+✔ targeted fixed-depth run measures only selected existing algorithms (220.4357ms)
+✔ search CLI records Phase 26 algorithm selection and baseline identity (1483.5859ms)
+✔ time-budget rows report completed depth separately from configured budget (73.5914ms)
+✔ warm-up ambiguity still produces measured error rows (2.0785ms)
+✔ seeded self-play is reproducible and swaps sides in pairs (266.144ms)
+✔ max plies and rule ambiguity never become draws or losses (1.0355ms)
+✔ 100, 500, and 1000 requested games distribute as paired total games (0.6075ms)
+✔ raw CSV preserves columns and summaries recompute from decoded raw rows (460.2131ms)
+✔ metadata and artifacts are created with traceable deterministic config hash (545.8239ms)
+✔ self-play writer refuses to replace an existing run ID (141.6089ms)
+(node:25832) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ CLAMP identifies attacker ends and enemy center for Player A (7.5717ms)
+✔ CLAMP also works when Player B is the attacker (0.5ms)
+✔ CARRY identifies attacker center and two enemy ends for Player A (0.426ms)
+✔ the same A-B-A shape is CARRY for Player B (0.3606ms)
+✔ nonconsecutive triples are never CLAMP or CARRY (0.344ms)
+✔ a tail at either end invalidates the entire H1 CLAMP line (0.3644ms)
+✔ an extra piece invalidates CARRY regardless of owner (0.4016ms)
+✔ V3 CLAMP checks every other node through distant P23 (0.377ms)
+✔ every declared line with three or more nodes is scanned (1.657ms)
+✔ middle and final consecutive windows are scanned too (0.5399ms)
+✔ a move into the window creates a new CLAMP (0.7182ms)
+✔ a preexisting CLAMP is not triggered again by an unrelated move (0.3832ms)
+✔ moving a tail away creates a pattern without moving a segment piece (0.3905ms)
+✔ one move can create CLAMP on H3 and V3 in stable line order (0.3403ms)
+✔ two different lines capturing the same node remain separate patterns (0.3157ms)
+✔ detection never changes either board, reserve or current player (0.5678ms)
+(node:12044) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ two on-board enemy pieces prohibit CARRY even when enemy reserve exists (6.39ms)
+✔ one on-board enemy piece prohibits CLAMP (0.9003ms)
+✔ a legal CLAMP replaces one enemy node and uses one reserve (1.0455ms)
+✔ Player B can resolve CLAMP as the explicit attacker (0.5448ms)
+✔ a legal CARRY replaces both enemy nodes in one resolution (0.4463ms)
+✔ insufficient reserve cancels all CARRY replacements (0.4038ms)
+✔ three unique captures with reserve two cancel entirely while preserving the normal move (0.8161ms)
+✔ two CLAMP patterns sharing P12 consume only one reserve (0.4599ms)
+✔ two CARRY patterns resolve all four unique enemy nodes together (0.5783ms)
+✔ CLAMP and CARRY can share a resolution with globally deduplicated nodes (0.6341ms)
+✔ a forbidden CARRY does not discard a simultaneous legal CLAMP (0.9145ms)
+✔ no new patterns leaves after-move state unchanged with no failure (0.2728ms)
+✔ replacement can form another pattern but resolution never recurses (0.527ms)
+✔ resolver rejects a captured node that is not occupied by the opponent (1.375ms)
+✔ resolution does not mutate the input state or CapturePattern descriptions (0.5234ms)
+(node:4264) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ loads the active authoritative AI game and explicit id takes priority (3.9031ms)
+✔ reports empty, rejects non-AI games, and marks finished or AI-turn games unavailable (1.34ms)
+✔ rejects a mismatched game id, invalid players, or non-integer authoritative version (0.8072ms)
+✔ requests three real levels in order for the authoritative version without duplicates (5.4968ms)
+✔ rejects mismatched hint identity without unlocking the next level (9.7582ms)
+✔ conflict reloads the authoritative game, clears hints, and requires level one again (1.3263ms)
+✔ duplicate loading and disposal prevent late hints from publishing (0.5941ms)
+✔ visibility refresh cancels an in-flight hint and loads the newest version (0.6329ms)
+(node:3856) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent coach loads the active AI game and reveals three real hint levels (106.8053ms)
+✔ coach page and card bind real state without demo explanation or fixed move (2.2968ms)
+(node:28192) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ records actual games once, keeps creation time, and sorts recent moves first (10.2867ms)
+✔ restores the real local position after a new store instance opens it (1.4426ms)
+✔ restores a local game finished by resignation (0.6036ms)
+✔ rejects a damaged history index instead of displaying invented empty history (0.8239ms)
+✔ stores the terminal result of an actual legal game without inventing a winner (3.6126ms)
+✔ local undo frames survive storage with defensive copies and old records default to no frame (1.0552ms)
+✔ damaged local undo frames are rejected instead of poisoning a resumed game (0.532ms)
+✔ undo frames must describe a playable pre-move position (0.371ms)
+(node:19708) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legal nodes are exactly P01 through P29 (3.2181ms)
+✔ declared BoardLines exactly match the authoritative IDs and node order (0.4747ms)
+✔ the declared BoardLine count matches the required total (2.0532ms)
+✔ BoardGraph has exactly the direct adjacency pairs generated by consecutive line nodes (3.6486ms)
+✔ V3 contains P29-P27-P03 and supports the line path from P29 to P03 (0.8674ms)
+✔ separate temple edge lines cannot be merged into one straight BoardLine (0.4067ms)
+✔ temple line connections remain direct graph edges (0.3082ms)
+(node:26644) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initial position has explicit perspective and opposite scores (13.438ms)
+✔ the same board scores identically when only current_player changes (10.4542ms)
+✔ material counts only active board pieces and reserve stays separate (3.6204ms)
+✔ mobility is the real legal-move count difference for either player (4.6702ms)
+✔ a real CLAMP creates a capture opportunity, without evaluating a best move (1.4732ms)
+✔ opponent capture routes create negative vulnerability contribution (3.2206ms)
+✔ opportunity counts distinct capturable nodes while vulnerability counts legal capture actions (9.1455ms)
+✔ capture rules and reserves govern whether an opportunity is counted (1.9522ms)
+✔ temple control excludes P03 while lone-piece mobility risk includes it (12.6286ms)
+✔ a lone temple piece with fewer legal moves has higher nonterminal trap risk (3.5156ms)
+✔ a lone P03 piece with fewer exits has higher mobility risk (6.303ms)
+✔ CAPTURE_ALL terminal scores work for A and B and bypass ordinary features (0.9142ms)
+✔ TEMPLE_TRAP terminal scores override ordinary temple risk for either winner (0.5762ms)
+✔ P03 and ordinary-node immobilization use terminal mate scores, not mobility risk (1.6839ms)
+✔ every nonterminal breakdown sums to the score and perspectives are strictly opposite (15.2523ms)
+✔ custom config can isolate material and changes the terminal constant (1.3924ms)
+✔ evaluation is deterministic and leaves board, reserves, turn and winner untouched (18.0641ms)
+(node:19596) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/services/api-client.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ client unwraps success envelope and game API sends exact create/move paths and bodies (3.8311ms)
+✔ review API reads and generates one completed game review (0.7958ms)
+✔ API errors keep public codes and show safe messages (1.6683ms)
+✔ game operation errors have actionable Chinese messages (0.4129ms)
+✔ transport failure and unknown server errors never expose internals (0.9975ms)
+(node:12680) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ RuleEngine provides one facade over the existing rules (6.1402ms)
+✔ capture helpers on the facade delegate to the existing pattern and resolution rules (2.646ms)
+✔ all generated moves match validation and all valid destinations are generated (2.8972ms)
+✔ RuleEngine queries either player without changing the real turn or finished status (3.0237ms)
+✔ the full turn entry accepts long horizontal, vertical, diagonal, and temple lines (3.131ms)
+✔ a normal turn returns complete snapshots, no captures, and the next player (0.7818ms)
+✔ independent turn simulations do not mutate their shared input (1.625ms)
+✔ a complete CLAMP turn replaces one enemy piece and spends one reserve (0.8135ms)
+✔ a complete CARRY turn replaces both ends and spends two reserves (1.0519ms)
+✔ moving a tail away creates a new CLAMP without moving a segment piece (0.8991ms)
+✔ one move resolves every new pattern, deduplicates nodes, and spends reserve once (0.8808ms)
+✔ two new CLAMP patterns sharing one enemy spend only one reserve (0.6278ms)
+✔ one move can resolve two CARRY patterns in different directions (0.5662ms)
+✔ a capture replacement that creates another pattern does not capture recursively (0.6839ms)
+✔ an already existing capture pattern is not resolved by an unrelated move (0.8965ms)
+✔ insufficient reserve cancels every capture but keeps the normal move (0.5095ms)
+✔ multi-pattern insufficient reserve is atomic for the entire capture stage (0.5842ms)
+✔ two enemy pieces cannot be carried in a full turn (0.3488ms)
+✔ one enemy piece cannot be clamped in a full turn (0.4784ms)
+✔ capture all wins before switching players and agrees with TurnResult (1.1637ms)
+✔ temple trap is checked only after switching to the trapped player (0.4423ms)
+✔ a lone temple piece with a legal move keeps the game active (0.3975ms)
+✔ a blocked lone piece on P03 loses only after the turn switches to it (0.4028ms)
+✔ an immobilized lone piece on an ordinary node also loses after the turn (0.3663ms)
+✔ blocking a lone piece last exit with the current move ends the game after switching (0.4399ms)
+✔ capture that leaves one blocked survivor checks immobilization after capture (0.3961ms)
+✔ two immobilized pieces do not lose after the turn switches to them (0.3618ms)
+✔ invalid and finished turns reject moves without mutating the input state (1.1674ms)
+(node:15212) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AI malformed operation refreshes authority and retries original request (8.6254ms)
+✔ AI malformed operation and GET preserve old authority while same request can retry (1.6454ms)
+✔ AI GET refresh alone preserves unresolved request and blocks AI resumption (2.3762ms)
+✔ AI terminal resignation response recovery retries original ID through retry entry (1.5694ms)
+✔ AI unresolved refresh cannot replace the original game (1.0079ms)
+✔ AI definite retry rejection GAME_STATE_CONFLICT refreshes before unlocking (1.1728ms)
+✔ AI definite retry rejection OPERATION_REQUEST_CONFLICT refreshes before unlocking (0.8398ms)
+✔ AI definite retry rejection GAME_ALREADY_FINISHED refreshes before unlocking (0.9877ms)
+✔ compatible LOCAL malformed operation refreshes authority and retries original request (2.0103ms)
+✔ compatible LOCAL malformed operation and GET preserve old authority while same request can retry (1.8282ms)
+✔ compatible LOCAL GET refresh alone preserves unresolved request and blocks AI resumption (0.698ms)
+✔ compatible LOCAL terminal resignation response recovery retries original ID through retry entry (0.7696ms)
+✔ compatible LOCAL unresolved refresh cannot replace the original game (0.7625ms)
+✔ compatible LOCAL definite retry rejection GAME_STATE_CONFLICT refreshes before unlocking (0.7969ms)
+✔ compatible LOCAL definite retry rejection OPERATION_REQUEST_CONFLICT refreshes before unlocking (0.7009ms)
+✔ compatible LOCAL definite retry rejection GAME_ALREADY_FINISHED refreshes before unlocking (0.6833ms)
+✔ main default connector invokes the real automator with its instance receiver (56.2106ms)
+(node:14880) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/pages/game/game.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ local page persists moves, confirms undo and resignation separately, and honors settings (198.7301ms)
+✔ game page exposes real operation controls, shared settings, and separate dialogs (1.7535ms)
+(node:19964) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/services/game-settings.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ game settings use safe defaults and persist versioned changes (3.1144ms)
+✔ damaged, partial, and wrongly typed stored settings are replaced with defaults (1.2262ms)
+✔ store reads and writes defensive copies (0.8853ms)
+✔ wx store uses the versioned storage key (0.5547ms)
+✔ successful-action vibration respects settings and never breaks the operation (0.6179ms)
+✔ game settings component emits a complete settings object for every control (10.4343ms)
+✔ component template contains three switches, one AI radio group, and no controller access (2.454ms)
+(node:2784) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ maps canonical initial state to existing ChessBoard geometry and status without mutation (5.3701ms)
+✔ maps captured replacement pieces and server reserve/current player directly (0.9233ms)
+✔ marks captured and replacement nodes from server capture result (0.7211ms)
+✔ maps CAPTURE_ALL winner text without inferring board rules (0.3517ms)
+✔ maps TEMPLE_TRAP winner text without inferring board rules (0.3308ms)
+✔ maps LONE_PIECE_IMMOBILIZED winner text without inferring board rules (0.2529ms)
+✔ maps RESIGN winner text without inferring board rules (0.2436ms)
+✔ resignation to winner A is rendered from either viewer or a shared board (0.3517ms)
+✔ resignation to winner B is rendered from either viewer or a shared board (0.3698ms)
+(node:20112) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initial board has exactly the five A and five B positions (3.4426ms)
+✔ all other legal nodes, including P26-P29, are empty initially (0.6136ms)
+✔ BoardState occupancy contains exactly P01-P29 and no other keys (2.0778ms)
+✔ piece counts are derived from BoardState rather than stored separately (0.3996ms)
+✔ each player has one authoritative reserve_count initialized to four (0.3976ms)
+✔ firstPlayer configures both first_player and current_player (0.2436ms)
+(node:19356) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ game page records and resumes real local games and indexes server games (222.2854ms)
+✔ shared local resignation and restored terminal name the actual resigning player (37.5027ms)
+(node:2440) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ history page shows real local records and routes each status to a usable destination (102.1949ms)
+(node:11672) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ completed depths 1–3 match fixed ordered Alpha-Beta with TT for both perspectives (5996.79ms)
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","depth":1,"fixedScore":34,"iterativeScore":34,"fixedBestMove":{"from":"P06","to":"P09"},"iterativeBestMove":{"from":"P06","to":"P09"},"match":true}
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","depth":2,"fixedScore":4,"iterativeScore":4,"fixedBestMove":{"from":"P01","to":"P13"},"iterativeBestMove":{"from":"P01","to":"P13"},"match":true}
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","depth":3,"fixedScore":14,"iterativeScore":14,"fixedBestMove":{"from":"P06","to":"P09"},"iterativeBestMove":{"from":"P06","to":"P09"},"match":true}
+✔ clock timeout keeps the last complete result and counts partial work (251.5043ms)
+✔ zero budget and root timeout return a legal depth-zero fallback (1.7757ms)
+✔ timeout during depth one retains no partial candidate score (4.5396ms)
+✔ TT is reused across depths and its counters cover the whole call (2090.2882ms)
+✔ cutoffs count every completed iteration (12218.5903ms)
+✔ one TT instance spans iterations but a new search gets another table (214.0151ms)
+✔ deadline crossed during the final leaf evaluation does not complete that depth (1.3149ms)
+✔ timeout inside a child never stores an incomplete TT entry (0.7021ms)
+✔ finished winner reasons preserve signed scores and never iterate (0.5994ms)
+✔ RULE_AMBIGUITY propagates through the iterative loop (0.3451ms)
+✔ a deeper RULE_AMBIGUITY is not mistaken for timeout after depth one completes (98.9757ms)
+✔ immediate win, defensive reply, faster win and slower loss match fixed search (4301.9356ms)
+✔ invalid depth and budget are rejected (0.4034ms)
+✔ real-clock medium-position benchmark records full and short budgets (5396.942ms)
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","maxDepth":4,"timeLimitMs":10000,"completedDepth":4,"nodes":6640,"ttHits":1840,"thinkingTimeMs":5291.09,"timedOut":false,"bestMove":{"from":"P01","to":"P13"},"score":0}
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","maxDepth":4,"timeLimitMs":100,"completedDepth":2,"nodes":185,"ttHits":0,"thinkingTimeMs":104.38,"timedOut":true,"bestMove":{"from":"P01","to":"P13"},"score":4}
+(node:24344) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ visual nodes use canonical IDs while preserving the existing physical layout (4.1901ms)
+✔ local initialization and board pieces derive from the real GameState (1.6629ms)
+✔ only the current player can select and legal targets come from RuleEngine (3.1857ms)
+✔ selecting another friendly piece switches selection and illegal empty nodes do not move (1.396ms)
+✔ a legal target executes one real turn and B can take the next turn (2.6098ms)
+✔ CLAMP and CARRY update every displayed piece and reserve from TurnResult.state (3.5154ms)
+✔ multi-capture and insufficient reserve render the engine result atomically (4.5319ms)
+✔ CAPTURE_ALL and TEMPLE_TRAP stop further taps with winners from GameState (2.1733ms)
+✔ local play stops on a P03 lone-piece loss and the page names its winner reason (2.4532ms)
+✔ stale legal highlighting cannot bypass executeTurn validation (1.9566ms)
+✔ restart recreates the standard game and clears selection and last move (1.0423ms)
+✔ local undo restores exactly the previous state and clears its single frame (1.274ms)
+✔ local undo refuses terminal sessions even when the winning move left an undo frame (1.8844ms)
+✔ only the latest local move is undoable and play can continue with a fresh frame (0.859ms)
+✔ local resignation awards the win to the opponent and clears interaction state (5.2083ms)
+✔ legal target rendering can be hidden without changing the legal session (0.7081ms)
+(node:2356) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ depth zero evaluates the unchanged root from the requested perspective (19.8192ms)
+✔ depth one scores every real child and chooses the maximum for player A (42.6233ms)
+✔ depth one treats the opponent-to-root turn as a minimizing node (29.1725ms)
+✔ depth two takes the minimum of every opponent reply and counts all nodes (300.458ms)
+✔ A and B both choose legal moves from their own turns without changing input (142.2278ms)
+✔ equal scores select the first legal move deterministically (371.7226ms)
+✔ finished states use the existing mate score for all three winner reasons (1.4049ms)
+✔ an immediate real win outranks nonwinning moves at depth one (20.503ms)
+✔ depth two avoids a tempting move that allows the opponent to win immediately (34.1174ms)
+✔ forced wins in one ply outrank forced wins in three plies (329.3591ms)
+✔ when every move loses, Minimax chooses the defeat four plies away (7823.7799ms)
+✔ nonterminal states with no legal moves report rule ambiguity without inventing a loss (0.9097ms)
+✔ invalid search depths are rejected (0.2583ms)
+(node:25984) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ordering preserves every real legal move and puts a GameEngine win first (36.5691ms)
+✔ both lone-piece winner reasons are immediate wins for ordering (98.3922ms)
+✔ real capture outranks a normal move, while insufficient reserve is not capture (30.1607ms)
+✔ player B capture is ordered as the moving player’s good action (8.1725ms)
+✔ more unique captured nodes rank first within the capture category (2.4515ms)
+✔ a noncapturing move with a real later capture opportunity outranks normal (10.7544ms)
+✔ P03 is an ordering entrance but remains outside TEMPLE_NODES (45.5619ms)
+✔ category priorities follow win, capture, threat, entrance, normal (42.3884ms)
+✔ same category and capture count keep the original stable move order (186.6679ms)
+✔ ordered search preserves exact scores at depths one through three for A and B (1880.5517ms)
+✔ ordered search keeps immediate win, defensive reply and fast mate decisions (317.9708ms)
+✔ depth four slow defeat keeps its mate score and shows actual ordering effect (14173.476ms)
+ℹ {"fixture":"P03 lone B, seven A blockers","depth":4,"score":-999996,"bestMove":{"from":"P03","to":"P02"},"plainNodes":3580,"plainCutoffs":86,"plainTimeMs":3040,"orderedNodes":3100,"orderedCutoffs":86,"orderedTimeMs":3713}
+✔ ordered search retains terminal and ambiguity behavior (0.7126ms)
+✔ ordered search reports a real no-move child when it is visited (49.0185ms)
+(node:1620) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ two devices hold separate seats, synchronize turns, and restore their own credentials (87.1455ms)
+✔ seat token is sent as a request header and lost response retries the same move (13.071ms)
+✔ a slow room refresh never rewinds a confirmed local turn (1.6422ms)
+✔ idempotent retry response does not rewind a newer opponent position (12.3784ms)
+✔ a cancelled waiting room stays closed when an older poll returns late (1.5531ms)
+(node:2272) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online history restores active rooms and opens real review for finished games (83.5723ms)
+(node:4412) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ same-version polls publish undo permissions and clear selection while pending (111.0918ms)
+✔ operation APIs use encoded paths, seat headers and original request bodies (2.697ms)
+✔ request undo freezes play, uses server two-ply authority, and rejects duplicate requests (1.7348ms)
+✔ only the responder may acceptUndo a 1-ply undo (0.8078ms)
+✔ only the responder may declineUndo a 1-ply undo (0.7239ms)
+✔ only the responder may acceptUndo a 2-ply undo (0.4033ms)
+✔ only the responder may declineUndo a 2-ply undo (1.42ms)
+✔ uncertain operation keeps its id, version and target through refresh and forbids other actions (2.1228ms)
+✔ invalid operation ply_count undefined resyncs and preserves retry context (1.1509ms)
+✔ invalid operation ply_count -1 resyncs and preserves retry context (0.7418ms)
+✔ invalid operation ply_count 0.5 resyncs and preserves retry context (0.4919ms)
+✔ invalid operation ply_count 2 resyncs and preserves retry context (0.4263ms)
+✔ a malformed operation response cannot clear the request or issue another action (0.6078ms)
+✔ explicit business conflict refreshes and releases the original operation (0.5205ms)
+✔ A can resign while an undo is pending and terminal retry preserves the same request (0.6484ms)
+✔ B can resign while an undo is pending and terminal retry preserves the same request (0.3996ms)
+✔ restore reads legacy seat keys and restores an outstanding server undo (0.6852ms)
+✔ credential helpers validate types and retain the existing key format (1.7391ms)
+✔ invalid room ply_count is rejected on entry and same-version refresh without a version fallback (0.5685ms)
+✔ a pre-operation same-version poll cannot restore an undo after decline (0.4193ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.4122ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.3932ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.2443ms)
+✔ an unchanged playing room is not a valid resignation response (0.3532ms)
+✔ malformed capture data keeps the original move retry and refreshes safely (1.1296ms)
+✔ acceptUndo REMOTE_UNDO_UNAVAILABLE releases the stale target after fresh GET and permits valid actions (0.9096ms)
+✔ declineUndo REMOTE_UNDO_UNAVAILABLE releases the stale target after fresh GET and permits valid actions (0.5721ms)
+✔ acceptUndo REMOTE_UNDO_NOT_FOUND releases the stale target after fresh GET and permits valid actions (0.6459ms)
+✔ declineUndo REMOTE_UNDO_NOT_FOUND releases the stale target after fresh GET and permits valid actions (0.8548ms)
+✔ undo NETWORK_ERROR keeps the original context even when GET shows no pending request (0.7554ms)
+✔ undo INVALID_GAME_RESPONSE keeps the original context even when GET shows no pending request (0.596ms)
+✔ undo UNKNOWN_OPERATION_ERROR keeps the original context even when GET shows no pending request (1.355ms)
+(node:23024) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ invite opens a real guest room page and history reopens the saved seat (136.0057ms)
+✔ online page confirms real operations, uses ply count and settings, and never vibrates on polling (34.944ms)
+✔ online markup binds implemented operations and shared confirmation/settings components (3.6242ms)
+✔ online page restores terminal resignation using its seat for either winner (94.2993ms)
+(node:19144) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ batched turns match canonical individual turns for every suite legal move (114.855ms)
+✔ ordering and evaluation use one batched turn pass per analyzed position (57.9269ms)
+(node:21736) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ incremental hash matches full hash for normal, long, capture and terminal turns (10.1461ms)
+✔ incremental hash equals full recomputation for every legal move in the original suite (106.7543ms)
+✔ incremental hash remains exact across seeded multi-turn canonical games (27.2199ms)
+(node:15900) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ analysis reuses static evaluation and exact completed search for both perspectives (994.8188ms)
+✔ candidate limit truncates return only, preserving best move and score (320.9846ms)
+✔ default analysis options use a bounded preset (154.3115ms)
+✔ zero time budget is a normal timed-out analysis with no invented candidate score (5.4502ms)
+✔ finished positions have terminal evaluation and never offer a move (0.8728ms)
+✔ immediate win threat carries the real winner reason and move (18.2376ms)
+✔ vulnerability and lone-piece risk use Evaluation evidence (44.2969ms)
+✔ structured threats come from real one-ply engine and evaluation evidence (33.1314ms)
+✔ nonterminal position with no legal moves preserves RULE_AMBIGUITY (1.8619ms)
+(node:8136) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ profile uses saved device identity and real account totals (118.4779ms)
+(node:13728) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ RandomAI returns a move from the real RuleEngine legal moves for player A (3.9782ms)
+✔ RandomAI can choose a legal move for player B (0.8787ms)
+✔ repeated choices remain among real legal moves (30.8184ms)
+✔ choosing does not mutate GameState, BoardState, or either reserve (0.8126ms)
+✔ choosing does not execute a turn; the GameEngine executes the returned move (2.7233ms)
+✔ finished games produce no move and do not consume randomness (1.4561ms)
+✔ a playing state with no legal moves returns null (0.4609ms)
+✔ invalid random values cannot produce a nonlegal move (1.3425ms)
+(node:1520) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing game page renders remote server state, saves ID, restores and keeps local mode (216.7154ms)
+(node:5676) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ creates remote game, asks server for legal targets, then renders only accepted TurnResult (6.8775ms)
+✔ move pending blocks double submission and does not change board before server reply (2.1481ms)
+✔ switching selected pieces discards an older legal-move response (1.1807ms)
+✔ server capture result drives replacement pieces, reserve and terminal display (2.7263ms)
+✔ duplicate game creation is blocked while the first request is pending (0.7331ms)
+✔ new controller restores from stored ID and continues from server state (0.8082ms)
+✔ missing stored game clears ID and creates a fresh game (0.8311ms)
+✔ inaccessible stored game from an older device account is replaced (1.5391ms)
+✔ conflict reloads authoritative state and clears stale selection (1.9106ms)
+✔ failed conflict reload locks stale board until a successful retry (1.0908ms)
+✔ engine outage leaves server board unchanged and never falls back to local rules (0.7771ms)
+✔ invalid move clears stale highlights without changing the board (0.4945ms)
+✔ invalid move reloads a newer server state when another client already moved (0.4563ms)
+✔ terminal server result blocks further taps and restart creates a new game ID (2.5783ms)
+✔ disposed page ignores late request response (0.5142ms)
+✔ compatible LOCAL remote controller applies authoritative one-ply undo and resignation (1.0447ms)
+✔ compatible controller never treats revision as ply count (0.3663ms)
+✔ compatible controller rejects missing and invalid operation ply counts (3.769ms)
+(node:23184) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review scores actual move outside top three with the same full-depth search (878.9309ms)
+✔ different moves with equal best score are GOOD and best equivalent (103.3905ms)
+✔ review rejects a history snapshot that disagrees with the actual move (0.7292ms)
+✔ review accepts equivalent database JSON with reordered object keys (158.5495ms)
+✔ immediate mate is GOOD and missing it has a finite mate-range loss (958.3297ms)
+✔ all non-best categories follow centralized heuristic thresholds (487.0652ms)
+✔ best move in a forced slow loss is GOOD despite the final losing score (4666.9287ms)
+(node:1008) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/pages/review/review.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review page reads or creates review, explains it, and keeps structured fields (124.6033ms)
+✔ online review verifies its saved seat and only requests room review, including zero move resignation (45.415ms)
+✔ online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback (54.1022ms)
+(node:14536) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Node worker returns exact historical move review without changing snapshots (930.8001ms)
+✔ source checker accepts native radio controls and still rejects unknown tags (703.0518ms)
+(node:15636) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training question hides answer until server scores a legal board move (4.0588ms)
+✔ failed submission retries with the same attempt ID and leaves source snapshot unchanged (1.0092ms)
+✔ failed legal-target request can be retried from the question (0.6462ms)
+✔ more than twenty questions remain reachable from list and next action (0.9521ms)
+(node:26116) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/ai/transposition-table.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ EXACT entry is used only at the same remaining depth (2.3981ms)
+✔ same hash with a different state signature is a collision miss (0.4564ms)
+✔ LOWER_BOUND tightens alpha and records only real TT cutoffs (0.4057ms)
+✔ UPPER_BOUND tightens beta without changing alpha (0.3246ms)
+✔ fail-soft flags use the original window (0.3494ms)
+✔ replacement keeps deeper entries and prefers EXACT at equal depth (0.4007ms)
+✔ mate normalization restores the correct positive and negative distance (0.2881ms)
+✔ ordinary scores, even near mate magnitude, are never ply-adjusted (0.249ms)
+(node:28124) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initial GameState has one consistent unfinished status (3.7777ms)
+✔ only P26-P29 are temple nodes and P03 is outside (2.1928ms)
+✔ CAPTURE_ALL uses board occupancy and ignores opponent reserve (0.9521ms)
+✔ successful capture of all enemy pieces finishes before switching player (1.453ms)
+✔ capture that leaves an enemy on board does not declare CAPTURE_ALL (0.8634ms)
+✔ insufficient reserve cannot create a false CAPTURE_ALL (0.3862ms)
+✔ one B piece trapped at P27 is detected with real legal moves (0.9858ms)
+✔ a lone temple piece with an available move is not trapped (0.7508ms)
+✔ a mobile lone piece outside the temple keeps playing (0.4114ms)
+✔ P03 is outside the temple but its immobilized lone piece still loses (0.9ms)
+✔ a blocked lone piece on an ordinary node loses for the non-temple reason (0.7853ms)
+✔ a blocked P27 does not count as trap when B has another board piece (0.3937ms)
+✔ a blocked lone B cannot be declared lost during A turn (0.3248ms)
+✔ two immobilized pieces do not trigger the lone-piece rule (0.3441ms)
+✔ executeTurn checks temple trap after switching to the trapped player (0.5715ms)
+✔ a normal non-winning turn switches player and remains playable (0.3594ms)
+✔ finished game rejects another executeTurn without changing the result (1.475ms)
+✔ last-piece CLAMP and last-two CARRY filters remain active in full turns (0.718ms)
+(node:14004) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/game-operations/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ fixed-seed hash is repeatable across clones and JSON round trips (4.5156ms)
+✔ all 29 node occupancies and both player identities affect the hash (3.0376ms)
+✔ turn, each reserve, game status, winner and reason independently affect identity (0.9747ms)
+✔ first_player does not split positions with identical future rules and evaluation (0.426ms)
+ℹ tests 422
+ℹ suites 0
+ℹ pass 422
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32720.0989

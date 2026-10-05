@@ -1,0 +1,10 @@
+ISOLATION verified database=wuma_acceptance_test; project=E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\game-operations
+PASS SIMULATED online A/B request/reconnect/accept id=56746f3f975d47d79178004cae35089b; two-device acceptance NOT performed
+PASS SIMULATED online A resign -> opponent terminal -> seat review
+CLEANUP FAILED stop page controllers: open /pages/index/index: timeout
+FAIL game-operations: Expected values to be strictly equal:
++ actual - expected
+
++ 'pages/review/review'
+- 'pages/online/online'
+         ^
