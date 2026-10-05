@@ -6,6 +6,7 @@ the migrated schema available for persistence tests and never drops tables.
 """
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -21,16 +22,22 @@ def test_fresh_mysql_upgrade_preserves_string_foreign_key_collations(monkeypatch
     if not database_url:
         pytest.skip("empty isolated MySQL migration test database not configured")
     parsed_url = make_url(database_url)
-    if not parsed_url.drivername.startswith("mysql") or not (
-        parsed_url.database or ""
-    ).endswith("_test"):
+    allowed_query_options = {"charset", "connect_timeout", "read_timeout", "write_timeout"}
+    if (
+        not parsed_url.drivername.startswith("mysql")
+        or not (parsed_url.database or "").endswith("_test")
+        or set(parsed_url.query) - allowed_query_options
+    ):
         raise RuntimeError(
-            "WUMA_TEST_MIGRATION_DATABASE_URL must name a MySQL database ending in _test"
+            "WUMA_TEST_MIGRATION_DATABASE_URL must name an isolated MySQL *_test database "
+            "with only charset and timeout query options"
         )
 
     engine = create_engine(database_url)
     try:
         with engine.connect() as connection:
+            if connection.scalar(text("SELECT DATABASE()")) != parsed_url.database:
+                raise RuntimeError("migration connected database differs from the isolated test database")
             assert not inspect(connection).get_table_names(), "migration test requires an empty database"
             collation = connection.scalar(text(
                 "SELECT DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA "
@@ -64,3 +71,61 @@ def test_fresh_mysql_upgrade_preserves_string_foreign_key_collations(monkeypatch
             assert all(child == parent for _, _, child, parent in foreign_keys), foreign_keys
     finally:
         engine.dispose()
+
+
+@pytest.mark.parametrize("query", [
+    "database=unexpected", "db=unexpected", "host=unexpected", "port=3306",
+    "user=unexpected", "password=unexpected", "unix_socket=unexpected",
+    "read_default_file=unexpected", "charset=utf8mb4&database=unexpected",
+])
+def test_migration_rejects_connection_overrides_before_connecting(monkeypatch, query):
+    monkeypatch.setenv(
+        "WUMA_TEST_MIGRATION_DATABASE_URL", f"mysql+pymysql://127.0.0.1/guard_test?{query}"
+    )
+
+    def refuse_connection(_database_url):
+        pytest.fail("unsafe migration URL must be rejected before creating an engine")
+
+    monkeypatch.setattr(sys.modules[__name__], "create_engine", refuse_connection)
+    with pytest.raises(RuntimeError, match="isolated MySQL"):
+        test_fresh_mysql_upgrade_preserves_string_foreign_key_collations(monkeypatch)
+
+
+def test_migration_rejects_mismatched_active_database_before_upgrade(monkeypatch):
+    monkeypatch.setenv("WUMA_TEST_MIGRATION_DATABASE_URL", "mysql+pymysql://127.0.0.1/guard_test")
+    disposed = []
+
+    class Connection:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            pass
+
+        def scalar(self, statement):
+            if "DEFAULT_COLLATION_NAME" in str(statement):
+                return "utf8mb4_unicode_ci"
+            return "unexpected"
+
+    class Engine:
+        def connect(self):
+            return Connection()
+
+        def dispose(self):
+            disposed.append(True)
+
+    class Inspector:
+        def get_table_names(self):
+            return []
+
+    module = sys.modules[__name__]
+    monkeypatch.setattr(module, "create_engine", lambda _url: Engine())
+    monkeypatch.setattr(module, "inspect", lambda _connection: Inspector())
+
+    def refuse_upgrade(*_args):
+        pytest.fail("active database mismatch must be rejected before any migration")
+
+    monkeypatch.setattr(command, "upgrade", refuse_upgrade)
+    with pytest.raises(RuntimeError, match="connected database"):
+        test_fresh_mysql_upgrade_preserves_string_foreign_key_collations(monkeypatch)
+    assert disposed == [True]
