@@ -30,6 +30,7 @@ def upgrade() -> None:
         sa.Column("created_at", DATETIME(fsp=6), nullable=False),
         sa.UniqueConstraint("game_id", "reviewed_player", "review_config_version",
                             name="uq_game_review_version"),
+        mysql_charset="utf8mb4",
     )
     op.create_table(
         "move_reviews",
@@ -56,6 +57,7 @@ def upgrade() -> None:
         sa.Column("analysis", sa.JSON(), nullable=False),
         sa.Column("created_at", DATETIME(fsp=6), nullable=False),
         sa.UniqueConstraint("game_review_id", "game_move_id", name="uq_move_review_source"),
+        mysql_charset="utf8mb4",
     )
 
 

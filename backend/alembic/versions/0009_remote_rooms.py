@@ -24,6 +24,7 @@ def upgrade() -> None:
         sa.Column("expires_at", DATETIME(fsp=6), nullable=False),
         sa.Column("created_at", DATETIME(fsp=6), nullable=False),
         sa.Column("updated_at", DATETIME(fsp=6), nullable=False),
+        mysql_charset="utf8mb4",
     )
     op.create_index("ix_remote_rooms_match", "remote_rooms", ["public", "status", "expires_at"])
     op.add_column("game_moves", sa.Column("client_request_id", sa.String(64)))

@@ -39,6 +39,7 @@ def upgrade() -> None:
         sa.Column("winner", sa.String(1), nullable=True),
         sa.Column("winner_reason", sa.String(40), nullable=True),
         sa.Column("created_at", DATETIME(fsp=6), nullable=False),
+        mysql_charset="utf8mb4",
     )
     op.create_index("ix_ai_analysis_game_version", "ai_analysis", ["game_id", "game_version"])
 

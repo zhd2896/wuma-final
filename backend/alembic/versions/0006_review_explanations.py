@@ -23,6 +23,7 @@ def upgrade() -> None:
         sa.Column("created_at", DATETIME(fsp=6), nullable=False),
         sa.UniqueConstraint("game_review_id", "prompt_version",
                             name="uq_review_explanation_version"),
+        mysql_charset="utf8mb4",
     )
 
 

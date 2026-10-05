@@ -36,6 +36,7 @@ def upgrade() -> None:
         sa.Column("created_at", DATETIME(fsp=6), nullable=False),
         sa.UniqueConstraint("source_move_review_id", "training_type", "generation_version",
                             name="uq_training_source_type_version"),
+        mysql_charset="utf8mb4",
     )
     op.create_index("ix_training_items_category_created", "training_items",
                     ["source_category", "created_at"])
@@ -58,6 +59,7 @@ def upgrade() -> None:
         sa.Column("hint_level_used", sa.Integer()),
         sa.Column("answered_at", DATETIME(fsp=6), nullable=False),
         sa.UniqueConstraint("client_attempt_id", name="uq_training_client_attempt"),
+        mysql_charset="utf8mb4",
     )
     op.create_index("ix_training_records_item_answered", "training_records",
                     ["training_item_id", "answered_at"])

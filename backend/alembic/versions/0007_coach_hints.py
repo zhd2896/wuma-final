@@ -29,6 +29,7 @@ def upgrade() -> None:
         sa.Column("created_at", DATETIME(fsp=6), nullable=False),
         sa.UniqueConstraint("game_id", "game_version", "analyzed_player", "hint_level",
                             "prompt_version", name="uq_coach_hint_version_level"),
+        mysql_charset="utf8mb4",
     )
 
 

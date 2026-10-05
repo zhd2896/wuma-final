@@ -46,6 +46,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
             "game_id", "client_request_id", name="uq_game_undo_events_request"),
+        mysql_charset="utf8mb4",
     )
     op.create_table(
         "game_terminal_events",
@@ -64,6 +65,7 @@ def upgrade() -> None:
         sa.UniqueConstraint("game_id", name="uq_game_terminal_events_game"),
         sa.UniqueConstraint(
             "game_id", "client_request_id", name="uq_game_terminal_events_request"),
+        mysql_charset="utf8mb4",
     )
     op.create_table(
         "remote_undo_requests",
@@ -84,6 +86,7 @@ def upgrade() -> None:
             "game_id", "create_client_request_id", name="uq_remote_undo_requests_create"),
         sa.UniqueConstraint(
             "game_id", "resolve_client_request_id", name="uq_remote_undo_requests_resolve"),
+        mysql_charset="utf8mb4",
     )
     op.create_index(
         "ix_remote_undo_requests_game_status", "remote_undo_requests", ["game_id", "status"])
