@@ -144,7 +144,7 @@ test('online review fails clearly for missing, invalid, or mismatched seat crede
           ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : '',
       request: (options: any) => {
         const path = new URL(options.url).pathname; paths.push(path);
-        if (failure === 'invalid') options.success({ statusCode: 403, data: { code: 'REMOTE_ACCESS_DENIED' } });
+        if (failure === 'invalid' || failure === 'missing') options.success({ statusCode: 403, data: { code: 'REMOTE_ACCESS_DENIED' } });
         else options.success({ statusCode: 200, data: { code: 0, data: path.endsWith('/review')
           ? { gameId: 'g1', reviewedPlayer: 'B' } : { game_id: 'g1', seat: 'A', version: 1,
             ply_count: 0, room_status: 'FINISHED', pending_undo: null, state: {
@@ -158,6 +158,7 @@ test('online review fails clearly for missing, invalid, or mismatched seat crede
     assert.equal(page.data.state, 'error');
     assert.match(page.data.errorMessage, failure === 'mismatch' ? /数据异常/ : /凭证/);
     assert.ok(paths.every(path => path.startsWith('/api/v1/remote/rooms/')));
-    if (failure === 'missing') assert.deepEqual(paths, []);
+    if (failure === 'missing') assert.deepEqual(paths, ['/api/v1/remote/rooms/g1/recover']);
+    if (failure === 'invalid') assert.deepEqual(paths, ['/api/v1/remote/rooms/g1', '/api/v1/remote/rooms/g1/recover']);
   }
 });

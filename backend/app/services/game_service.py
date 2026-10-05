@@ -208,7 +208,8 @@ class GameService:
         return await self._create_review(game_id, reviewed_player)
 
     async def _create_review(self, game_id: str, reviewed_player: str | None, *,
-                             remote: bool = False) -> GameReview:
+                             remote: bool = False, remote_user_id: str | None = None,
+                             remote_token_hash: str | None = None) -> GameReview:
         config = ReviewConfig()
         snapshot, moves = await self.store.read_replay(game_id)
         player = self._reviewed_player(snapshot, reviewed_player, remote=remote)
@@ -243,5 +244,9 @@ class GameService:
             reviewConfig=config, reviewConfigVersion=config.version,
             moveReviews=reviewed, createdAt=datetime.now(timezone.utc),
         )
-        saved = await self.store.commit_review(review, snapshot.version)
+        if remote:
+            saved = await self.store.commit_review(review, snapshot.version,
+                user_id=remote_user_id, remote_token_hash=remote_token_hash)
+        else:
+            saved = await self.store.commit_review(review, snapshot.version)
         return self._review_with_snapshots(saved, moves)

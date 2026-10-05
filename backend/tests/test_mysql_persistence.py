@@ -69,6 +69,11 @@ def client(db):
         test_client.app.state.store.close()
 
 
+def new_account_headers(client):
+    token = client.post("/api/v1/auth/device").json()["data"]["token"]
+    return {"Authorization": "Bearer " + token}
+
+
 def create_game(client, mode="LOCAL", first_player="A", ai_player=None):
     body = {"first_player": first_player, "mode": mode}
     if ai_player is not None:
@@ -112,7 +117,8 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
     host = host_response.json()["data"]
     assert host["version"] == host["ply_count"] == 0
     game_id = host["game_id"]
-    guest_response = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest_response = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-guest-device"})
     assert guest_response.status_code == 200, guest_response.text
     guest = guest_response.json()["data"]
@@ -136,9 +142,9 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
     assert moves[0].turn_number == moves[0].created_revision == 1
     assert moves[0].reverted_revision is None
     with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
-        restarted.headers["Authorization"] = client.headers["Authorization"]
+        restarted.headers["Authorization"] = guest_headers["Authorization"]
         fetched = restarted.get(f"/api/v1/remote/rooms/{game_id}",
-                                headers={"X-Room-Token": guest["token"]})
+                                headers={**guest_headers, "X-Room-Token": guest["token"]})
         assert fetched.status_code == 200, fetched.text
         assert fetched.json()["data"]["seat"] == "B"
         assert fetched.json()["data"]["version"] == fetched.json()["data"]["ply_count"] == 1
@@ -149,8 +155,9 @@ def test_simultaneous_public_match_pairs_two_devices(client, db):
     barrier = Barrier(2)
 
     def match(device_id):
+        headers = new_account_headers(client)
         barrier.wait()
-        response = client.post("/api/v1/remote/match", json={"device_id": device_id})
+        response = client.post("/api/v1/remote/match", headers=headers, json={"device_id": device_id})
         assert response.status_code == 200, response.text
         return response.json()["data"]
 
@@ -539,7 +546,8 @@ def test_mysql_remote_pending_undo_is_rechecked_inside_move_transaction(client, 
     host = client.post("/api/v1/remote/rooms", json={
         "device_id": "mysql-pending-host", "public": False,
     }).json()["data"]
-    guest = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-pending-guest",
     }).json()["data"]
     game_id = host["game_id"]
@@ -572,7 +580,8 @@ def test_mysql_reverted_remote_request_is_a_permanent_tombstone(client, db):
     host = client.post("/api/v1/remote/rooms", json={
         "device_id": "mysql-tombstone-host", "public": False,
     }).json()["data"]
-    guest = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-tombstone-guest",
     }).json()["data"]
     game_id = host["game_id"]
@@ -586,7 +595,7 @@ def test_mysql_reverted_remote_request_is_a_permanent_tombstone(client, db):
         "expected_version": 1, "client_request_id": "mysql-tombstone-create-0001",
     }).json()["data"]["pending_undo"]
     accepted = client.post(path + f"/undo-requests/{created['id']}/accept",
-                           headers={"X-Room-Token": guest["token"]}, json={
+                           headers={**guest_headers, "X-Room-Token": guest["token"]}, json={
         "expected_version": 1, "client_request_id": "mysql-tombstone-accept-0001",
     })
     assert accepted.status_code == 200, accepted.text
@@ -601,20 +610,21 @@ def test_mysql_remote_operation_retries_return_identical_revert_counts(client, d
         host = client.post("/api/v1/remote/rooms", json={
             "device_id": f"{prefix}-host-device", "public": False,
         }).json()["data"]
-        guest = client.post("/api/v1/remote/join", json={
+        guest_headers = new_account_headers(client)
+        guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
             "invite_code": host["invite_code"],
             "device_id": f"{prefix}-guest-device",
         }).json()["data"]
-        return host, guest
+        return host, guest, guest_headers
 
-    host, guest = playing_room("mysql-idem-accept")
+    host, guest, guest_headers = playing_room("mysql-idem-accept")
     game_id = host["game_id"]
     path = f"/api/v1/remote/rooms/{game_id}/move"
     assert client.post(path, headers={"X-Room-Token": host["token"]}, json={
         "from_node": "P01", "to_node": "P02", "expected_version": 0,
         "client_request_id": "mysql-idem-accept-move-a",
     }).status_code == 200
-    assert client.post(path, headers={"X-Room-Token": guest["token"]}, json={
+    assert client.post(path, headers={**guest_headers, "X-Room-Token": guest["token"]}, json={
         "from_node": "P05", "to_node": "P04", "expected_version": 1,
         "client_request_id": "mysql-idem-accept-move-b",
     }).status_code == 200
@@ -635,7 +645,7 @@ def test_mysql_remote_operation_retries_return_identical_revert_counts(client, d
     assert first == retry
     assert first.revert_count == 2
 
-    host, guest = playing_room("mysql-idem-decline")
+    host, guest, guest_headers = playing_room("mysql-idem-decline")
     game_id = host["game_id"]
     assert client.post(f"/api/v1/remote/rooms/{game_id}/move",
                        headers={"X-Room-Token": host["token"]}, json={
@@ -659,7 +669,7 @@ def test_mysql_remote_operation_retries_return_identical_revert_counts(client, d
     assert first == retry
     assert first.revert_count == 1
 
-    host, guest = playing_room("mysql-idem-stale")
+    host, guest, guest_headers = playing_room("mysql-idem-stale")
     game_id = host["game_id"]
     assert client.post(f"/api/v1/remote/rooms/{game_id}/move",
                        headers={"X-Room-Token": host["token"]}, json={
@@ -725,7 +735,8 @@ def test_mysql_remote_resign_event_failure_rolls_back_game_and_pending_request(c
     host = client.post("/api/v1/remote/rooms", json={
         "device_id": "mysql-resign-host", "public": False,
     }).json()["data"]
-    guest = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-resign-guest",
     }).json()["data"]
     game_id = host["game_id"]

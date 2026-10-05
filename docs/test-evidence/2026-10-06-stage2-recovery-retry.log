@@ -1,0 +1,72 @@
+(node:4984) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ two devices hold separate seats, synchronize turns, and restore their own credentials (73.0033ms)
+✔ seat token is sent as a request header and lost response retries the same move (11.0416ms)
+✔ a slow room refresh never rewinds a confirmed local turn (1.2855ms)
+✔ idempotent retry response does not rewind a newer opponent position (2.6154ms)
+✔ a cancelled waiting room stays closed when an older poll returns late (1.4637ms)
+(node:13516) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ same-version polls publish undo permissions and clear selection while pending (67.4777ms)
+✔ operation APIs use encoded paths, seat headers and original request bodies (1.8625ms)
+✔ request undo freezes play, uses server two-ply authority, and rejects duplicate requests (1.3776ms)
+✔ only the responder may acceptUndo a 1-ply undo (0.8983ms)
+✔ only the responder may declineUndo a 1-ply undo (0.8073ms)
+✔ only the responder may acceptUndo a 2-ply undo (0.5694ms)
+✔ only the responder may declineUndo a 2-ply undo (0.477ms)
+✔ uncertain operation keeps its id, version and target through refresh and forbids other actions (2.0145ms)
+✔ invalid operation ply_count undefined resyncs and preserves retry context (0.8903ms)
+✔ invalid operation ply_count -1 resyncs and preserves retry context (0.8105ms)
+✔ invalid operation ply_count 0.5 resyncs and preserves retry context (0.6421ms)
+✔ invalid operation ply_count 2 resyncs and preserves retry context (0.4145ms)
+✔ a malformed operation response cannot clear the request or issue another action (0.5444ms)
+✔ explicit business conflict refreshes and releases the original operation (0.5288ms)
+✔ A can resign while an undo is pending and terminal retry preserves the same request (0.5821ms)
+✔ B can resign while an undo is pending and terminal retry preserves the same request (0.3338ms)
+✔ restore reads legacy seat keys and restores an outstanding server undo (0.5151ms)
+✔ credential helpers validate types and retain the existing key format (1.0721ms)
+✔ invalid room ply_count is rejected on entry and same-version refresh without a version fallback (0.3991ms)
+✔ a pre-operation same-version poll cannot restore an undo after decline (0.3291ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.3516ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.1793ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.1458ms)
+✔ an unchanged playing room is not a valid resignation response (0.218ms)
+✔ malformed capture data keeps the original move retry and refreshes safely (0.7742ms)
+✔ acceptUndo REMOTE_UNDO_UNAVAILABLE releases the stale target after fresh GET and permits valid actions (0.5959ms)
+✔ declineUndo REMOTE_UNDO_UNAVAILABLE releases the stale target after fresh GET and permits valid actions (0.4341ms)
+✔ acceptUndo REMOTE_UNDO_NOT_FOUND releases the stale target after fresh GET and permits valid actions (0.3084ms)
+✔ declineUndo REMOTE_UNDO_NOT_FOUND releases the stale target after fresh GET and permits valid actions (0.4716ms)
+✔ undo NETWORK_ERROR keeps the original context even when GET shows no pending request (0.4686ms)
+✔ undo INVALID_GAME_RESPONSE keeps the original context even when GET shows no pending request (0.2634ms)
+✔ undo UNKNOWN_OPERATION_ERROR keeps the original context even when GET shows no pending request (0.239ms)
+(node:15524) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ invite opens a real guest room page and history reopens the saved seat (103.037ms)
+✔ online page confirms real operations, uses ply count and settings, and never vibrates on polling (30.0064ms)
+✔ online markup binds implemented operations and shared confirmation/settings components (1.5514ms)
+✔ online page restores terminal resignation using its seat for either winner (62.4984ms)
+(node:15172) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cloud room without a local credential restores by authenticated account and saves its own token (64.116ms)
+✔ first account recovery network failure can retry the cloud game without an established room or token (1.2742ms)
+✔ legacy token restoration explicitly claims only the authentic seat and saves its rotated token (1.0328ms)
+✔ an invalid saved token can recover only by account and never falls back to unauthenticated access (1.0054ms)
+✔ cloud REMOTE history opens online resume or its own seat review (17.64ms)
+✔ finished online review without a local token recovers its account seat before fetching review (30.745ms)
+✔ cloud finished state supersedes a stale local online row while device-only history remains available (34.5032ms)
+ℹ tests 48
+ℹ suites 0
+ℹ pass 48
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 558.0722

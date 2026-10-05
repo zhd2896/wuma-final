@@ -1,0 +1,1 @@
+PASS fresh schema was empty before migration, both branches upgraded to unique 0015 head; legacy row tokens preserved and participants remain NULL; both foreign keys and indexes present; downgrade/reupgrade retains legacy row

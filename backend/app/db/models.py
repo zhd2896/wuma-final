@@ -70,6 +70,8 @@ class RemoteRoomModel(Base):
     invite_code: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)
     host_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     guest_token_hash: Mapped[str | None] = mapped_column(String(64))
+    host_user_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    guest_user_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), index=True)
     host_device_id: Mapped[str] = mapped_column(String(64), nullable=False)
     guest_device_id: Mapped[str | None] = mapped_column(String(64))
     public: Mapped[bool] = mapped_column(Boolean, nullable=False)

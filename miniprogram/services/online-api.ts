@@ -21,6 +21,7 @@ export interface OnlineOperationRequest {
 }
 
 export interface OnlineRoom {
+  readonly account_bound?: boolean;
   readonly game_id: string;
   readonly seat: Player;
   readonly room_status: 'WAITING' | 'PLAYING' | 'FINISHED' | 'CANCELLED' | 'EXPIRED';
@@ -42,6 +43,8 @@ export interface OnlineMoveRequest {
 }
 
 export interface OnlineApi {
+  recover(id: string): Promise<OnlineRoom>;
+  claim(id: string, token: string): Promise<OnlineRoom>;
   getReview(id: string, token: string): Promise<GameReviewDto>;
   createReview(id: string, token: string): Promise<GameReviewDto>;
   create(deviceId: string, publicRoom: boolean): Promise<OnlineRoom>;
@@ -93,6 +96,8 @@ export function createOnlineApi(client: ApiClient): OnlineApi {
   const auth = (token: string) => ({ 'X-Room-Token': token,
     'content-type': 'application/json' });
   return {
+    recover: id => client.request('POST', `${base(id)}/recover`, {}),
+    claim: (id, token) => client.request('POST', `${base(id)}/claim`, {}, 10000, auth(token)),
     getReview: (id, token) => client.request('GET', `${base(id)}/review`, undefined, 10000, auth(token)),
     createReview: (id, token) => client.request('POST', `${base(id)}/review`, {}, 120000, auth(token)),
     create: (deviceId, publicRoom) => client.request('POST', '/api/v1/remote/rooms',

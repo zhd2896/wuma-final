@@ -3,7 +3,8 @@ import type { ApiClient } from './api-client';
 
 export interface PersonalGameDto {
   readonly gameId: string;
-  readonly mode: 'AI' | 'LOCAL';
+  readonly mode: 'AI' | 'LOCAL' | 'REMOTE';
+  readonly seat?: 'A' | 'B' | null;
   readonly status: 'PLAYING' | 'FINISHED';
   readonly winner: 'A' | 'B' | null;
   readonly winnerReason?: WinnerReason | null;
@@ -20,6 +21,9 @@ export interface PersonalProfileDto {
   readonly finishedGames: number;
   readonly wins: number;
   readonly losses: number;
+  readonly remoteGames: number;
+  readonly remoteWins: number;
+  readonly remoteLosses: number;
   readonly reviewedGames: number;
   readonly training: number;
   readonly correct: number;

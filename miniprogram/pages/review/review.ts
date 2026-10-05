@@ -1,6 +1,6 @@
 import { createApiClient, ApiError, messageForApiError } from '../../services/api-client';
-import { createOnlineApi, requireOnlineRoom } from '../../services/online-api';
-import { requireOnlineSeat } from '../../services/online-credentials';
+import { createOnlineApi } from '../../services/online-api';
+import { restoreOnlineSeat } from '../../services/online-credentials';
 import { createGameApi } from '../../services/game-api';
 import { createTrainingApi } from '../../services/training-api';
 import { hasWechatSession } from '../../services/device-auth';
@@ -51,11 +51,10 @@ Page({
       let api: Pick<GameApi, 'getReview' | 'createReview'>;
       let localApi: GameApi | undefined;
       if (online) {
-        const token = requireOnlineSeat({ read: key => wx.getStorageSync(key),
+        const roomApi = createOnlineApi(createApiClient());
+        const { token, room } = await restoreOnlineSeat(roomApi, { read: key => wx.getStorageSync(key),
           write: (key, value) => wx.setStorageSync(key, value),
           remove: key => wx.removeStorageSync(key) }, gameId);
-        const roomApi = createOnlineApi(createApiClient());
-        const room = requireOnlineRoom(await roomApi.get(gameId, token), { game_id: gameId });
         seat = room.seat;
         api = { getReview: id => roomApi.getReview(id, token),
           createReview: id => roomApi.createReview(id, token) };

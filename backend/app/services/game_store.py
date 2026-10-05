@@ -12,6 +12,7 @@ from backend.app.schemas.game import (
     SearchResult, TurnResult,
 )
 from backend.app.schemas.remote import RemoteOperationRequest
+from backend.app.services.remote_accounts import recovery_seat
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
@@ -80,6 +81,8 @@ class StoredRemoteRoom:
     public: bool
     status: str
     expires_at: datetime
+    host_user_id: str | None = None
+    guest_user_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -126,7 +129,8 @@ class GameStore(Protocol):
     async def commit_analysis(self, game_id: str, expected_version: int,
                               analysis: PositionAnalysis) -> None: ...
     async def get_review(self, game_id: str, player: str, version: int) -> GameReview | None: ...
-    async def commit_review(self, review: GameReview, expected_version: int) -> GameReview: ...
+    async def commit_review(self, review: GameReview, expected_version: int,
+                            user_id: str | None = None, remote_token_hash: str | None = None) -> GameReview: ...
     async def get_explanation(self, review_id: str, prompt_version: str) -> ExplanationBundle | None: ...
     async def commit_explanation(self, bundle: ExplanationBundle) -> ExplanationBundle: ...
     async def get_coach_hint(self, game_id: str, game_version: int, player: str,
@@ -145,28 +149,30 @@ class GameStore(Protocol):
                                      user_id: str | None = None) -> TrainingAnswerResult: ...
     async def create_remote_room(self, state: GameState, token_hash: str, code: str,
                                  device_id: str, public: bool,
-                                 expires_at: datetime) -> StoredRemoteRoom: ...
+                                 expires_at: datetime, user_id: str | None = None) -> StoredRemoteRoom: ...
     async def join_remote_room(self, code: str, token_hash: str,
-                               device_id: str, now: datetime) -> StoredRemoteRoom: ...
+                               device_id: str, now: datetime, user_id: str | None = None) -> StoredRemoteRoom: ...
     async def match_remote_room(self, state: GameState, token_hash: str, code: str,
                                 device_id: str, expires_at: datetime,
-                                now: datetime) -> StoredRemoteRoom: ...
+                                now: datetime, user_id: str | None = None) -> StoredRemoteRoom: ...
+    async def recover_remote_room(self, game_id: str, user_id: str, new_token_hash: str,
+                                  claim_token_hash: str | None = None) -> StoredRemoteRoom: ...
     async def get_remote_room(self, game_id: str) -> StoredRemoteRoom: ...
     async def cancel_remote_room(self, game_id: str,
-                                 token_hash: str) -> StoredRemoteRoom: ...
+                                 token_hash: str, user_id: str | None = None) -> StoredRemoteRoom: ...
     async def get_remote_move(self, game_id: str,
                               request_id: str) -> StoredMove | None: ...
     async def commit_remote_turn(self, game_id: str, token_hash: str,
                                  expected_version: int, request_id: str,
-                                 turn: TurnResult) -> StoredMove: ...
+                                 turn: TurnResult, user_id: str | None = None) -> StoredMove: ...
     async def get_pending_remote_undo(self, game_id: str) -> StoredRemoteUndoRequest | None: ...
     async def create_remote_undo(self, game_id: str, token_hash: str,
-                                 request: RemoteOperationRequest) -> StoredRemoteUndoRequest: ...
+                                 request: RemoteOperationRequest, user_id: str | None = None) -> StoredRemoteUndoRequest: ...
     async def resolve_remote_undo(self, game_id: str, request_id: str,
                                   token_hash: str, request: RemoteOperationRequest,
-                                  action: str) -> StoredRemoteUndoRequest: ...
+                                  action: str, user_id: str | None = None) -> StoredRemoteUndoRequest: ...
     async def commit_remote_resign(self, game_id: str, token_hash: str,
-                                   request: RemoteOperationRequest) -> StoredTerminalEvent: ...
+                                   request: RemoteOperationRequest, user_id: str | None = None) -> StoredTerminalEvent: ...
 
 
 class InMemoryGameStore:
@@ -211,6 +217,14 @@ class InMemoryGameStore:
         async with self._catalog_lock:
             source = self._device_users.get(device_hash) if device_hash else None
             user_id = self._wechat_users.get(identity) or source or uuid4().hex
+            if source and source != user_id:
+                if any({room.host_user_id, room.guest_user_id} == {source, user_id}
+                       for room in self._remote_rooms.values()):
+                    raise ApiError("REMOTE_ACCOUNT_CONFLICT", "Accounts occupy opposite seats; keep the original account")
+                for game_id, room in tuple(self._remote_rooms.items()):
+                    self._remote_rooms[game_id] = replace(room,
+                        host_user_id=user_id if room.host_user_id == source else room.host_user_id,
+                        guest_user_id=user_id if room.guest_user_id == source else room.guest_user_id)
             self._wechat_users[identity] = user_id
             if source:
                 for game_id, game in self._games.items():
@@ -235,25 +249,39 @@ class InMemoryGameStore:
                              cursor: tuple[datetime, str] | None,
                              status: str | None = None) -> tuple[list[dict], bool]:
         rows = [(self._game_created[id], game) for id, game in self._games.items()
-                if game.user_id == user_id and game.mode != "REMOTE" and
+                if self._owns_personal(game, user_id) and
                 (status is None or game.state.game_status == status)]
         rows.sort(key=lambda row: (row[0], row[1].game_id), reverse=True)
         if cursor:
             rows = [row for row in rows if (row[0], row[1].game_id) < cursor]
         selected = rows[:limit + 1]
-        return [self._personal_row(date, game) for date, game in selected[:limit]], len(selected) > limit
+        return [self._personal_row(date, game, user_id) for date, game in selected[:limit]], len(selected) > limit
 
-    def _personal_row(self, date: datetime, game: StoredGame) -> dict:
-        return {"gameId": game.game_id, "mode": game.mode, "status": game.state.game_status,
+    def _personal_seat(self, game_id: str, user_id: str) -> str | None:
+        room = self._remote_rooms.get(game_id)
+        if room is None:
+            return None
+        return "A" if room.host_user_id == user_id else "B" if room.guest_user_id == user_id else None
+
+    def _owns_personal(self, game: StoredGame, user_id: str) -> bool:
+        if game.mode != "REMOTE":
+            return game.user_id == user_id
+        room = self._remote_rooms.get(game.game_id)
+        return room is not None and self._personal_seat(game.game_id, user_id) is not None and (
+            room.status in ("PLAYING", "FINISHED") or
+            (room.status == "WAITING" and room.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)))
+
+    def _personal_row(self, date: datetime, game: StoredGame, user_id: str) -> dict:
+        return {"gameId": game.game_id, "mode": game.mode, "seat": self._personal_seat(game.game_id, user_id), "status": game.state.game_status,
                 "winner": game.state.winner, "winnerReason": game.state.winner_reason,
                 "startedAt": date.isoformat(),
                 "finishedAt": None, "turns": game.ply_count,
-                "reviewAvailable": any(key[0] == game.game_id for key in self._reviews),
+                "reviewAvailable": any(key[0] == game.game_id and (game.mode != "REMOTE" or key[1] == self._personal_seat(game.game_id, user_id)) for key in self._reviews),
                 "cursorDate": date.isoformat()}
 
     async def personal_profile(self, user_id: str) -> dict:
         games = [game for game in self._games.values()
-                 if game.user_id == user_id and game.mode != "REMOTE"]
+                 if self._owns_personal(game, user_id)]
         records = [record for key, record in self._training_records.items()
                    if self._training_owners.get(key) == user_id]
         ai_finished = [game for game in games if game.mode == "AI" and
@@ -261,11 +289,16 @@ class InMemoryGameStore:
         wins = sum(game.state.winner == ("B" if game.ai_player == "A" else "A")
                    for game in ai_finished)
         losses = sum(game.state.winner == game.ai_player for game in ai_finished)
-        return {"id": user_id, "nickname": "微信棋手" if user_id in self._wechat_users.values() else "本机棋手", "games": len(games),
+        remote = [game for game in games if game.mode == "REMOTE"]
+        remote_finished = [game for game in remote if game.state.game_status == "FINISHED"]
+        return {"remoteGames": len(remote),
+                "remoteWins": sum(game.state.winner == self._personal_seat(game.game_id, user_id) for game in remote_finished),
+                "remoteLosses": sum(game.state.winner in ("A", "B") and game.state.winner != self._personal_seat(game.game_id, user_id) for game in remote_finished),
+                "id": user_id, "nickname": "微信棋手" if user_id in self._wechat_users.values() else "本机棋手", "games": len(games),
                 "finishedGames": sum(game.state.game_status == "FINISHED" for game in games),
                 "wins": wins, "losses": losses,
                 "reviewedGames": len({key[0] for key in self._reviews
-                                      if self._games[key[0]].user_id == user_id}),
+                                      if self._owns_personal(self._games[key[0]], user_id) and (self._games[key[0]].mode != "REMOTE" or key[1] == self._personal_seat(key[0], user_id))}),
                 "training": len(records),
                 "correct": sum(record.result == "CORRECT" for record in records)}
 
@@ -461,7 +494,9 @@ class InMemoryGameStore:
 
     def _create_remote_unlocked(self, state: GameState, token_hash: str, code: str,
                                 device_id: str, public: bool,
-                                expires_at: datetime) -> StoredRemoteRoom:
+                                expires_at: datetime, user_id: str | None = None) -> StoredRemoteRoom:
+        if user_id in self._retired_users:
+            raise ApiError("AUTH_INVALID", "Account was migrated; login again")
         if any(room.invite_code == code for room in self._remote_rooms.values()):
             raise ApiError("REMOTE_CODE_CONFLICT", "Invite code already exists")
         game_id = uuid4().hex
@@ -472,52 +507,80 @@ class InMemoryGameStore:
         self._moves[game_id] = []
         self._locks[game_id] = asyncio.Lock()
         room = StoredRemoteRoom(game_id, code, token_hash, None, device_id,
-                                None, public, "WAITING", expires_at)
+                                None, public, "WAITING", expires_at, user_id)
         self._remote_rooms[game_id] = room
         return room
 
     async def create_remote_room(self, state: GameState, token_hash: str, code: str,
                                  device_id: str, public: bool,
-                                 expires_at: datetime) -> StoredRemoteRoom:
+                                 expires_at: datetime, user_id: str | None = None) -> StoredRemoteRoom:
         async with self._catalog_lock:
             return self._create_remote_unlocked(state, token_hash, code, device_id,
-                                                public, expires_at)
+                                                public, expires_at, user_id)
 
     async def join_remote_room(self, code: str, token_hash: str,
-                               device_id: str, now: datetime) -> StoredRemoteRoom:
+                               device_id: str, now: datetime, user_id: str | None = None) -> StoredRemoteRoom:
         async with self._catalog_lock:
+            if user_id in self._retired_users:
+                raise ApiError("AUTH_INVALID", "Account was migrated; login again")
             room = next((item for item in self._remote_rooms.values()
                          if item.invite_code == code), None)
             if room is None:
                 raise ApiError("REMOTE_ROOM_NOT_FOUND", "Room not found")
             if room.status != "WAITING" or room.expires_at <= now:
                 raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Room is no longer available")
-            if room.host_device_id == device_id:
+            if room.host_device_id == device_id or (user_id is not None and room.host_user_id == user_id):
                 raise ApiError("REMOTE_SELF_JOIN", "Use another device to join")
             joined = StoredRemoteRoom(room.game_id, room.invite_code,
                                       room.host_token_hash, token_hash,
                                       room.host_device_id, device_id, room.public,
-                                      "PLAYING", room.expires_at)
+                                      "PLAYING", room.expires_at, room.host_user_id, user_id)
             self._remote_rooms[room.game_id] = joined
             return joined
 
     async def match_remote_room(self, state: GameState, token_hash: str, code: str,
                                 device_id: str, expires_at: datetime,
-                                now: datetime) -> StoredRemoteRoom:
+                                now: datetime, user_id: str | None = None) -> StoredRemoteRoom:
         async with self._catalog_lock:
+            if user_id in self._retired_users:
+                raise ApiError("AUTH_INVALID", "Account was migrated; login again")
             candidate = next((item for item in self._remote_rooms.values()
                               if item.public and item.status == "WAITING"
                               and item.expires_at > now
-                              and item.host_device_id != device_id), None)
+                              and item.host_device_id != device_id
+                              and (user_id is None or item.host_user_id != user_id)), None)
             if candidate is None:
                 return self._create_remote_unlocked(state, token_hash, code,
-                                                    device_id, True, expires_at)
+                                                    device_id, True, expires_at, user_id)
             joined = StoredRemoteRoom(candidate.game_id, candidate.invite_code,
                                       candidate.host_token_hash, token_hash,
                                       candidate.host_device_id, device_id, True,
-                                      "PLAYING", candidate.expires_at)
+                                      "PLAYING", candidate.expires_at, candidate.host_user_id, user_id)
             self._remote_rooms[candidate.game_id] = joined
             return joined
+
+    def _require_remote_account(self, room: StoredRemoteRoom, token_hash: str, user_id: str | None) -> None:
+        if user_id is None:
+            return
+        if user_id in self._retired_users:
+            raise ApiError("AUTH_INVALID", "Account was migrated; login again")
+        seat = self._remote_seat(room, token_hash)
+        owner = room.host_user_id if seat == "A" else room.guest_user_id
+        if owner is not None and owner != user_id:
+            raise ApiError("REMOTE_ACCESS_DENIED", "Seat belongs to another account")
+
+    async def recover_remote_room(self, game_id: str, user_id: str, new_token_hash: str,
+                                  claim_token_hash: str | None = None) -> StoredRemoteRoom:
+        async with self._catalog_lock:
+            if user_id in self._retired_users:
+                raise ApiError("AUTH_INVALID", "Account was migrated; login again")
+            room = await self.get_remote_room(game_id)
+            seat = recovery_seat(room, user_id, claim_token_hash)
+            patch = {"host_user_id": user_id, "host_token_hash": new_token_hash} if seat == "A" else {
+                "guest_user_id": user_id, "guest_token_hash": new_token_hash}
+            recovered = replace(room, **patch)
+            self._remote_rooms[game_id] = recovered
+            return recovered
 
     async def get_remote_room(self, game_id: str) -> StoredRemoteRoom:
         room = self._remote_rooms.get(game_id)
@@ -526,9 +589,10 @@ class InMemoryGameStore:
         return room
 
     async def cancel_remote_room(self, game_id: str,
-                                 token_hash: str) -> StoredRemoteRoom:
+                                 token_hash: str, user_id: str | None = None) -> StoredRemoteRoom:
         async with self._catalog_lock:
             room = await self.get_remote_room(game_id)
+            self._require_remote_account(room, token_hash, user_id)
             if room.host_token_hash != token_hash:
                 raise ApiError("REMOTE_ACCESS_DENIED", "This seat is unavailable")
             if room.status != "WAITING":
@@ -536,7 +600,8 @@ class InMemoryGameStore:
             cancelled = StoredRemoteRoom(room.game_id, room.invite_code,
                                          room.host_token_hash, room.guest_token_hash,
                                          room.host_device_id, room.guest_device_id,
-                                         room.public, "CANCELLED", room.expires_at)
+                                         room.public, "CANCELLED", room.expires_at,
+                                         room.host_user_id, room.guest_user_id)
             self._remote_rooms[game_id] = cancelled
             return cancelled
 
@@ -577,8 +642,9 @@ class InMemoryGameStore:
         return self._copy_remote_undo(pending) if pending is not None else None
 
     async def create_remote_undo(self, game_id: str, token_hash: str,
-                                 request: RemoteOperationRequest) -> StoredRemoteUndoRequest:
+                                 request: RemoteOperationRequest, user_id: str | None = None) -> StoredRemoteUndoRequest:
         room = await self.get_remote_room(game_id)
+        self._require_remote_account(room, token_hash, user_id)
         seat = self._remote_seat(room, token_hash)
         signature = ("CREATE_UNDO", request.expected_version, seat)
         key = (game_id, request.client_request_id)
@@ -624,8 +690,9 @@ class InMemoryGameStore:
 
     async def resolve_remote_undo(self, game_id: str, request_id: str,
                                   token_hash: str, request: RemoteOperationRequest,
-                                  action: str) -> StoredRemoteUndoRequest:
+                                  action: str, user_id: str | None = None) -> StoredRemoteUndoRequest:
         room = await self.get_remote_room(game_id)
+        self._require_remote_account(room, token_hash, user_id)
         seat = self._remote_seat(room, token_hash)
         signature = (f"RESOLVE_UNDO_{action}", request.expected_version,
                      request_id, seat)
@@ -703,8 +770,9 @@ class InMemoryGameStore:
         return self._copy_remote_undo(resolved)
 
     async def commit_remote_resign(self, game_id: str, token_hash: str,
-                                   request: RemoteOperationRequest) -> StoredTerminalEvent:
+                                   request: RemoteOperationRequest, user_id: str | None = None) -> StoredTerminalEvent:
         room = await self.get_remote_room(game_id)
+        self._require_remote_account(room, token_hash, user_id)
         seat = self._remote_seat(room, token_hash)
         signature = ("RESIGN", request.expected_version, seat)
         key = (game_id, request.client_request_id)
@@ -747,8 +815,9 @@ class InMemoryGameStore:
 
     async def commit_remote_turn(self, game_id: str, token_hash: str,
                                  expected_version: int, request_id: str,
-                                 turn: TurnResult) -> StoredMove:
+                                 turn: TurnResult, user_id: str | None = None) -> StoredMove:
         room = await self.get_remote_room(game_id)
+        self._require_remote_account(room, token_hash, user_id)
         seat = "A" if room.host_token_hash == token_hash else (
             "B" if room.guest_token_hash == token_hash else None)
         if seat is None:
@@ -794,9 +863,15 @@ class InMemoryGameStore:
         await self.get_snapshot(game_id)
         return self._reviews.get((game_id, player, version))
 
-    async def commit_review(self, review: GameReview, expected_version: int) -> GameReview:
+    async def commit_review(self, review: GameReview, expected_version: int,
+                            user_id: str | None = None, remote_token_hash: str | None = None) -> GameReview:
         lock = await self.lock_for(review.gameId)
         async with lock:
+            if remote_token_hash is not None:
+                room = await self.get_remote_room(review.gameId)
+                self._require_remote_account(room, remote_token_hash, user_id)
+                if self._remote_seat(room, remote_token_hash) != review.reviewedPlayer:
+                    raise ApiError("REMOTE_ACCESS_DENIED", "Review belongs to another seat")
             game = await self.get_snapshot(review.gameId)
             if game.version != expected_version or game.state.game_status != "FINISHED":
                 raise ApiError("GAME_STATE_CONFLICT", "Game state changed during review")

@@ -7,7 +7,7 @@ Page({
   data: {
     state: 'loading', errorMessage: '', name: '微信棋手',
     cloudGames: 0, localGames: 0, finishedGames: 0, training: 0,
-    wins: 0, losses: 0, reviewedGames: 0,
+    wins: 0, losses: 0, reviewedGames: 0, remoteGames: 0, remoteWins: 0, remoteLosses: 0,
     accuracy: '数据不足',
   },
   onShow() { void this.load(); },
@@ -22,6 +22,7 @@ Page({
         cloudGames: profile.games, localGames,
         finishedGames: profile.finishedGames,
         wins: profile.wins, losses: profile.losses,
+        remoteGames: profile.remoteGames ?? 0, remoteWins: profile.remoteWins ?? 0, remoteLosses: profile.remoteLosses ?? 0,
         reviewedGames: profile.reviewedGames,
         training: profile.training,
         accuracy: profile.training > 0

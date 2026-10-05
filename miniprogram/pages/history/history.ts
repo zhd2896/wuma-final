@@ -36,8 +36,8 @@ function rowForDevice(entry: DeviceHistoryEntry): HistoryRow {
 function rowForCloud(entry: PersonalGameDto): HistoryRow {
   const finished = entry.status === 'FINISHED';
   const updatedAt = Date.parse(entry.finishedAt || entry.startedAt);
-  return { id: entry.gameId, mode: entry.mode === 'AI' ? 'ai' : 'remote',
-    status: entry.status, title: entry.mode === 'AI' ? 'AI 对弈' : '云端双人',
+  return { id: entry.gameId, mode: entry.mode === 'AI' ? 'ai' : entry.mode === 'REMOTE' ? 'online' : 'remote',
+    status: entry.status, title: entry.mode === 'AI' ? 'AI 对弈' : entry.mode === 'REMOTE' ? `远程双人 · 我的席位 ${entry.seat || ''}` : '云端双人',
     result: finished ? (entry.winnerReason === 'RESIGN' && entry.winner
       ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
       : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
@@ -71,9 +71,9 @@ Page({
   renderRows() {
     const local = createWxDeviceHistoryStore().list().filter(item =>
       item.mode === 'local' || item.mode === 'online').map(rowForDevice);
-    const ids = new Set(local.map(item => item.id));
-    const cloud = this.cloud.map(rowForCloud).filter(item => !ids.has(item.id));
-    const records = [...local, ...cloud].filter(item => this.data.filter === 'all' ||
+    const cloud = this.cloud.map(rowForCloud);
+    const ids = new Set(cloud.map(item => item.id));
+    const records = [...local.filter(item => !ids.has(item.id)), ...cloud].filter(item => this.data.filter === 'all' ||
       (item.status === 'FINISHED' &&
         (this.data.filter !== 'reviewable' || item.mode === 'ai' || item.mode === 'remote' || item.mode === 'online')))
       .sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id));

@@ -13,7 +13,7 @@ from backend.app.core.errors import ApiError
 from backend.app.db.models import (AiAnalysisModel, CoachHintModel, GameModel, GameMoveModel,
                                     GameReviewModel, GameTerminalEventModel,
                                     GameUndoEventModel, MoveReviewModel,
-                                    RemoteUndoRequestModel, ReviewExplanationModel, UserModel,
+                                    RemoteUndoRequestModel, RemoteRoomModel, ReviewExplanationModel, UserModel,
                                     TrainingRecordModel, AuthSessionModel, utc_now)
 from backend.app.db.repositories.game import GameRepository
 from backend.app.db.repositories.remote import RemoteRepository
@@ -78,6 +78,16 @@ class MySQLGameStore:
                         session.add(target)
                         session.flush()
                     if source is not None and source.id != target.id:
+                        rooms = session.scalars(select(RemoteRoomModel).where(or_(
+                            RemoteRoomModel.host_user_id == source.id,
+                            RemoteRoomModel.guest_user_id == source.id)).with_for_update()).all()
+                        if any(room.host_user_id == target.id or room.guest_user_id == target.id for room in rooms):
+                            raise ApiError("REMOTE_ACCOUNT_CONFLICT", "Accounts occupy opposite seats; keep the original account")
+                        for room in rooms:
+                            if room.host_user_id == source.id:
+                                room.host_user_id = target.id
+                            if room.guest_user_id == source.id:
+                                room.guest_user_id = target.id
                         session.execute(update(GameModel).where(GameModel.user_id == source.id).values(user_id=target.id))
                         session.execute(update(TrainingRecordModel).where(
                             TrainingRecordModel.user_id == source.id).values(user_id=target.id))
@@ -107,6 +117,21 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
+    @staticmethod
+    def _personal_ownership(user_id):
+        participant = select(RemoteRoomModel.game_id).where(or_(
+            RemoteRoomModel.host_user_id == user_id, RemoteRoomModel.guest_user_id == user_id), or_(
+            RemoteRoomModel.status.in_(("PLAYING", "FINISHED")),
+            and_(RemoteRoomModel.status == "WAITING", RemoteRoomModel.expires_at > utc_now())))
+        return or_(and_(GameModel.mode != "REMOTE", GameModel.user_id == user_id),
+                   and_(GameModel.mode == "REMOTE", GameModel.id.in_(participant)))
+
+    @staticmethod
+    def _personal_seat(room, user_id):
+        if room is None:
+            return None
+        return "A" if room.host_user_id == user_id else "B" if room.guest_user_id == user_id else None
+
     async def personal_games(self, user_id: str, limit: int,
                              cursor: tuple[datetime, str] | None,
                              status: str | None = None) -> tuple[list[dict], bool]:
@@ -117,8 +142,7 @@ class MySQLGameStore:
                         status: str | None) -> tuple[list[dict], bool]:
         try:
             with self.sessions() as session:
-                query = select(GameModel).where(GameModel.user_id == user_id,
-                                                GameModel.mode != "REMOTE")
+                query = select(GameModel).where(self._personal_ownership(user_id))
                 if status is not None:
                     query = query.where(GameModel.status == status)
                 if cursor:
@@ -130,18 +154,21 @@ class MySQLGameStore:
                 rows = session.scalars(query.order_by(GameModel.created_at.desc(),
                                                        GameModel.id.desc()).limit(limit + 1)).all()
                 selected = rows[:limit]
-                reviewed_games = set(session.scalars(select(GameReviewModel.game_id).where(
+                rooms = {room.game_id: room for room in session.scalars(select(RemoteRoomModel).where(
+                    RemoteRoomModel.game_id.in_([row.id for row in selected]))).all()} if selected else {}
+                reviews = set(session.execute(select(GameReviewModel.game_id, GameReviewModel.reviewed_player).where(
                     GameReviewModel.game_id.in_([row.id for row in selected]))).all()) if selected else set()
                 result = []
                 for row in selected:
                     result.append({"gameId": row.id, "mode": row.mode,
+                                   "seat": self._personal_seat(rooms.get(row.id), user_id),
                                    "status": row.status, "winner": row.winner,
                                    "winnerReason": row.winner_reason,
                                    "startedAt": row.started_at.replace(tzinfo=timezone.utc).isoformat(),
                                    "finishedAt": row.finished_at.replace(tzinfo=timezone.utc).isoformat()
                                    if row.finished_at else None,
                                    "turns": row.ply_count,
-                                   "reviewAvailable": row.id in reviewed_games,
+                                   "reviewAvailable": any(game_id == row.id and (row.mode != "REMOTE" or player == self._personal_seat(rooms.get(row.id), user_id)) for game_id, player in reviews),
                                    "cursorDate": row.created_at.replace(tzinfo=timezone.utc).isoformat()})
                 return result, len(rows) > limit
         except SQLAlchemyError as exc:
@@ -157,9 +184,9 @@ class MySQLGameStore:
                 if nickname is None:
                     raise ApiError("AUTH_INVALID", "Account is unavailable")
                 games = session.scalar(select(func.count()).select_from(GameModel).where(
-                    GameModel.user_id == user_id, GameModel.mode != "REMOTE")) or 0
+                    self._personal_ownership(user_id))) or 0
                 finished = session.scalar(select(func.count()).select_from(GameModel).where(
-                    GameModel.user_id == user_id, GameModel.mode != "REMOTE",
+                    self._personal_ownership(user_id),
                     GameModel.status == "FINISHED")) or 0
                 training = session.scalar(select(func.count()).select_from(TrainingRecordModel).where(
                     TrainingRecordModel.user_id == user_id)) or 0
@@ -174,8 +201,20 @@ class MySQLGameStore:
                 losses = sum(winner == ai_player for winner, ai_player in ai_results)
                 reviewed = session.scalar(select(func.count(func.distinct(GameReviewModel.game_id)))
                     .join(GameModel, GameModel.id == GameReviewModel.game_id)
-                    .where(GameModel.user_id == user_id)) or 0
-                return {"id": user_id, "nickname": nickname, "games": games,
+                    .outerjoin(RemoteRoomModel, RemoteRoomModel.game_id == GameModel.id)
+                    .where(self._personal_ownership(user_id), or_(GameModel.mode != "REMOTE",
+                        and_(RemoteRoomModel.host_user_id == user_id, GameReviewModel.reviewed_player == "A"),
+                        and_(RemoteRoomModel.guest_user_id == user_id, GameReviewModel.reviewed_player == "B")))) or 0
+                remote = session.execute(select(GameModel.status, GameModel.winner,
+                    RemoteRoomModel.host_user_id, RemoteRoomModel.guest_user_id)
+                    .join(RemoteRoomModel, RemoteRoomModel.game_id == GameModel.id)
+                    .where(GameModel.mode == "REMOTE", self._personal_ownership(user_id))).all()
+                remote_wins = sum(status == "FINISHED" and winner == ("A" if host == user_id else "B")
+                                  for status, winner, host, guest in remote)
+                remote_losses = sum(status == "FINISHED" and winner in ("A", "B") and winner != ("A" if host == user_id else "B")
+                                    for status, winner, host, guest in remote)
+                return {"remoteGames": len(remote), "remoteWins": remote_wins, "remoteLosses": remote_losses,
+                        "id": user_id, "nickname": nickname, "games": games,
                         "finishedGames": finished, "wins": wins, "losses": losses,
                         "reviewedGames": reviewed, "training": training, "correct": correct}
         except SQLAlchemyError as exc:
@@ -443,37 +482,39 @@ class MySQLGameStore:
 
     async def create_remote_room(self, state: GameState, token_hash: str, code: str,
                                  device_id: str, public: bool,
-                                 expires_at) -> StoredRemoteRoom:
+                                 expires_at, user_id: str | None = None) -> StoredRemoteRoom:
         return await asyncio.to_thread(self._create_remote_room, state, token_hash, code,
-                                       device_id, public, expires_at)
+                                       device_id, public, expires_at, user_id)
 
-    def _create_remote_room(self, state, token_hash, code, device_id, public, expires_at):
+    def _create_remote_room(self, state, token_hash, code, device_id, public, expires_at, user_id=None):
         try:
             with self.sessions.begin() as session:
+                self._require_active_owner(session, user_id)
                 return RemoteRepository(session).create(state, token_hash, code,
-                                                        device_id, public, expires_at)
+                                                        device_id, public, expires_at, user_id)
         except IntegrityError as exc:
             raise ApiError("REMOTE_CODE_CONFLICT", "Invite code already exists") from exc
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def join_remote_room(self, code: str, token_hash: str,
-                               device_id: str, now) -> StoredRemoteRoom:
-        return await asyncio.to_thread(self._join_remote_room, code, token_hash, device_id, now)
+                               device_id: str, now, user_id: str | None = None) -> StoredRemoteRoom:
+        return await asyncio.to_thread(self._join_remote_room, code, token_hash, device_id, now, user_id)
 
-    def _join_remote_room(self, code, token_hash, device_id, now):
+    def _join_remote_room(self, code, token_hash, device_id, now, user_id=None):
         try:
             with self.sessions.begin() as session:
-                return RemoteRepository(session).join(code, token_hash, device_id, now)
+                self._require_active_owner(session, user_id)
+                return RemoteRepository(session).join(code, token_hash, device_id, now, user_id)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def match_remote_room(self, state: GameState, token_hash: str, code: str,
-                                device_id: str, expires_at, now) -> StoredRemoteRoom:
+                                device_id: str, expires_at, now, user_id: str | None = None) -> StoredRemoteRoom:
         return await asyncio.to_thread(self._match_remote_room, state, token_hash, code,
-                                       device_id, expires_at, now)
+                                       device_id, expires_at, now, user_id)
 
-    def _match_remote_room(self, state, token_hash, code, device_id, expires_at, now):
+    def _match_remote_room(self, state, token_hash, code, device_id, expires_at, now, user_id=None):
         try:
             # Serialize the empty-queue case across server processes: row locks alone
             # cannot prevent two first-time callers from creating separate rooms.
@@ -485,8 +526,9 @@ class MySQLGameStore:
                 try:
                     with connection.begin():
                         with self.sessions(bind=connection) as session:
+                            self._require_active_owner(session, user_id)
                             room = RemoteRepository(session).match(
-                                state, token_hash, code, device_id, expires_at, now)
+                                state, token_hash, code, device_id, expires_at, now, user_id)
                             session.commit()
                             return room
                 finally:
@@ -494,6 +536,19 @@ class MySQLGameStore:
                     connection.commit()
         except IntegrityError as exc:
             raise ApiError("REMOTE_CODE_CONFLICT", "Invite code already exists") from exc
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
+
+    async def recover_remote_room(self, game_id: str, user_id: str, new_token_hash: str,
+                                  claim_token_hash: str | None = None) -> StoredRemoteRoom:
+        return await asyncio.to_thread(self._recover_remote_room, game_id, user_id,
+                                       new_token_hash, claim_token_hash)
+
+    def _recover_remote_room(self, game_id, user_id, new_token_hash, claim_token_hash=None):
+        try:
+            with self.sessions.begin() as session:
+                self._require_active_owner(session, user_id)
+                return RemoteRepository(session).recover(game_id, user_id, new_token_hash, claim_token_hash)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
@@ -507,13 +562,25 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
-    async def cancel_remote_room(self, game_id: str,
-                                 token_hash: str) -> StoredRemoteRoom:
-        return await asyncio.to_thread(self._cancel_remote_room, game_id, token_hash)
+    def _require_remote_account(self, session, game_id, token_hash, user_id):
+        self._require_active_owner(session, user_id)
+        if user_id is None:
+            return
+        remote = RemoteRepository(session)
+        room = remote.get(game_id, lock=True)
+        seat = remote.seat(room, token_hash)
+        owner = room.host_user_id if seat == "A" else room.guest_user_id
+        if owner is not None and owner != user_id:
+            raise ApiError("REMOTE_ACCESS_DENIED", "Seat belongs to another account")
 
-    def _cancel_remote_room(self, game_id, token_hash):
+    async def cancel_remote_room(self, game_id: str,
+                                 token_hash: str, user_id: str | None = None) -> StoredRemoteRoom:
+        return await asyncio.to_thread(self._cancel_remote_room, game_id, token_hash, user_id)
+
+    def _cancel_remote_room(self, game_id, token_hash, user_id: str | None = None):
         try:
             with self.sessions.begin() as session:
+                self._require_remote_account(session, game_id, token_hash, user_id)
                 return RemoteRepository(session).cancel(game_id, token_hash)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
@@ -531,13 +598,14 @@ class MySQLGameStore:
 
     async def commit_remote_turn(self, game_id: str, token_hash: str,
                                  expected_version: int, request_id: str,
-                                 turn: TurnResult) -> StoredMove:
+                                 turn: TurnResult, user_id: str | None = None) -> StoredMove:
         return await asyncio.to_thread(self._commit_remote_turn, game_id, token_hash,
-                                       expected_version, request_id, turn)
+                                       expected_version, request_id, turn, user_id)
 
-    def _commit_remote_turn(self, game_id, token_hash, expected_version, request_id, turn):
+    def _commit_remote_turn(self, game_id, token_hash, expected_version, request_id, turn, user_id: str | None = None):
         try:
             with self.sessions.begin() as session:
+                self._require_remote_account(session, game_id, token_hash, user_id)
                 return RemoteRepository(session).commit_turn(game_id, token_hash,
                                                               expected_version, request_id, turn)
         except IntegrityError as exc:
@@ -560,9 +628,9 @@ class MySQLGameStore:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def create_remote_undo(self, game_id: str, token_hash: str,
-                                 request: RemoteOperationRequest) -> StoredRemoteUndoRequest:
+                                 request: RemoteOperationRequest, user_id: str | None = None) -> StoredRemoteUndoRequest:
         return await asyncio.to_thread(
-            self._create_remote_undo, game_id, token_hash, request)
+            self._create_remote_undo, game_id, token_hash, request, user_id)
 
     @staticmethod
     def _remote_operation_use(session, game_id: str,
@@ -592,9 +660,10 @@ class MySQLGameStore:
         return None if terminal is None else ("RESIGN", terminal)
 
     def _create_remote_undo(self, game_id: str, token_hash: str,
-                            request: RemoteOperationRequest) -> StoredRemoteUndoRequest:
+                            request: RemoteOperationRequest, user_id: str | None = None) -> StoredRemoteUndoRequest:
         try:
             with self.sessions.begin() as session:
+                self._require_remote_account(session, game_id, token_hash, user_id)
                 game = GameRepository(session).get_game(game_id, lock=True)
                 remote = RemoteRepository(session)
                 room = remote.get(game_id, lock=True)
@@ -642,21 +711,22 @@ class MySQLGameStore:
 
     async def resolve_remote_undo(self, game_id: str, request_id: str,
                                   token_hash: str, request: RemoteOperationRequest,
-                                  action: str) -> StoredRemoteUndoRequest:
+                                  action: str, user_id: str | None = None) -> StoredRemoteUndoRequest:
         item, stale = await asyncio.to_thread(
             self._resolve_remote_undo, game_id, request_id,
-            token_hash, request, action)
+            token_hash, request, action, user_id)
         if stale:
             raise ApiError("GAME_STATE_CONFLICT", "Undo request is stale")
         return item
 
     def _resolve_remote_undo(self, game_id: str, request_id: str,
                              token_hash: str, request: RemoteOperationRequest,
-                             action: str) -> tuple[StoredRemoteUndoRequest, bool]:
+                             action: str, user_id: str | None = None) -> tuple[StoredRemoteUndoRequest, bool]:
         if action not in {"ACCEPT", "DECLINE"}:
             raise ValueError(f"Unsupported remote undo action: {action}")
         try:
             with self.sessions.begin() as session:
+                self._require_remote_account(session, game_id, token_hash, user_id)
                 game = GameRepository(session).get_game(game_id, lock=True)
                 remote = RemoteRepository(session)
                 room = remote.get(game_id, lock=True)
@@ -727,14 +797,15 @@ class MySQLGameStore:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_remote_resign(self, game_id: str, token_hash: str,
-                                   request: RemoteOperationRequest) -> StoredTerminalEvent:
+                                   request: RemoteOperationRequest, user_id: str | None = None) -> StoredTerminalEvent:
         return await asyncio.to_thread(
-            self._commit_remote_resign, game_id, token_hash, request)
+            self._commit_remote_resign, game_id, token_hash, request, user_id)
 
     def _commit_remote_resign(self, game_id: str, token_hash: str,
-                              request: RemoteOperationRequest) -> StoredTerminalEvent:
+                              request: RemoteOperationRequest, user_id: str | None = None) -> StoredTerminalEvent:
         try:
             with self.sessions.begin() as session:
+                self._require_remote_account(session, game_id, token_hash, user_id)
                 game = GameRepository(session).get_game(game_id, lock=True)
                 remote = RemoteRepository(session)
                 room = remote.get(game_id, lock=True)
@@ -863,12 +934,19 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
-    async def commit_review(self, review: GameReview, expected_version: int) -> GameReview:
-        return await asyncio.to_thread(self._commit_review, review, expected_version)
+    async def commit_review(self, review: GameReview, expected_version: int,
+                            user_id: str | None = None, remote_token_hash: str | None = None) -> GameReview:
+        return await asyncio.to_thread(self._commit_review, review, expected_version, user_id, remote_token_hash)
 
-    def _commit_review(self, review: GameReview, expected_version: int) -> GameReview:
+    def _commit_review(self, review: GameReview, expected_version: int,
+                       user_id: str | None = None, remote_token_hash: str | None = None) -> GameReview:
         try:
             with self.sessions.begin() as session:
+                if remote_token_hash is not None:
+                    self._require_remote_account(session, review.gameId, remote_token_hash, user_id)
+                    remote = RemoteRepository(session)
+                    if remote.seat(remote.get(review.gameId, lock=True), remote_token_hash) != review.reviewedPlayer:
+                        raise ApiError("REMOTE_ACCESS_DENIED", "Review belongs to another seat")
                 row = session.scalar(select(GameModel).where(
                     GameModel.id == review.gameId).with_for_update())
                 if row is None:

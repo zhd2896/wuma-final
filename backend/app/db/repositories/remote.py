@@ -3,10 +3,11 @@
 import hmac
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import select, or_
 from sqlalchemy.orm import Session
 
 from backend.app.core.errors import ApiError
+from backend.app.services.remote_accounts import recovery_seat
 from backend.app.db.models import (GameMoveModel, GameTerminalEventModel,
                                    RemoteRoomModel, RemoteUndoRequestModel, utc_now)
 from backend.app.db.repositories.game import GameRepository
@@ -25,15 +26,16 @@ class RemoteRepository:
         return StoredRemoteRoom(row.game_id, row.invite_code, row.host_token_hash,
                                 row.guest_token_hash, row.host_device_id,
                                 row.guest_device_id, row.public, row.status,
-                                row.expires_at)
+                                row.expires_at, row.host_user_id, row.guest_user_id)
 
     def create(self, state: GameState, token_hash: str, code: str,
                device_id: str, public: bool,
-               expires_at: datetime) -> StoredRemoteRoom:
+               expires_at: datetime, user_id: str | None = None) -> StoredRemoteRoom:
         game_id = GameRepository(self.session).create_game(state, "REMOTE", None, None)
         room = RemoteRoomModel(game_id=game_id, invite_code=code,
                                host_token_hash=token_hash, guest_token_hash=None,
                                host_device_id=device_id, guest_device_id=None,
+                               host_user_id=user_id, guest_user_id=None,
                                public=public, status="WAITING", expires_at=expires_at,
                                created_at=utc_now(), updated_at=utc_now())
         self.session.add(room)
@@ -50,7 +52,7 @@ class RemoteRepository:
         return row
 
     def join(self, code: str, token_hash: str, device_id: str,
-             now: datetime) -> StoredRemoteRoom:
+             now: datetime, user_id: str | None = None) -> StoredRemoteRoom:
         row = self.session.scalar(select(RemoteRoomModel)
                                   .where(RemoteRoomModel.invite_code == code)
                                   .with_for_update())
@@ -58,10 +60,11 @@ class RemoteRepository:
             raise ApiError("REMOTE_ROOM_NOT_FOUND", "Room not found")
         if row.status != "WAITING" or row.expires_at <= now:
             raise ApiError("REMOTE_ROOM_UNAVAILABLE", "Room is no longer available")
-        if row.host_device_id == device_id:
+        if row.host_device_id == device_id or (user_id is not None and row.host_user_id == user_id):
             raise ApiError("REMOTE_SELF_JOIN", "Use another device to join")
         row.guest_token_hash = token_hash
         row.guest_device_id = device_id
+        row.guest_user_id = user_id
         row.status = "PLAYING"
         row.updated_at = utc_now()
         self.session.flush()
@@ -69,18 +72,33 @@ class RemoteRepository:
 
     def match(self, state: GameState, token_hash: str, code: str,
               device_id: str, expires_at: datetime,
-              now: datetime) -> StoredRemoteRoom:
+              now: datetime, user_id: str | None = None) -> StoredRemoteRoom:
         row = self.session.scalar(select(RemoteRoomModel).where(
             RemoteRoomModel.public.is_(True), RemoteRoomModel.status == "WAITING",
             RemoteRoomModel.expires_at > now,
             RemoteRoomModel.host_device_id != device_id,
+            or_(RemoteRoomModel.host_user_id.is_(None), RemoteRoomModel.host_user_id != user_id)
+            if user_id is not None else True,
         ).order_by(RemoteRoomModel.created_at, RemoteRoomModel.game_id)
             .with_for_update(skip_locked=True).limit(1))
         if row is None:
-            return self.create(state, token_hash, code, device_id, True, expires_at)
+            return self.create(state, token_hash, code, device_id, True, expires_at, user_id)
         row.guest_token_hash = token_hash
         row.guest_device_id = device_id
+        row.guest_user_id = user_id
         row.status = "PLAYING"
+        row.updated_at = utc_now()
+        self.session.flush()
+        return self.stored(row)
+
+    def recover(self, game_id: str, user_id: str, new_token_hash: str,
+                claim_token_hash: str | None = None) -> StoredRemoteRoom:
+        row = self.get(game_id, lock=True)
+        seat = recovery_seat(row, user_id, claim_token_hash)
+        if seat == "A":
+            row.host_user_id, row.host_token_hash = user_id, new_token_hash
+        else:
+            row.guest_user_id, row.guest_token_hash = user_id, new_token_hash
         row.updated_at = utc_now()
         self.session.flush()
         return self.stored(row)

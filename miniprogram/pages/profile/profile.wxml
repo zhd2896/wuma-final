@@ -4,7 +4,7 @@
   <error-state wx:elif="{{state == 'error'}}" message="{{errorMessage}}" bind:retry="retry" />
   <block wx:else>
     <view class="stat-card card"><view><text>云端对局</text><view>{{cloudGames}}</view></view><view><text>本机对局</text><view>{{localGames}}</view></view><view><text>训练完成</text><view>{{training}}</view></view></view>
-    <section-title title="个人统计" subtitle="根据真实对局与答题记录" /><view class="analysis-card card"><view class="profile-metric">已结束云端对局：{{finishedGames}}</view><view class="profile-metric">AI 胜场 / 负场：{{wins}} / {{losses}}</view><view class="profile-metric">已复盘对局：{{reviewedGames}}</view><view class="profile-metric">训练正确率：{{accuracy}}</view><view class="profile-metric">能力分析：数据不足</view></view>
+    <section-title title="个人统计" subtitle="根据真实对局与答题记录" /><view class="analysis-card card"><view class="profile-metric">已结束云端对局：{{finishedGames}}</view><view class="profile-metric">AI 胜场 / 负场：{{wins}} / {{losses}}</view><view class="profile-metric">联机对局：{{remoteGames}}</view><view class="profile-metric">联机胜场 / 负场：{{remoteWins}} / {{remoteLosses}}</view><view class="profile-metric">已复盘对局：{{reviewedGames}}</view><view class="profile-metric">训练正确率：{{accuracy}}</view><view class="profile-metric">能力分析：数据不足</view></view>
     <section-title title="棋路记录" /><view class="link-card card" bindtap="openHistory"><view>历史对局<text>查看个人云端记录与本机对局</text></view><view>›</view></view><view class="link-card card" bindtap="openGame"><view>开始对弈<text>从一场新棋局开始</text></view><view>›</view></view>
     <button class="logout-button" bindtap="logout">退出登录</button>
   </block></view>

@@ -55,6 +55,7 @@ class PendingUndoResponse(StrictModel):
 
 
 class RemoteRoomResponse(StrictModel):
+    account_bound: bool = False
     game_id: str
     seat: Player
     room_status: RoomStatus
