@@ -41,6 +41,9 @@ services:
         condition: service_healthy
     environment:
       WUMA_ENV: ${WUMA_ENV:-production}
+      WECHAT_APP_ID: ${WECHAT_APP_ID:-}
+      WECHAT_APP_SECRET: ${WECHAT_APP_SECRET:-}
+      AUTH_SESSION_DAYS: ${AUTH_SESSION_DAYS:-7}
       DATABASE_URL: ${DATABASE_URL:-}
       DB_HOST: mysql
       DB_PORT: "3306"

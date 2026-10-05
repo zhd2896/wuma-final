@@ -1,0 +1,17 @@
+<view class="login-page">
+  <image class="login-landscape" src="../../assets/ink-landscape.jpg" mode="aspectFill" />
+  <view class="login-content">
+    <view class="login-seal">弈</view>
+    <view class="login-title">弈智五马</view>
+    <view class="login-subtitle">以棋会友 · 于对弈中精进</view>
+    <view class="login-card">
+      <view class="login-heading">欢迎入局</view>
+      <view class="login-description">登录微信账号，保存你的对局与训练记录</view>
+      <button class="wechat-login" bindtap="login" loading="{{isLoading}}" disabled="{{isLoading}}">{{isLoading ? '正在登录...' : '微信账号登录'}}</button>
+      <view wx:if="{{errorMessage}}" class="login-error">{{errorMessage}}</view>
+      <view class="login-note">使用当前微信账号登录，无需输入账号密码</view>
+      <button class="rules-link" bindtap="openRules">先看玩法讲解</button>
+    </view>
+    <view class="login-footer">一局一悟，步步精进</view>
+  </view>
+</view>

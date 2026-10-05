@@ -1,6 +1,7 @@
 """Run with WUMA_TEST_DATABASE_URL set to a dedicated migrated MySQL 8 database."""
 
 import os
+import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from unittest.mock import patch
@@ -19,7 +20,7 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, TrainingItem
                                     GameReviewModel, MoveReviewModel,
                                     ReviewExplanationModel, RemoteRoomModel, UserModel,
                                     GameTerminalEventModel, GameUndoEventModel,
-                                    RemoteUndoRequestModel, utc_now)
+                                    RemoteUndoRequestModel, AuthSessionModel, utc_now)
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.db.repositories.mysql_store import MySQLGameStore
 from backend.app.main import create_app
@@ -40,6 +41,7 @@ pytestmark = pytest.mark.skipif(not DB_URL, reason="isolated MySQL 8 test databa
 def db():
     engine = create_engine(DB_URL)
     with Session(engine) as session, session.begin():
+        session.execute(delete(AuthSessionModel))
         session.execute(delete(TrainingRecordModel))
         session.execute(delete(TrainingItemModel))
         session.execute(delete(CoachHintModel))
@@ -1102,3 +1104,53 @@ def test_training_real_history_answer_records_and_source_game_unchanged(client, 
     assert after.current_state == before.current_state and after.version == before.version
     assert [row.id for row in after_moves] == [row.id for row in before_moves]
     assert client.get(f"/api/v1/game/{game_id}/review").json()["data"] == review
+
+
+def test_wechat_mysql_login_migrates_records_and_recovers_after_restart(client, db):
+    from backend.tests.test_wechat_auth import FakeWechat, login
+    from backend.tests.test_training import finished_review
+    from backend.app.api.v1.account import _token_hash
+    client.app.state.wechat_auth = FakeWechat()
+    original = client.headers["Authorization"][7:]
+    game_id, review = finished_review(client)
+    question = client.post(f"/api/v1/game/{game_id}/training", json={}).json()["data"]["items"][0]
+    best = next(move["bestMove"] for move in review["moveReviews"] if move["turn"] == question["sourceTurn"])
+    assert client.post(f'/api/v1/training/{question["id"]}/answer', json={
+        "from_node": best["from"], "to_node": best["to"], "client_attempt_id": "mysql-wx-answer"}).status_code == 200
+    target = login(client).json()["data"]
+    migrated = login(client, device_token=original).json()["data"]
+    assert migrated["userId"] == target["userId"]
+    assert client.get("/api/v1/me/profile").status_code == 401
+    with Session(db) as session:
+        assert session.get(GameModel, game_id).user_id == target["userId"]
+        assert session.scalar(select(TrainingRecordModel.user_id)) == target["userId"]
+        assert session.get(AuthSessionModel, _token_hash(migrated["token"])) is not None
+    with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
+        restarted.app.state.wechat_auth = FakeWechat()
+        restarted.headers["Authorization"] = "Bearer " + migrated["token"]
+        assert restarted.get("/api/v1/me/profile").json()["data"]["training"] == 1
+        same = login(restarted).json()["data"]
+        assert same["userId"] == target["userId"]
+        other = login(restarted, "bob").json()["data"]
+        restarted.headers["Authorization"] = "Bearer " + other["token"]
+        assert restarted.get(f"/api/v1/game/{game_id}").status_code == 403
+        restarted.app.state.store.close()
+
+
+def test_concurrent_first_wechat_logins_create_one_mysql_user(db):
+    from datetime import datetime, timedelta, timezone
+    barrier = Barrier(2)
+    store = MySQLGameStore(DB_URL)
+    def sign_in(index):
+        barrier.wait()
+        return store._login_wechat("wx-app:concurrent-user", str(index) * 64,
+            datetime.now(timezone.utc) + timedelta(days=1), None)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            ids = list(pool.map(sign_in, [1, 2]))
+        assert ids[0] == ids[1]
+        with Session(db) as session:
+            assert len(session.scalars(select(UserModel).where(
+                UserModel.external_user_id == "wechat:" + hashlib.sha256(b"wx-app:concurrent-user").hexdigest())).all()) == 1
+    finally:
+        store.close()

@@ -1,0 +1,54 @@
+[
+  {
+    "mode": "baseline",
+    "page": "pages/login/login",
+    "nextRoute": "/pages/game/game",
+    "events": [
+      {
+        "type": "call",
+        "url": "/pages/login/login?next=/pages/game/game",
+        "inside": false
+      },
+      {
+        "type": "success",
+        "message": "reLaunch:ok"
+      },
+      {
+        "type": "complete",
+        "message": "reLaunch:ok"
+      }
+    ]
+  },
+  {
+    "mode": "without_callbacks",
+    "page": "pages/login/login",
+    "nextRoute": "/pages/game/game",
+    "events": [
+      {
+        "type": "call",
+        "url": "/pages/login/login?next=/pages/game/game",
+        "inside": false
+      }
+    ]
+  },
+  {
+    "mode": "deferred",
+    "page": "pages/login/login",
+    "nextRoute": "/pages/game/game",
+    "events": [
+      {
+        "type": "call",
+        "url": "/pages/login/login?next=/pages/game/game",
+        "inside": false
+      },
+      {
+        "type": "success",
+        "message": "reLaunch:ok"
+      },
+      {
+        "type": "complete",
+        "message": "reLaunch:ok"
+      }
+    ]
+  }
+]

@@ -10,3 +10,4 @@ backend/.env
 deploy/nginx/conf.d/tls.conf
 deploy/nginx/certs/
 .worktrees/
+backend/wechat.local.toml

@@ -4,6 +4,9 @@ from dataclasses import dataclass
 
 
 HTTP_STATUS = {
+    "WECHAT_LOGIN_FAILED": 401,
+    "WECHAT_UNAVAILABLE": 503,
+    "WECHAT_NOT_CONFIGURED": 503,
     "AUTH_REQUIRED": 401,
     "AUTH_INVALID": 401,
     "AUTH_FORBIDDEN": 403,

@@ -12,7 +12,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import (GameModel, GameMoveModel, GameReviewModel,
-                                    MoveReviewModel, ReviewExplanationModel)
+                                    MoveReviewModel, ReviewExplanationModel, UserModel)
 
 
 def main() -> None:
@@ -29,6 +29,8 @@ def main() -> None:
         game = session.get(GameModel, sys.argv[1])
         if game is None:
             raise SystemExit("fixture game missing from test database")
+        owner = session.get(UserModel, game.user_id) if game.user_id else None
+        owner_kind = "wechat" if owner and (owner.external_user_id or "").startswith("wechat:") else "other"
         moves = session.scalars(select(GameMoveModel).where(
             GameMoveModel.game_id == game.id).order_by(GameMoveModel.turn_number)).all()
         reviews = session.scalars(select(GameReviewModel).where(
@@ -40,6 +42,8 @@ def main() -> None:
             ReviewExplanationModel.game_review_id.in_([item.id for item in reviews]))).all()
             if reviews else [])
         print(json.dumps({
+            "user_id": game.user_id,
+            "owner_kind": owner_kind,
             "current_state": game.current_state,
             "version": game.version,
             "game_moves_count": len(moves),

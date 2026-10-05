@@ -22,6 +22,7 @@ from backend.app.services.review_explanation.service import ExplanationService
 from backend.app.services.review_explanation.provider import ConfiguredLLMProvider, LLMProvider
 from backend.app.services.coach.service import CoachService
 from backend.app.services.training_service import TrainingService
+from backend.app.services.wechat_auth import WechatAuth
 from backend.app.api.v1.training import router as training_router
 from backend.app.api.v1.account import router as account_router
 
@@ -43,6 +44,8 @@ def create_app(settings: Settings | None = None, store: GameStore | None = None,
         app.state.adapter = adapter
         app.state.store = active_store
         app.state.require_auth = require_auth
+        app.state.wechat_auth = WechatAuth(settings)
+        app.state.auth_session_days = max(1, min(settings.auth_session_days, 30))
         app.state.service = GameService(adapter, active_store, settings)
         app.state.remote_service = RemoteService(adapter, active_store, app.state.service)
         provider = llm_provider

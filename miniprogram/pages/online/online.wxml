@@ -16,7 +16,7 @@
       <view wx:else>
         <view class="versus ink-card"><player-card name="玩家 A" level="黑方" pieces="五马" avatar="棋" side="human" /><view class="vs">VS</view><player-card name="玩家 B" level="红方" pieces="五马" avatar="友" side="human" /></view>
         <view class="reserve-row"><text>A 备用棋 {{view.reserve.A}}</text><text>B 备用棋 {{view.reserve.B}}</text></view>
-        <view class="board-area"><chess-board board="{{board}}" bind:node="onNode" /></view>
+        <view class="board-area"><chess-board board="{{board}}" show-node-labels="{{settings.showNodeLabels}}" bind:node="onNode" /></view>
         <view wx:if="{{snapshot.room.pending_undo}}" class="undo-request-card">
           <view wx:if="{{snapshot.room.pending_undo.responder == snapshot.room.seat}}">
             <view>对方申请悔棋，将回退 {{snapshot.room.pending_undo.revert_count}} 手</view>

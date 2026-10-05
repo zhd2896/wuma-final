@@ -20,7 +20,7 @@ test('independent coach loads the active AI game and reveals three real hint lev
   const state = createInitialGameState();
   const storage = new Map<string, unknown>([
     ['activeAiGameId', 'ai-real'],
-    ['wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64)],
+    ['wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' }],
   ]);
   const requests: Array<{ method: string; path: string; data: any }> = [];
   const navigations: string[] = [];
@@ -81,12 +81,29 @@ test('independent coach loads the active AI game and reveals three real hint lev
   for (const level of [1, 2, 3]) {
     page.selectHint({ detail: { level } });
     await flush();
+    if (level === 2) {
+      assert.deepEqual(page.data.board.nodes.filter((node: any) => node.focused)
+        .map((node: any) => node.id), ['P01']);
+      assert.equal(page.data.board.recommendLine, undefined);
+    }
   }
   assert.deepEqual(page.data.hints.map((item: any) => item.level), [1, 2, 3]);
   assert.equal(page.data.cards[0].body, '服务端第 1 级讲解');
   assert.match(page.data.cards[0].detail, /机动性/);
   assert.match(page.data.cards[1].detail, /P01/);
   assert.match(page.data.cards[2].detail, /P01 → P02/);
+  assert.equal(page.data.board.recommendedFrom, 'P01');
+  assert.equal(page.data.board.recommendedTo, 'P02');
+  assert.ok(page.data.board.recommendLine);
+  const unchangedPieces = structuredClone(page.data.board.pieces);
+  page.selectHint({ detail: { level: 1 } });
+  assert.equal(page.data.board.recommendLine, undefined);
+  assert.equal(page.data.board.nodes.some((node: any) => node.focused), false);
+  page.selectHint({ detail: { level: 3 } });
+  assert.equal(page.data.board.recommendedTo, 'P02');
+  page.selectHint({ detail: { level: 3 } });
+  assert.equal(page.data.board.recommendLine, undefined);
+  assert.deepEqual(page.data.board.pieces, unchangedPieces);
   assert.deepEqual(requests.map(row => [row.method, row.path]), [
     ['GET', '/api/v1/game/ai-real'],
     ['POST', '/api/v1/game/ai-real/coach/hint'],
@@ -107,6 +124,8 @@ test('independent coach loads the active AI game and reveals three real hint lev
   await flush();
   assert.equal(page.data.gameVersion, 7);
   assert.deepEqual(page.data.hints, []);
+  assert.equal(page.data.board.recommendLine, undefined);
+  assert.equal(page.data.board.nodes.some((node: any) => node.focused), false);
   assert.equal(requests.at(-1)?.method, 'GET');
   assert.equal(requests.at(-1)?.path, '/api/v1/game/ai-real');
   page.onUnload();

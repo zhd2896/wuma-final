@@ -13,6 +13,9 @@ Component({
     onLegalTargetsChange(event: WechatMiniprogram.SwitchChange) {
       this.emitChange({ showLegalTargets: event.detail.value });
     },
+    onNodeLabelsChange(event: WechatMiniprogram.SwitchChange) {
+      this.emitChange({ showNodeLabels: event.detail.value });
+    },
     onCaptureNoticeChange(event: WechatMiniprogram.SwitchChange) {
       this.emitChange({ showCaptureNotice: event.detail.value });
     },

@@ -8,6 +8,14 @@
         <view class="match-title">玩家 {{review.reviewedPlayer}} · 棋局复盘</view>
         <view class="match-meta"><text>胜方 {{review.winner}}</text><text>{{terminalText}}</text><text>{{rows.length}} 手已分析</text></view>
       </view>
+      <view wx:if="{{reviewBoard}}" id="review-board-panel" class="review-board-panel">
+        <view class="review-preview-title">第 {{selectedTurn}} 手 · 落子前局面</view>
+        <view class="review-preview-note">{{selectedRoute == 'actual' ? '实际走法' : '最佳走法'}}：{{routeText}}</view>
+        <chess-board board="{{reviewBoard}}" compact="{{true}}" show-node-labels="{{true}}" />
+        <view class="review-preview-note">走前备用棋：A {{previewReserveA}} 枚 · B {{previewReserveB}} 枚</view>
+        <view class="review-preview-note">金色标出起点，蓝色标出终点；路线仅供复盘查看。</view>
+      </view>
+      <view wx:elif="{{rows.length}}" class="review-metric card">本次复盘暂未包含走前棋盘，可重新读取复盘，或先查看点位对照图。<button size="mini" bindtap="openRules">查看点位对照</button></view>
       <section-title title="整体统计" />
       <view class="review-stats card"><view>GOOD {{review.goodMoves}}</view><view>NORMAL {{review.normalMoves}}</view><view>MISTAKE {{review.mistakes}}</view><view>BLUNDER {{review.blunders}}</view></view>
       <view class="review-metric card">同分最佳走法比例：{{bestMoveRateText}}</view>
@@ -30,6 +38,11 @@
       <view wx:for="{{rows}}" wx:key="turn" class="review-move card">
         <view class="review-move-head">第 {{item.turn}} 手 · 玩家 {{item.player}}<text class="category">{{item.category}}</text></view>
         <view>实际：{{item.actualText}}</view><view>最佳：{{item.bestText}}</view>
+        <view class="review-location">{{item.actualLocationText}}</view>
+        <view wx:if="{{item.stateBefore}}" class="review-route-actions">
+          <button size="mini" data-turn="{{item.turn}}" data-kind="actual" bindtap="selectReviewMove">看实际路线</button>
+          <button size="mini" data-turn="{{item.turn}}" data-kind="best" bindtap="selectReviewMove">看最佳路线</button>
+        </view>
         <view>搜索分损失：{{item.scoreLoss}}</view>
         <view class="review-explanation">{{item.engineExplanation}}</view>
         <view wx:if="{{item.naturalExplanation}}" class="review-natural-move">

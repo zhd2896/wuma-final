@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from '../config/api';
+import { showLogin } from './auth-navigation';
 import type { ApiResponse } from './api-contract';
-import { getDeviceToken } from './device-auth';
+import { getSavedWechatToken, clearWechatSession, WechatLoginError } from './device-auth';
 
 export interface RequestOptions {
   readonly url: string;
@@ -63,12 +64,13 @@ const publicMessages: Readonly<Record<string, string>> = {
   REMOTE_REQUEST_CONFLICT: '落子编号冲突，请刷新棋局',
   NOT_YOUR_TURN: '还未轮到你落子',
   REMOTE_ACTION_REQUIRED: '请从远程双人房间进入棋局',
-  AUTH_REQUIRED: '请先连接网络创建本机账号',
-  AUTH_INVALID: '本机账号已失效，请联系客服处理',
-  AUTH_FORBIDDEN: '这条记录不属于当前设备账号',
+  AUTH_REQUIRED: '请先登录微信账号',
+  AUTH_INVALID: '登录已过期，请重新登录',
+  AUTH_FORBIDDEN: '这条记录不属于当前微信账号',
 };
 
 export function messageForApiError(error: unknown): string {
+  if (error instanceof WechatLoginError) return error.message;
   return error instanceof ApiError
     ? publicMessages[error.code] ?? '服务暂时不可用，请稍后重试'
     : '服务暂时不可用，请稍后重试';
@@ -98,37 +100,54 @@ export function createApiClient({ baseUrl, request = wxRequest, deviceTokenProvi
     async request<T>(method: 'GET' | 'POST', path: string, data?: unknown, timeout = 10000,
                header?: Record<string, string>): Promise<T> {
       const provider = deviceTokenProvider ?? (request === wxRequest
-        ? () => getDeviceToken(root) : null);
-      const token = provider && path !== '/api/v1/auth/device'
-        ? await provider() : null;
-      return new Promise<T>((resolve, reject) => {
-        const options: RequestOptions = {
-          url: `${root}${path}`, method, timeout,
-          ...(data === undefined ? {} : { data }),
-          ...(!token && header === undefined ? {} : {
-            header: { ...(header ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-          }),
-          success: response => {
-            const envelope = response.data as Partial<ApiResponse<T>> | null;
-            if (envelope && typeof envelope === 'object' &&
-                (typeof envelope.code === 'string' || typeof envelope.code === 'number') &&
-                envelope.code !== 0) {
-              reject(new ApiError(String(envelope.code), response.statusCode,
-                                  typeof envelope.message === 'string' ? envelope.message : undefined));
-              return;
-            }
-            if (response.statusCode >= 200 && response.statusCode < 300 &&
-                envelope?.code === 0 && envelope.data != null) {
-              resolve(envelope.data);
-              return;
-            }
-            reject(new ApiError('SERVER_UNAVAILABLE', response.statusCode));
-          },
-          fail: error => reject(new ApiError('NETWORK_ERROR', 0, error.errMsg)),
-        };
-        try { request(options); }
-        catch { reject(new ApiError('NETWORK_ERROR', 0)); }
-      });
+        ? async () => {
+          const token = getSavedWechatToken(root);
+          if (!token) { showLogin(); throw new ApiError('AUTH_REQUIRED', 401); }
+          return token;
+        } : null);
+      const authenticated = provider && !path.startsWith('/api/v1/auth/');
+      const send = async (): Promise<T> => {
+        const token = authenticated ? await provider!() : null;
+        try {
+          return await new Promise<T>((resolve, reject) => {
+            const options: RequestOptions = {
+              url: `${root}${path}`, method, timeout,
+              ...(data === undefined ? {} : { data }),
+              ...(!token && header === undefined ? {} : {
+                header: { ...(header ?? {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+              }),
+              success: response => {
+                const envelope = response.data as Partial<ApiResponse<T>> | null;
+                if (envelope && typeof envelope === 'object' &&
+                    (typeof envelope.code === 'string' || typeof envelope.code === 'number') &&
+                    envelope.code !== 0) {
+                  reject(new ApiError(String(envelope.code), response.statusCode,
+                                      typeof envelope.message === 'string' ? envelope.message : undefined));
+                  return;
+                }
+                if (response.statusCode >= 200 && response.statusCode < 300 &&
+                    envelope?.code === 0 && envelope.data != null) {
+                  resolve(envelope.data);
+                  return;
+                }
+                reject(new ApiError('SERVER_UNAVAILABLE', response.statusCode));
+              },
+              fail: error => reject(new ApiError('NETWORK_ERROR', 0, error.errMsg)),
+            };
+            try { request(options); }
+            catch { reject(new ApiError('NETWORK_ERROR', 0)); }
+          });
+        } catch (error) {
+          if (token && request === wxRequest && !deviceTokenProvider &&
+              error instanceof ApiError && error.statusCode === 401 &&
+              (error.code === 'AUTH_INVALID' || error.code === 'AUTH_REQUIRED')) {
+            clearWechatSession(root, token);
+            if (!getSavedWechatToken(root)) showLogin();
+          }
+          throw error;
+        }
+      };
+      return send();
     },
   };
 }

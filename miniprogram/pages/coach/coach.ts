@@ -7,6 +7,7 @@ import { openPage, backHome } from '../../utils/navigation';
 import { mapGameStateToView } from '../game/game-state-mapper';
 import { IndependentCoachController } from './coach-controller';
 import type { IndependentCoachSnapshot } from './coach-controller';
+import { describeMove, describeNode, highlightBoardMove, highlightBoardNodes } from '../../utils/board-guidance';
 
 const activeAiGameIdKey = 'activeAiGameId';
 const emptyBoard: BoardState = { nodes: boardNodes, lines: boardLines, pieces: [] };
@@ -29,10 +30,18 @@ function detailForHint(hint: CoachHintDto): string {
   }
   if (hint.level === 2) {
     return hint.candidateFromNodes.length
-      ? `候选棋子：${hint.candidateFromNodes.join('、')}` : '当前没有候选棋子';
+      ? `候选棋子：${hint.candidateFromNodes.map(describeNode).join('、')}` : '当前没有候选棋子';
   }
   return hint.bestMove
-    ? `推荐走法：${hint.bestMove.from} → ${hint.bestMove.to}` : '当前没有合法推荐走法';
+    ? `推荐走法：${hint.bestMove.from} → ${hint.bestMove.to}；${describeMove(hint.bestMove)}` : '当前没有合法推荐走法';
+}
+
+function boardForHint(snapshot: IndependentCoachSnapshot, level: number): BoardState {
+  const board = snapshot.gameState ? mapGameStateToView(snapshot.gameState).board : emptyBoard;
+  const hint = snapshot.hints.find(item => item.level === level);
+  if (hint?.level === 3) return highlightBoardMove(board, hint.bestMove);
+  if (hint?.level === 2) return highlightBoardNodes(board, hint.candidateFromNodes);
+  return board;
 }
 
 function mapCards(snapshot: IndependentCoachSnapshot, selectedLevel: number): CoachCardView[] {
@@ -107,7 +116,7 @@ Page({
       humanPlayer: snapshot.humanPlayer ?? '',
       aiPlayer: snapshot.aiPlayer ?? '',
       currentPlayer: snapshot.gameState?.current_player ?? '',
-      board: gameView?.board ?? emptyBoard,
+      board: boardForHint(snapshot, selectedLevel),
       hints: snapshot.hints,
       cards: mapCards(snapshot, selectedLevel),
       selectedLevel,
@@ -124,7 +133,8 @@ Page({
     if (!snapshot) return;
     if (snapshot.hints.some(item => item.level === level)) {
       const selectedLevel = this.data.selectedLevel === level ? 0 : level;
-      this.setData({ selectedLevel, cards: mapCards(snapshot, selectedLevel) });
+      this.setData({ selectedLevel, cards: mapCards(snapshot, selectedLevel),
+        board: boardForHint(snapshot, selectedLevel) });
       return;
     }
     void this.controller?.requestLevel(level);

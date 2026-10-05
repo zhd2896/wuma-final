@@ -207,6 +207,7 @@ class MoveReview(ReviewMoveAnalysis):
     gameMoveId: int
     turn: int
     player: Player
+    stateBefore: GameState | None = None
 
 
 class GameReview(StrictModel):

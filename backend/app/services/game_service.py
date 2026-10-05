@@ -186,7 +186,22 @@ class GameService:
         review = await self.store.get_review(game_id, player, ReviewConfig().version)
         if review is None:
             raise ApiError("REVIEW_NOT_FOUND", "Review has not been generated")
-        return review
+        replay_snapshot, moves = await self.store.read_replay(game_id)
+        await self._validated_replay(replay_snapshot, moves)
+        return self._review_with_snapshots(review, moves)
+
+    @staticmethod
+    def _review_with_snapshots(review: GameReview, moves: list[StoredMove]) -> GameReview:
+        by_id = {item.game_move_id: item for item in moves}
+        rows = []
+        for row in review.moveReviews:
+            item = by_id.get(row.gameMoveId)
+            if (item is None or item.turn_number != row.turn
+                    or item.turn.move != row.actualMove
+                    or item.turn.before_state.current_player != row.player):
+                raise ApiError("REPLAY_INTEGRITY_ERROR", "Review and active move snapshots disagree")
+            rows.append(row.model_copy(update={"stateBefore": item.turn.before_state}))
+        return review.model_copy(update={"moveReviews": rows})
 
     async def create_review(self, game_id: str,
                             reviewed_player: str | None = None) -> GameReview:
@@ -202,7 +217,7 @@ class GameService:
         await self._validated_replay(snapshot, moves)
         existing = await self.store.get_review(game_id, player, config.version)
         if existing is not None:
-            return existing
+            return self._review_with_snapshots(existing, moves)
         reviewed = []
         for item in moves:
             if item.actor_type != "HUMAN" or item.turn.before_state.current_player != player:
@@ -228,4 +243,5 @@ class GameService:
             reviewConfig=config, reviewConfigVersion=config.version,
             moveReviews=reviewed, createdAt=datetime.now(timezone.utc),
         )
-        return await self.store.commit_review(review, snapshot.version)
+        saved = await self.store.commit_review(review, snapshot.version)
+        return self._review_with_snapshots(saved, moves)

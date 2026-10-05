@@ -5,7 +5,7 @@
     <view wx:if="{{mode == 'local' && localSession}}" class="reserve-row"><text>玩家 A · 备用棋 {{localSession.gameState.players.A.reserve_count}}</text><text>玩家 B · 备用棋 {{localSession.gameState.players.B.reserve_count}}</text></view>
     <view wx:if="{{mode == 'remote' && remoteReady}}" class="reserve-row"><text>玩家 A · 备用棋 {{remoteView.reserve.A}}</text><text>玩家 B · 备用棋 {{remoteView.reserve.B}}</text></view>
     <view wx:if="{{mode == 'ai' && aiReady}}" class="reserve-row"><text>A · 备用棋 {{aiView.reserve.A}}</text><text>B · 备用棋 {{aiView.reserve.B}}</text></view>
-    <view wx:if="{{mode == 'local' && localSession || mode == 'remote' && remoteReady || mode == 'ai' && aiReady}}" class="board-area"><chess-board board="{{board}}" bind:node="onNode" /></view>
+    <view wx:if="{{mode == 'local' && localSession || mode == 'remote' && remoteReady || mode == 'ai' && aiReady}}" class="board-area"><chess-board board="{{board}}" show-node-labels="{{settings.showNodeLabels}}" bind:node="onNode" /></view>
     <view wx:if="{{mode == 'local' && localErrorMessage}}" class="remote-info remote-error"><text>{{localErrorMessage}}</text><button size="mini" bindtap="restartLocalGame">重试新局</button></view>
     <view wx:if="{{mode == 'remote' && remoteState.isLoadingGame}}" class="remote-info">正在读取云端棋局…</view>
     <view wx:if="{{mode == 'remote' && remoteState.errorMessage}}" class="remote-info remote-error"><text>{{remoteState.errorMessage}}</text><button size="mini" bindtap="retryRemoteGame">重试</button></view>

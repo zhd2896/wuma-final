@@ -6,7 +6,9 @@ import hashlib
 import json
 import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from fastapi import APIRouter, Query, Request
 from typing import Literal
@@ -72,6 +74,23 @@ def _decode_cursor(value: str | None) -> tuple[datetime, str] | None:
         return timestamp, payload[1]
     except (ValueError, TypeError, UnicodeError, binascii.Error):
         raise ApiError("INVALID_REQUEST", "Invalid history cursor") from None
+
+
+class WechatLoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=256, pattern=r"^\S+$")
+    device_token: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+
+@router.post("/auth/wechat", response_model=ApiResponse[dict])
+async def wechat_login(request: Request, body: WechatLoginRequest) -> ApiResponse[dict]:
+    identity = await request.app.state.wechat_auth.exchange(body.code)
+    token = secrets.token_hex(32)
+    expires = datetime.now(timezone.utc) + timedelta(days=request.app.state.auth_session_days)
+    user_id = await request.app.state.store.login_wechat(
+        identity, _token_hash(token), expires,
+        _token_hash(body.device_token) if body.device_token else None)
+    return ApiResponse(data={"userId": user_id, "token": token, "expiresAt": expires.isoformat()})
 
 
 @router.post("/auth/device", response_model=ApiResponse[dict])

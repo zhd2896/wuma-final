@@ -5,10 +5,15 @@ import { createGameApi } from '../../services/game-api';
 import { createTrainingApi } from '../../services/training-api';
 import type { GameExplanationDto, GameReviewDto } from '../../services/api-contract';
 import type { GameApi } from '../../services/game-api';
+import type { BoardState } from '../../types/domain';
+import { mapGameStateToView } from '../game/game-state-mapper';
+import { describeMove, highlightBoardMove } from '../../utils/board-guidance';
 
 type ReviewRow = GameReviewDto['moveReviews'][number] & {
   actualText: string;
   bestText: string;
+  actualLocationText: string;
+  bestLocationText: string;
   naturalExplanation: string;
   naturalSuggestion: string;
   explanationFallbackUsed: boolean;
@@ -20,6 +25,9 @@ Page({
     review: null as GameReviewDto | null,
     bestMoveRateText: '', turningText: '', rows: [] as ReviewRow[],
     gameExplanation: null as GameExplanationDto | null,
+    reviewBoard: null as BoardState | null,
+    selectedTurn: 0, selectedRoute: 'actual', routeText: '',
+    previewReserveA: 0, previewReserveB: 0,
     explanationState: 'idle', isGeneratingExplanation: false,
     isGeneratingTraining: false, trainingError: '',
   },
@@ -33,7 +41,8 @@ Page({
       return;
     }
     this.setData({ state: 'loading', errorMessage: '', explanationState: 'idle',
-      gameExplanation: null, isGeneratingExplanation: false, review: null, rows: [], terminalText: '' });
+      gameExplanation: null, isGeneratingExplanation: false, review: null, rows: [], terminalText: '',
+      reviewBoard: null, selectedTurn: 0, selectedRoute: 'actual', routeText: '' });
     try {
       const online = this.data.mode === 'online';
       let seat: 'A' | 'B' | undefined;
@@ -66,6 +75,8 @@ Page({
       const rows = review.moveReviews.map(move => ({ ...move,
         actualText: `${move.actualMove.from} → ${move.actualMove.to}`,
         bestText: `${move.bestMove.from} → ${move.bestMove.to}`,
+        actualLocationText: describeMove(move.actualMove),
+        bestLocationText: describeMove(move.bestMove),
         naturalExplanation: '', naturalSuggestion: '', explanationFallbackUsed: false,
       }));
       this.setData({ state: 'success', review, rows, terminalText,
@@ -73,11 +84,33 @@ Page({
         turningText: review.turningPoints.length
           ? review.turningPoints.map(turn => `第 ${turn} 手`).join('、') : '无明显失误转折点',
       });
+      const first = rows.find(row => row.stateBefore);
+      if (first) this.showReviewMove(first, 'actual');
       if (localApi) await this.loadExplanation(localApi, gameId);
     } catch (error) {
       this.setData({ state: 'error', errorMessage: messageForApiError(error) });
     }
   },
+  showReviewMove(row: ReviewRow, kind: 'actual' | 'best') {
+    if (!row.stateBefore) return;
+    const move = kind === 'actual' ? row.actualMove : row.bestMove;
+    const board = mapGameStateToView(row.stateBefore).board;
+    this.setData({ reviewBoard: highlightBoardMove(board, move),
+      selectedTurn: row.turn, selectedRoute: kind, routeText: describeMove(move),
+      previewReserveA: row.stateBefore.players.A.reserve_count,
+      previewReserveB: row.stateBefore.players.B.reserve_count });
+  },
+  selectReviewMove(event: WechatMiniprogram.TouchEvent) {
+    const turn = Number(event.currentTarget.dataset.turn);
+    const kind = event.currentTarget.dataset.kind === 'best' ? 'best' : 'actual';
+    const row = this.data.rows.find(item => item.turn === turn);
+    if (!row?.stateBefore) return;
+    this.showReviewMove(row, kind);
+    if (typeof wx.pageScrollTo === 'function') {
+      wx.pageScrollTo({ selector: '#review-board-panel', duration: 250 });
+    }
+  },
+  openRules() { wx.navigateTo({ url: '/guide/pages/rules/rules' }); },
   async loadExplanation(api: GameApi, gameId: string) {
     if (this.data.mode === 'online') return;
     this.setData({ explanationState: 'loading', isGeneratingExplanation: true });

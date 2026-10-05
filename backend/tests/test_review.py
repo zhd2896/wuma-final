@@ -80,6 +80,7 @@ def test_finished_review_is_idempotent_and_never_changes_the_game(client):
     item = review["moveReviews"][0]
     assert item["turn"] == 1 and item["player"] == "A"
     assert item["actualMove"] == {"from": "P19", "to": "P13"}
+    assert item["stateBefore"] == moves_before[0].turn.before_state.model_dump(mode="json")
     assert item["bestScore"] - item["actualMoveScore"] == item["scoreLoss"]
     assert item["scorePerspective"] == "A"
     assert item["category"] in ("GOOD", "NORMAL", "MISTAKE", "BLUNDER")
@@ -99,6 +100,43 @@ def test_review_rejects_unfinished_and_unknown_games(client):
     assert missing.status_code == 404 and missing.json()["code"] == "GAME_NOT_FOUND"
     absent = client.get(f"/api/v1/game/{game_id}/review")
     assert absent.status_code == 404 and absent.json()["code"] == "REVIEW_NOT_FOUND"
+
+
+def test_cached_legacy_review_receives_board_snapshot_without_rewriting_history(client):
+    game_id = create_short_game(client)
+    response = client.post(f"/api/v1/game/{game_id}/review", json={})
+    assert response.status_code == 200
+    store = client.app.state.store
+    key = next(key for key in store._reviews if key[0] == game_id)
+    cached = store._reviews[key]
+    store._reviews[key] = cached.model_copy(update={"moveReviews": [
+        move.model_copy(update={"stateBefore": None}) for move in cached.moveReviews
+    ]})
+    moves_before = client.portal.call(store.list_moves, game_id)
+    result = client.get(f"/api/v1/game/{game_id}/review")
+    assert result.status_code == 200, result.text
+    assert result.json()["data"]["moveReviews"][0]["stateBefore"] == (
+        moves_before[0].turn.before_state.model_dump(mode="json"))
+    assert client.portal.call(store.list_moves, game_id) == moves_before
+    assert store._reviews[key].moveReviews[0].stateBefore is None
+
+
+@pytest.mark.parametrize("field,value", [
+    ("turn", 99), ("gameMoveId", -1), ("player", "B"),
+    ("actualMove", Move(from_node="P11", to_node="P01")),
+])
+def test_review_snapshot_rejects_mismatched_move_identity(client, field, value):
+    game_id = create_short_game(client)
+    assert client.post(f"/api/v1/game/{game_id}/review", json={}).status_code == 200
+    store = client.app.state.store
+    key = next(key for key in store._reviews if key[0] == game_id)
+    cached = store._reviews[key]
+    store._reviews[key] = cached.model_copy(update={"moveReviews": [
+        cached.moveReviews[0].model_copy(update={field: value})
+    ]})
+    denied = client.get(f"/api/v1/game/{game_id}/review")
+    assert denied.status_code == 500
+    assert denied.json()["code"] == "REPLAY_INTEGRITY_ERROR"
 
 
 def test_worker_failure_leaves_no_partial_review(client):

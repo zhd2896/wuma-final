@@ -1,10 +1,17 @@
 <view class="game-settings">
   <view class="setting-row">
     <view class="setting-copy">
+      <view class="setting-title">显示点位编号</view>
+      <view class="setting-description">显示 P01—P29，与复盘和教练讲解对应</view>
+    </view>
+    <switch checked="{{settings.showNodeLabels}}" color="#a83a30" bindchange="onNodeLabelsChange" />
+  </view>
+  <view class="setting-row">
+    <view class="setting-copy">
       <view class="setting-title">显示可走位置</view>
       <view class="setting-description">选中棋子后标出可以落子的位置</view>
     </view>
-    <switch checked="{{settings.showLegalTargets}}" color="#a83a30" bindchange="onLegalTargetsChange" />
+    <switch id="setting-legal-targets" checked="{{settings.showLegalTargets}}" color="#a83a30" bindchange="onLegalTargetsChange" />
   </view>
   <view class="setting-row">
     <view class="setting-copy">
