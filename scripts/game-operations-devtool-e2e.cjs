@@ -114,7 +114,7 @@ async function main(dependencies = {}) {
   assert.deepEqual(fixture.state, probe.current_state, 'API/test database fixture mismatch');
   console.log(`ISOLATION verified database=${database}; project=${root}`);
   await (dependencies.probeEndpoint || probeEndpoint)(endpoint);
-  const connect = dependencies.connect || require('miniprogram-automator').connect;
+  const connect = dependencies.connect || (options => require('miniprogram-automator').connect(options));
   const mini = await timed(connect({ wsEndpoint: endpoint }), 'DevTools connection', 5000);
   const accountKey = `wuma:device-account-token:v1:${apiBase}`;
   const keys = ['activeLocalGameId', 'activeAiGameId', 'wuma:online:active', accountKey,
