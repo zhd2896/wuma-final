@@ -57,8 +57,9 @@ async function main() {
       'AI page', 15000);
     let data = await until(page, value => value.aiReady && value.aiState?.gameId &&
       value.aiState.gameState.current_player === value.aiState.humanPlayer, 'human turn');
-    accountToken = await mini.callWxMethod('getStorageSync',
-      `wuma:device-account-token:v1:${apiBase.replace(/\/$/, '')}`);
+    const account = await mini.callWxMethod('getStorageSync',
+      `wuma:wechat-session:v1:${apiBase.replace(/\/$/, '')}`);
+    accountToken = account?.token;
     assert.match(accountToken, /^[0-9a-f]{64}$/);
     const gameId = data.aiState.gameId;
     const before = database(gameId);

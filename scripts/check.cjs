@@ -6,16 +6,21 @@ const root = process.env.WUMA_CHECK_ROOT
   : path.resolve(__dirname, '..');
 const mini = path.join(root, 'miniprogram');
 const app = JSON.parse(fs.readFileSync(path.join(mini, 'app.json'), 'utf8'));
+const subPackages = app.subPackages || app.subpackages || [];
+const pageRoutes = [...app.pages, ...subPackages.flatMap(pkg =>
+  pkg.pages.map(route => `${pkg.root.replace(/\/$/, '')}/${route}`))];
 const errors = [];
-const expectedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online'];
-const seenPages = app.pages.map(route => route.split('/').pop());
+const expectedPages = ['login', 'index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online'];
+const seenPages = pageRoutes.map(route => route.split('/').pop());
 for (const name of expectedPages) if (!seenPages.includes(name)) errors.push(`missing page: ${name}`);
 
 const knownNative = new Set([
   'view', 'text', 'image', 'button', 'canvas', 'scroll-view', 'block',
   'switch', 'input', 'radio-group', 'label', 'radio',
 ]);
-const sourceDirs = [path.join(mini, 'pages'), path.join(mini, 'components')];
+const sourceDirs = [path.join(mini, 'pages'), path.join(mini, 'components'),
+  ...subPackages.flatMap(pkg => [path.join(mini, pkg.root, 'pages'),
+    path.join(mini, pkg.root, 'components')]).filter(dir => fs.existsSync(dir))];
 let checked = 0;
 for (const parent of sourceDirs) {
   for (const folder of fs.readdirSync(parent)) {
@@ -55,16 +60,17 @@ for (const parent of sourceDirs) {
   }
 }
 
-for (const route of app.pages) {
+for (const route of pageRoutes) {
   const base = path.join(mini, route);
   if (!fs.existsSync(`${base}.json`)) errors.push(`app page does not exist: ${route}`);
 }
-const allTs = fs.readdirSync(path.join(mini, 'pages')).map(name => fs.readFileSync(path.join(mini, 'pages', name, `${name}.ts`), 'utf8')).join('\n');
-for (const [, route] of allTs.matchAll(/['"](\/pages\/[a-z-]+\/[a-z-]+)(?:\?[^'"]*)?['"]/g)) {
-  if (!app.pages.includes(route.slice(1))) errors.push(`unregistered navigation route: ${route}`);
+const allTs = pageRoutes.map(route => path.join(mini, `${route}.ts`))
+  .filter(file => fs.existsSync(file)).map(file => fs.readFileSync(file, 'utf8')).join('\n');
+for (const [, route] of allTs.matchAll(/['"](\/(?:[a-z][a-z0-9-]*\/)*pages\/[a-z-]+\/[a-z-]+)(?:\?[^'"]*)?['"]/g)) {
+  if (!pageRoutes.includes(route.slice(1))) errors.push(`unregistered navigation route: ${route}`);
 }
 if (errors.length) {
   console.error(errors.join('\n'));
   process.exit(1);
 }
-console.log(`Checked ${app.pages.length} registered pages and ${checked - app.pages.length} components: JSON, WXML tags, events, local assets, navigation routes.`);
+console.log(`Checked ${pageRoutes.length} registered pages and ${checked - pageRoutes.length} components: JSON, WXML tags, events, local assets, navigation routes.`);

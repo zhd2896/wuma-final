@@ -8,10 +8,15 @@
     <view class="hero-note">一局入境 · 于方寸间见谋略</view>
   </view>
   <view class="home-content">
+    <view id="rules-entry" class="rules-link" bindtap="openRules">
+      <view class="rules-seal">学</view>
+      <view class="rules-copy"><view class="rules-title">玩法讲解</view><view class="rules-sub">看图学会走棋、夹吃与挑吃</view></view>
+      <text class="rules-arrow">查看图解 ›</text>
+    </view>
     <section-title title="开启棋局" subtitle="选择你的修习之路" />
     <feature-card wx:for="{{features}}" wx:key="id" id="feature-{{item.id}}" feature="{{item}}" />
     <view class="history-link" bindtap="openHistory"><view><view class="history-title">历史对局</view><view class="history-sub">回顾走过的每一步</view></view><text>查看记录 ›</text></view>
-    <view class="home-footer">弈智五马 · UI 演示阶段</view>
+    <view class="home-footer">弈智五马</view>
   </view>
   <bottom-nav current="index" />
 </view>

@@ -101,6 +101,7 @@ export interface TrainingAnswerDto {
 }
 
 export type MoveReviewDto = ReviewMoveAnalysis & {
+  readonly stateBefore?: GameState | null;
   readonly gameMoveId: number;
   readonly turn: number;
   readonly player: Player;

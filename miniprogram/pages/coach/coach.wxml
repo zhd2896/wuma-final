@@ -16,7 +16,8 @@
         <view><text>当前行棋</text><text>{{currentPlayer}} 方</text></view>
         <view><text>玩家执子</text><text>{{humanPlayer}} 方</text></view>
       </view>
-      <view class="board-preview"><chess-board board="{{board}}" compact="{{true}}" /></view>
+      <view class="board-preview"><chess-board board="{{board}}" compact="{{true}}" show-node-labels="{{true}}" /></view>
+      <view class="coach-intro">编号与玩法讲解一致；展开二级提示可标出候选点，展开三级提示可查看推荐路线。</view>
       <view wx:if="{{notice}}" class="notice-card card">{{notice}}</view>
       <view wx:if="{{terminalText}}" class="notice-card card">{{terminalText}}</view>
       <view wx:if="{{state == 'conflict'}}" class="state-card card">

@@ -35,3 +35,9 @@
 .compact .temple-label.apex{font-size:21rpx}.compact .temple-label.left-wing,.compact .temple-label.right-wing{font-size:19rpx}
 .compact .temple-label text{font-size:11rpx}
 .compact .board-plaque{height:23rpx;font-size:14rpx}
+.node-label{position:absolute;z-index:8;transform:translate(24rpx,18rpx);padding:1rpx 4rpx;border-radius:5rpx;background:rgba(255,249,237,.95);color:#352a20;font-size:18rpx;line-height:20rpx;font-weight:600;white-space:nowrap;pointer-events:none;box-shadow:0 1rpx 3rpx rgba(30,20,15,.12)}
+.node-label.label-source{background:#f3d7a1;color:#4b3312;box-shadow:0 0 0 2rpx #bd8c42}
+.node-label.label-target{background:#d8f0ff;color:#145c81;box-shadow:0 0 0 2rpx #2c9cd5}
+.node-label.label-focus{background:#d8f0ff;color:#145c81;box-shadow:0 0 0 2rpx #2c9cd5}
+.compact .node-label{transform:translate(20rpx,15rpx);font-size:18rpx}
+.node-dot.source{background:#a27021}

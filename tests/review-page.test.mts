@@ -16,11 +16,18 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 } });
 
 test('review page reads or creates review, explains it, and keeps structured fields', async () => {
+  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  const initial = createInitialGameState();
+  const stateBefore = { ...initial, board: {
+    occupancy: { ...initial.board.occupancy, P19: 'A', P13: null },
+  } };
+  const before = structuredClone(stateBefore);
   const requests: string[] = [];
   const review = { id: 'r1', gameId: 'g1', reviewedPlayer: 'A', winner: 'A',
     winnerReason: 'CAPTURE_ALL', goodMoves: 1, normalMoves: 0, mistakes: 0, blunders: 0,
     bestMoveRate: 1, turningPoints: [], moveReviews: [{ turn: 1, player: 'A',
-      actualMove: { from: 'P19', to: 'P13' }, bestMove: { from: 'P19', to: 'P13' },
+      actualMove: { from: 'P19', to: 'P13' }, bestMove: { from: 'P19', to: 'P18' },
+      stateBefore,
       scoreLoss: 0, category: 'GOOD', engineExplanation: '实际走法与最佳方案搜索同分。' }] };
   const explanation = { gameReviewId: 'r1', promptVersion: 'review_explanation_v1',
     gameExplanation: { overall_summary: '本局共复盘一手。', strengths: [], main_problems: [],
@@ -31,8 +38,8 @@ test('review page reads or creates review, explains it, and keeps structured fie
   (globalThis as any).Page = (value: Record<string, any>) => { definition = value; };
   (globalThis as any).wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
-    getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
-      ? 'a'.repeat(64) : '',
+    getStorageSync: (key: string) => key.startsWith('wuma:wechat-session:')
+      ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : '',
     request: (options: any) => {
       requests.push(`${options.method} ${new URL(options.url).pathname}`);
       const explain = new URL(options.url).pathname.endsWith('/explain');
@@ -54,6 +61,19 @@ test('review page reads or creates review, explains it, and keeps structured fie
   assert.equal(page.data.state, 'success');
   assert.equal(page.data.bestMoveRateText, '100.0%');
   assert.equal(page.data.rows[0].actualText, 'P19 → P13');
+  assert.equal(page.data.selectedTurn, 1);
+  assert.equal(page.data.reviewBoard.recommendedTo, 'P13');
+  assert.ok(page.data.reviewBoard.pieces.some((piece: any) => piece.nodeId === 'P19'));
+  assert.ok(!page.data.reviewBoard.pieces.some((piece: any) => piece.nodeId === 'P13'));
+  const pieces = structuredClone(page.data.reviewBoard.pieces);
+  page.selectReviewMove({ currentTarget: { dataset: { turn: 1, kind: 'best' } } });
+  assert.equal(page.data.reviewBoard.recommendedTo, 'P18');
+  assert.equal(page.data.selectedRoute, 'best');
+  assert.match(page.data.routeText, /P18/);
+  page.selectReviewMove({ currentTarget: { dataset: { turn: 1, kind: 'actual' } } });
+  assert.equal(page.data.reviewBoard.recommendedTo, 'P13');
+  assert.deepEqual(page.data.reviewBoard.pieces, pieces);
+  assert.deepEqual(stateBefore, before);
   assert.equal(page.data.isGeneratingExplanation, false);
   assert.equal(page.data.explanationState, 'success');
   assert.equal(page.data.rows[0].naturalExplanation, '这一手同分。');
@@ -75,7 +95,7 @@ test('online review verifies its saved seat and only requests room review, inclu
     (globalThis as any).wx = {
       getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
       getStorageSync: (key: string) => key === 'wuma:online:seat:online/id' ? 'room-token'
-        : key.startsWith('wuma:device-account-token:') ? 'a'.repeat(64) : '',
+        : key.startsWith('wuma:wechat-session:') ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : '',
       request: (options: any) => {
         requests.push(options);
         assert.equal(options.header['X-Room-Token'], 'room-token');
@@ -119,7 +139,9 @@ test('online review fails clearly for missing, invalid, or mismatched seat crede
     (globalThis as any).wx = {
       getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
       getStorageSync: (key: string) => key.startsWith('wuma:online:seat:')
-        ? (failure === 'missing' ? '' : 'bad-token') : 'a'.repeat(64),
+        ? (failure === 'missing' ? '' : 'bad-token')
+        : key.startsWith('wuma:wechat-session:')
+          ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : '',
       request: (options: any) => {
         const path = new URL(options.url).pathname; paths.push(path);
         if (failure === 'invalid') options.success({ statusCode: 403, data: { code: 'REMOTE_ACCESS_DENIED' } });

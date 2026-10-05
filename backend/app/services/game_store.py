@@ -101,6 +101,8 @@ class StoredRemoteUndoRequest:
 class GameStore(Protocol):
     async def ping(self) -> None: ...
     async def register_device(self, token_hash: str) -> str: ...
+    async def login_wechat(self, identity: str, token_hash: str, expires_at: datetime,
+                           device_hash: str | None = None) -> str: ...
     async def resolve_device(self, token_hash: str) -> str | None: ...
     async def personal_games(self, user_id: str, limit: int,
                              cursor: tuple[datetime, str] | None,
@@ -189,6 +191,9 @@ class InMemoryGameStore:
         self._terminal_events: dict[str, StoredTerminalEvent] = {}
         self._undo_events: dict[tuple[str, str], StoredUndoEvent] = {}
         self._device_users: dict[str, str] = {}
+        self._wechat_users: dict[str, str] = {}
+        self._retired_users: set[str] = set()
+        self._auth_sessions: dict[str, tuple[str, datetime]] = {}
         self._game_created: dict[str, datetime] = {}
         self._training_owners: dict[str, str | None] = {}
 
@@ -201,7 +206,29 @@ class InMemoryGameStore:
             self._device_users[token_hash] = user_id
             return user_id
 
+    async def login_wechat(self, identity: str, token_hash: str, expires_at: datetime,
+                           device_hash: str | None = None) -> str:
+        async with self._catalog_lock:
+            source = self._device_users.get(device_hash) if device_hash else None
+            user_id = self._wechat_users.get(identity) or source or uuid4().hex
+            self._wechat_users[identity] = user_id
+            if source:
+                for game_id, game in self._games.items():
+                    if game.user_id == source:
+                        self._games[game_id] = replace(game, user_id=user_id)
+                for key, owner in self._training_owners.items():
+                    if owner == source:
+                        self._training_owners[key] = user_id
+                if source != user_id:
+                    self._retired_users.add(source)
+                del self._device_users[device_hash]
+            self._auth_sessions[token_hash] = (user_id, expires_at)
+            return user_id
+
     async def resolve_device(self, token_hash: str) -> str | None:
+        session = self._auth_sessions.get(token_hash)
+        if session:
+            return session[0] if session[1] > datetime.now(timezone.utc) else None
         return self._device_users.get(token_hash)
 
     async def personal_games(self, user_id: str, limit: int,
@@ -234,7 +261,7 @@ class InMemoryGameStore:
         wins = sum(game.state.winner == ("B" if game.ai_player == "A" else "A")
                    for game in ai_finished)
         losses = sum(game.state.winner == game.ai_player for game in ai_finished)
-        return {"id": user_id, "nickname": "本机棋手", "games": len(games),
+        return {"id": user_id, "nickname": "微信棋手" if user_id in self._wechat_users.values() else "本机棋手", "games": len(games),
                 "finishedGames": sum(game.state.game_status == "FINISHED" for game in games),
                 "wins": wins, "losses": losses,
                 "reviewedGames": len({key[0] for key in self._reviews
@@ -246,6 +273,8 @@ class InMemoryGameStore:
                      ai_player: str | None = None, ai_level: str | None = None,
                      user_id: str | None = None) -> str:
         async with self._catalog_lock:
+            if user_id in self._retired_users:
+                raise ApiError("AUTH_INVALID", "Account was migrated; login again")
             game_id = uuid4().hex
             self._games[game_id] = StoredGame(
                 game_id=game_id, initial_state=state, state=state, version=0, ply_count=0,
@@ -857,6 +886,8 @@ class InMemoryGameStore:
     async def commit_training_record(self, record: TrainingAnswerResult,
                                      user_id: str | None = None) -> TrainingAnswerResult:
         async with self._catalog_lock:
+            if user_id in self._retired_users:
+                raise ApiError("AUTH_INVALID", "Account was migrated; login again")
             if record.trainingId not in self._training_items:
                 raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
             existing = self._training_records.get(record.clientAttemptId)

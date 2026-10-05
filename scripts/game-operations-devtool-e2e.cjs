@@ -15,6 +15,15 @@ function requireTestDatabase(value) {
   }
   return parsed.pathname.slice(1);
 }
+function requireWechatSession(env) {
+  const token = env.WUMA_GAME_OPERATIONS_WECHAT_TOKEN;
+  const expiresAt = env.WUMA_GAME_OPERATIONS_EXPIRES_AT;
+  if (!/^[0-9a-f]{64}$/.test(token || '') || !Number.isFinite(Date.parse(expiresAt)) ||
+      Date.parse(expiresAt) <= Date.now() + 30000) {
+    throw new Error('Set a valid WeChat session using WUMA_GAME_OPERATIONS_WECHAT_TOKEN and WUMA_GAME_OPERATIONS_EXPIRES_AT');
+  }
+  return { token, expiresAt };
+}
 function timed(promise, label, ms = 10000) {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms} ms`)), ms);
@@ -37,6 +46,11 @@ async function tap(page, selector) {
   const element = await timed(page.$(selector), `find ${selector}`);
   assert.ok(element, `Missing visible operation ${selector}; open/compile this implementation worktree in DevTools`);
   await timed(element.tap(), `tap ${selector}`);
+}
+async function toggleLegalTargets(component) {
+  const control = await timed(component.$('#setting-legal-targets'), 'find legal-target switch');
+  assert.ok(control, 'Missing legal-target setting control');
+  await timed(control.tap(), 'toggle legal-target setting');
 }
 async function confirm(page, field) {
   await until(page, data => data[field], `visible ${field} dialog`);
@@ -80,10 +94,9 @@ async function main(dependencies = {}) {
   const endpoint = env.WUMA_WECHAT_AUTO_ENDPOINT || 'ws://127.0.0.1:9420';
   // A pre-existing test fixture proves API and DB agreement before any API writes.
   const probeId = env.WUMA_GAME_OPERATIONS_PROBE_GAME_ID;
-  const accountToken = env.WUMA_GAME_OPERATIONS_DEVICE_TOKEN;
-  if (!probeId || !/^[0-9a-f]{64}$/.test(accountToken || '')) {
-    throw new Error('Set WUMA_GAME_OPERATIONS_PROBE_GAME_ID and WUMA_GAME_OPERATIONS_DEVICE_TOKEN to an isolated test-account fixture owned by that token');
-  }
+  const account = requireWechatSession(env);
+  const accountToken = account.token;
+  if (!probeId) throw new Error('Set WUMA_GAME_OPERATIONS_PROBE_GAME_ID to a fixture owned by the supplied WeChat user');
   const apiBase = (env.WUMA_GAME_OPERATIONS_API || 'http://127.0.0.1:8000').replace(/\/$/, '');
   const python = env.WUMA_PYTHON || path.join(root, 'backend/.venv/Scripts/python.exe');
   let assertRequestGuard = null;
@@ -112,11 +125,14 @@ async function main(dependencies = {}) {
   const fixture = await api('GET', `/game/${encodeURIComponent(probeId)}`);
   assert.equal(fixture.version, probe.version, 'API is not serving the supplied test database fixture');
   assert.deepEqual(fixture.state, probe.current_state, 'API/test database fixture mismatch');
+  assert.equal(probe.owner_kind, 'wechat', 'The isolated fixture must belong to a WeChat account');
+  const profile = await api('GET', '/me/profile');
+  assert.ok(probe.user_id && profile.id === probe.user_id, 'WeChat fixture ownership mismatch');
   console.log(`ISOLATION verified database=${database}; project=${root}`);
   await (dependencies.probeEndpoint || probeEndpoint)(endpoint);
   const connect = dependencies.connect || (options => require('miniprogram-automator').connect(options));
   const mini = await timed(connect({ wsEndpoint: endpoint }), 'DevTools connection', 5000);
-  const accountKey = `wuma:device-account-token:v1:${apiBase}`;
+  const accountKey = `wuma:wechat-session:v1:${apiBase}`;
   const keys = ['activeLocalGameId', 'activeAiGameId', 'wuma:online:active', accountKey,
     'wuma:game-settings:v1'];
   const saved = new Map();
@@ -182,7 +198,7 @@ async function main(dependencies = {}) {
     const history = await storage('getStorageSync', 'wuma:history:v1');
     assert.ok(!history || (history.version === 1 && Array.isArray(history.records)),
       'Existing local history is invalid; no test storage has been changed');
-    await storage('setStorageSync', accountKey, accountToken);
+    await storage('setStorageSync', accountKey, account);
     await storage('removeStorageSync', 'activeLocalGameId');
     let page = await open('/pages/game/game?mode=local');
     let data = await until(page, value => value.localGameId && value.localSession, 'fresh local game');
@@ -206,17 +222,15 @@ async function main(dependencies = {}) {
     await tap(page, '#action-settings');
     const component = await timed(page.$('game-settings'), 'settings component');
     assert.ok(component, 'game-settings component is missing');
-    const switches = await timed(component.$$('switch'), 'settings switches');
-    assert.equal(switches.length, 3);
     const beforeSettings = data.settings;
-    await timed(switches[0].tap(), 'toggle legal-target setting');
+    await toggleLegalTargets(component);
     data = await until(page, value => value.settings.showLegalTargets !== beforeSettings.showLegalTargets, 'settings save');
     page = await open(`/pages/game/game?mode=local&gameId=${encodeURIComponent(localId)}`);
     data = await until(page, value => value.localSession, 'settings reload');
     assert.equal(data.settings.showLegalTargets, !beforeSettings.showLegalTargets);
     await tap(page, '#action-settings');
     const settings = await timed(page.$('game-settings'), 'settings after reload');
-    await timed((await settings.$$('switch'))[0].tap(), 'restore legal targets for board checks');
+    await toggleLegalTargets(settings);
     await until(page, value => value.settings.showLegalTargets === beforeSettings.showLegalTargets, 'restore test setting');
     console.log('PASS settings switch/store/reload');
 
@@ -322,7 +336,7 @@ async function main(dependencies = {}) {
   }
   if (failure) throw failure;
 }
-module.exports = { requireTestDatabase, timed, main };
+module.exports = { requireTestDatabase, requireWechatSession, toggleLegalTargets, timed, main };
 if (require.main === module) main().catch(error => {
   console.error(`FAIL game-operations: ${error.message}`);
   process.exit(1); // also terminates an uncancellable automator connection after timeout

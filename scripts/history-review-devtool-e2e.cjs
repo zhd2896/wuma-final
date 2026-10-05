@@ -8,8 +8,9 @@ const endpoint = process.env.WUMA_WECHAT_AUTO_ENDPOINT || 'ws://127.0.0.1:9420';
 const apiBase = process.env.WUMA_REVIEW_E2E_API || 'http://127.0.0.1:8000';
 const python = process.env.WUMA_PYTHON || path.resolve('backend/.venv/Scripts/python.exe');
 const gameId = process.env.WUMA_HISTORY_E2E_GAME_ID;
-const accountToken = process.env.WUMA_HISTORY_E2E_DEVICE_TOKEN;
-const accountKey = `wuma:device-account-token:v1:${apiBase.replace(/\/$/, '')}`;
+const accountToken = process.env.WUMA_HISTORY_E2E_TOKEN;
+const expiresAt = process.env.WUMA_HISTORY_E2E_EXPIRES_AT;
+const accountKey = `wuma:wechat-session:v1:${apiBase.replace(/\/$/, '')}`;
 const keys = ['wuma:history:v1', 'activeLocalGameId',
   'activeAiGameId', 'activeRemoteGameId', accountKey];
 
@@ -56,7 +57,11 @@ async function main() {
   }
   if (!gameId) throw new Error('WUMA_HISTORY_E2E_GAME_ID must name a finished test game');
   if (!accountToken || !/^[0-9a-f]{64}$/.test(accountToken)) {
-    throw new Error('WUMA_HISTORY_E2E_DEVICE_TOKEN must own the finished test game');
+    throw new Error('WUMA_HISTORY_E2E_TOKEN must own the finished test game');
+  }
+
+  if (!Number.isFinite(Date.parse(expiresAt)) || Date.parse(expiresAt) <= Date.now()) {
+    throw new Error('WUMA_HISTORY_E2E_EXPIRES_AT must be the future expiry returned by WeChat login');
   }
 
   // Verify that the supplied API and independent test DB expose the same finished fixture
@@ -80,8 +85,8 @@ async function main() {
     for (const key of keys) {
       await timed(mini.callWxMethod('removeStorageSync', key), `clear ${key}`);
     }
-    await timed(mini.callWxMethod('setStorageSync', accountKey, accountToken),
-      'set fixture device account');
+    await timed(mini.callWxMethod('setStorageSync', accountKey, { token: accountToken, expiresAt }),
+      'set fixture WeChat session');
 
     let page = await timed(mini.reLaunch('/pages/index/index'), 'open home');
     const reviewCard = await page.$('#feature-review');

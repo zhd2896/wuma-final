@@ -24,6 +24,16 @@ class UserModel(Base):
     updated_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, onupdate=utc_now, nullable=False)
 
 
+class AuthSessionModel(Base):
+    __tablename__ = "auth_sessions"
+    __table_args__ = (Index("ix_auth_sessions_user_id", "user_id"),
+                      Index("ix_auth_sessions_expires_at", "expires_at"))
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+
+
 class GameModel(Base):
     __tablename__ = "games"
     __table_args__ = (Index("ix_games_user_id", "user_id"),

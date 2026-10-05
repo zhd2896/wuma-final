@@ -1,0 +1,38 @@
+{
+  "scope": "actual-devtools-and-WeChat-exchange",
+  "outcomes": [
+    {
+      "name": "login requires visible button click",
+      "status": "PASS"
+    },
+    {
+      "name": "real WeChat button login and personal API",
+      "status": "PASS"
+    },
+    {
+      "name": "anonymous game migration and old credential revocation",
+      "status": "PASS"
+    },
+    {
+      "name": "post-login target opens real AI game",
+      "status": "PASS"
+    },
+    {
+      "name": "profile and visible logout clears local session",
+      "status": "PASS"
+    },
+    {
+      "name": "real re-login retains account and migrated history",
+      "status": "PASS"
+    },
+    {
+      "name": "valid cached session skips duplicate WeChat login",
+      "status": "PASS"
+    },
+    {
+      "name": "expired local session redirects to login",
+      "status": "PASS"
+    }
+  ],
+  "error": "guest AI entry remains unaccepted in a separate real UI run"
+}

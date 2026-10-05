@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const { execFileSync } = require('node:child_process');
 const path = require('node:path');
 const automator = require('miniprogram-automator');
-const { createDeviceAccount, seedMiniAccount } = require('./device-account-e2e.cjs');
+const { createWechatAccount, seedMiniAccount } = require('./device-account-e2e.cjs');
 
 const endpoint = process.env.WUMA_WECHAT_AUTO_ENDPOINT || 'ws://127.0.0.1:9420';
 const apiBase = process.env.WUMA_TRAINING_E2E_API || 'http://127.0.0.1:8000';
@@ -66,8 +66,9 @@ async function chooseMove(page, move) {
 async function main() {
   const mini = await automator.connect({ wsEndpoint: endpoint });
   try {
-    accountToken = await createDeviceAccount(apiBase);
-    await seedMiniAccount(mini, apiBase, accountToken);
+    const account = await createWechatAccount(apiBase, mini);
+    accountToken = account.token;
+    await seedMiniAccount(mini, apiBase, account);
     const game = await api('POST', '/api/v1/game', { first_player: 'A', mode: 'LOCAL' });
     const gameId = game.game_id;
     for (const [from, to] of fixture) {

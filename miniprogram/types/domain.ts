@@ -1,6 +1,6 @@
 export type PieceSide = 'red' | 'black';
 export type PieceVisualState = 'normal' | 'selected' | 'legalTarget' | 'lastMove' | 'recommended' | 'captured';
-export interface BoardNode { id: string; x: number; y: number; temple?: boolean; visualOnly?: boolean; legalTarget?: boolean; captured?: boolean; replacement?: boolean }
+export interface BoardNode { id: string; x: number; y: number; temple?: boolean; visualOnly?: boolean; legalTarget?: boolean; captured?: boolean; replacement?: boolean; focused?: boolean }
 export interface BoardLine { id: string; x: number; y: number; width: number; angle: number }
 export interface BoardPiece { id: string; nodeId: string; x: number; y: number; side: PieceSide; state?: PieceVisualState }
 export interface BoardState { nodes: BoardNode[]; lines: BoardLine[]; pieces: BoardPiece[]; selectedId?: string; recommendedFrom?: string; recommendedTo?: string; recommendLine?: BoardLine }

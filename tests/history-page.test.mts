@@ -72,22 +72,24 @@ test('history page shows real local records and routes each status to a usable d
 
   storage.set('activeAiGameId', 'legacy-ai');
   (globalThis as any).wx.getAccountInfoSync = () => ({ miniProgram: { envVersion: 'develop' } });
+  (globalThis as any).wx.login = (options: any) => options.success({ code: 'history-code' });
   const fetched: string[] = [];
   const token = 'a'.repeat(64);
   (globalThis as any).wx.request = (options: any) => {
     fetched.push(new URL(options.url).pathname);
     const path = new URL(options.url).pathname;
     options.success({ statusCode: 200, data: { code: 0, message: 'success',
-      data: path === '/api/v1/auth/device' ? { userId: 'u1', token } : {
+      data: path === '/api/v1/auth/wechat' ? { userId: 'u1', token, expiresAt: '2099-01-01T00:00:00Z' } : {
         items: [{ gameId: 'current-ai', mode: 'AI', status: 'FINISHED', winner: 'A',
           startedAt: '2026-09-28T08:00:00+00:00', finishedAt: '2026-09-28T09:00:00+00:00',
           turns: 0, winnerReason: 'RESIGN', reviewAvailable: true }], nextCursor: null,
       } } });
   };
+  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token, expiresAt: '2099-01-01T00:00:00Z' });
   const legacy = makePage();
   legacy.onLoad({});
   for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(fetched, ['/api/v1/auth/device', '/api/v1/me/games']);
+  assert.deepEqual(fetched, ['/api/v1/me/games']);
   assert.equal(legacy.data.records.find((item: any) => item.id === 'legacy-ai'), undefined);
   assert.equal(legacy.data.records.find((item: any) => item.id === 'current-ai')?.turns, 0);
   assert.match(legacy.data.records.find((item: any) => item.id === 'current-ai')?.result, /玩家 B 认输/);

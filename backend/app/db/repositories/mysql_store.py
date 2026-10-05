@@ -1,11 +1,12 @@
 """MySQL unit of work: one versioned game update and move insert per transaction."""
 
 import asyncio
+import hashlib
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import create_engine, select, text, func, or_, and_
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy import create_engine, select, text, func, or_, and_, update
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError
 from sqlalchemy.orm import sessionmaker
 
 from backend.app.core.errors import ApiError
@@ -13,7 +14,7 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, GameModel, G
                                     GameReviewModel, GameTerminalEventModel,
                                     GameUndoEventModel, MoveReviewModel,
                                     RemoteUndoRequestModel, ReviewExplanationModel, UserModel,
-                                    TrainingRecordModel, utc_now)
+                                    TrainingRecordModel, AuthSessionModel, utc_now)
 from backend.app.db.repositories.game import GameRepository
 from backend.app.db.repositories.remote import RemoteRepository
 from backend.app.db.repositories.move import MoveRepository
@@ -54,12 +55,53 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
+    async def login_wechat(self, identity: str, token_hash: str, expires_at: datetime,
+                           device_hash: str | None = None) -> str:
+        return await asyncio.to_thread(self._login_wechat, identity, token_hash, expires_at, device_hash)
+
+    def _login_wechat(self, identity: str, token_hash: str, expires_at: datetime,
+                      device_hash: str | None) -> str:
+        # Unique external identity serializes competing first logins. Retry a fresh transaction
+        # after duplicate-key or MySQL deadlock; all ownership changes remain atomic.
+        for attempt in range(3):
+            try:
+                with self.sessions.begin() as session:
+                    external = "wechat:" + hashlib.sha256(identity.encode()).hexdigest()
+                    target = session.scalar(select(UserModel).where(
+                        UserModel.external_user_id == external).with_for_update())
+                    source = session.scalar(select(UserModel).where(
+                        UserModel.external_user_id == "device:" + device_hash).with_for_update()) if device_hash else None
+                    if target is None:
+                        target = source or UserModel(id=uuid4().hex, nickname="微信棋手")
+                        target.external_user_id = external
+                        target.nickname = "微信棋手"
+                        session.add(target)
+                        session.flush()
+                    if source is not None and source.id != target.id:
+                        session.execute(update(GameModel).where(GameModel.user_id == source.id).values(user_id=target.id))
+                        session.execute(update(TrainingRecordModel).where(
+                            TrainingRecordModel.user_id == source.id).values(user_id=target.id))
+                        source.external_user_id = None
+                    session.add(AuthSessionModel(token_hash=token_hash, user_id=target.id,
+                        expires_at=expires_at.astimezone(timezone.utc).replace(tzinfo=None)))
+                    session.flush()
+                    return target.id
+            except (IntegrityError, OperationalError) as exc:
+                if attempt == 2:
+                    raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
+            except SQLAlchemyError as exc:
+                raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
+        raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed")
+
     async def resolve_device(self, token_hash: str) -> str | None:
         return await asyncio.to_thread(self._resolve_device, token_hash)
 
     def _resolve_device(self, token_hash: str) -> str | None:
         try:
             with self.sessions() as session:
+                account = session.get(AuthSessionModel, token_hash)
+                if account is not None:
+                    return account.user_id if account.expires_at > utc_now() else None
                 return session.scalar(select(UserModel.id).where(
                     UserModel.external_user_id == "device:" + token_hash))
         except SQLAlchemyError as exc:
@@ -150,6 +192,16 @@ class MySQLGameStore:
         # The database CAS is the concurrency guard; no unbounded game-id cache.
         return asyncio.Lock()
 
+    @staticmethod
+    def _require_active_owner(session, user_id: str | None) -> None:
+        if user_id is None:
+            return  # explicit unauthenticated test/legacy operations
+        # Serialize owner-bearing writes against account migration. A request authenticated
+        # before a merge must not create inaccessible records under the retired source.
+        owner = session.scalar(select(UserModel).where(UserModel.id == user_id).with_for_update())
+        if owner is None or owner.external_user_id is None:
+            raise ApiError("AUTH_INVALID", "Account was migrated; login again")
+
     async def create(self, state: GameState, mode: str = "LOCAL",
                      ai_player: str | None = None, ai_level: str | None = None,
                      user_id: str | None = None) -> str:
@@ -159,6 +211,7 @@ class MySQLGameStore:
                 ai_player: str | None, ai_level: str | None, user_id: str | None) -> str:
         try:
             with self.sessions.begin() as session:
+                self._require_active_owner(session, user_id)
                 return GameRepository(session).create_game(state, mode, ai_player, ai_level, user_id)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
@@ -1041,6 +1094,7 @@ class MySQLGameStore:
                                 user_id: str | None) -> TrainingAnswerResult:
         try:
             with self.sessions.begin() as session:
+                self._require_active_owner(session, user_id)
                 return TrainingRepository(session).commit_record(record, user_id)
         except IntegrityError as exc:
             raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used") from exc

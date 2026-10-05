@@ -2,11 +2,29 @@
 
 from dataclasses import dataclass, field
 import os
+import tomllib
 from pathlib import Path
 from sqlalchemy.engine import URL
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+WECHAT_CONFIG_PATH = REPO_ROOT / "backend" / "wechat.local.toml"
+
+
+def wechat_setting(name: str, default: str = "") -> str:
+    """Environment wins; direct local Uvicorn can use an ignored TOML file."""
+    if name in os.environ:
+        return os.environ[name].strip()
+    if not WECHAT_CONFIG_PATH.exists():
+        return default
+    try:
+        data = tomllib.loads(WECHAT_CONFIG_PATH.read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        raise ValueError("Invalid backend/wechat.local.toml configuration") from None
+    value = data.get(name, default)
+    if isinstance(value, bool) or not isinstance(value, (str, int)) or (name != "AUTH_SESSION_DAYS" and not isinstance(value, str)):
+        raise ValueError("Invalid WeChat configuration value for " + name)
+    return str(value).strip()
 
 
 def default_engine_command() -> tuple[str, ...]:
@@ -30,6 +48,9 @@ def default_database_url() -> str:
 
 @dataclass(frozen=True)
 class Settings:
+    wechat_app_id: str = field(default_factory=lambda: wechat_setting("WECHAT_APP_ID"))
+    wechat_app_secret: str = field(default_factory=lambda: wechat_setting("WECHAT_APP_SECRET"), repr=False)
+    auth_session_days: int = field(default_factory=lambda: int(wechat_setting("AUTH_SESSION_DAYS", "7")))
     environment: str = field(default_factory=lambda: os.getenv("WUMA_ENV", "development"))
     engine_command: tuple[str, ...] = field(default_factory=default_engine_command)
     engine_request_timeout_s: float = 45.0
