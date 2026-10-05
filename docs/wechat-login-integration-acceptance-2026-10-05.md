@@ -2,12 +2,12 @@
 
 ## 当前阶段
 
-**代码和隔离 MySQL 验证完成，独立代码审查通过；真实微信、开发者工具与两设备验收尚未完成，暂不能判定整体阶段验收通过。**
+**代码已按用户要求合并到本地 main，独立代码审查通过。真实微信核心登录与本机业务实测通过；游客讲解开始 AI 的原始自动化跳转及两设备/HTTPS 尚未验收，整体阶段仍未通过。**
 
 - 实施分支：`codex/wechat-login-integration`。
 - 实施目录：`E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration`。
 - 将原登录分支 `codex/wechat-login @ ed18a39` 集成到 `main @ aabb9af`，保留当前点位编号、玩法讲解、棋局操作、分析、教练和复盘改动。
-- 这些改动尚未提交或合并 main。原主目录不是本次实现的运行入口。
+- 合并提交：`60e6db8`；来源提交：`8f9ca1a`。当前运行入口是主目录 `E:\C盘Doucment\ChatGPT\wuma最终版`。
 - 原业务数据库、原后端服务和私密微信配置未被本次测试修改。测试实例使用临时目录和 55473 端口，验证后已经关闭。
 
 ## 已实现的功能
@@ -57,14 +57,14 @@
 
 ### 1. 打开正确目录
 
-微信开发者工具导入上面的实施目录，确认 `project.config.json` 的 AppID 为 `wx698f21721461ccf5`，并与后端配置一致。使用有该小程序开发权限的微信账号。
+微信开发者工具打开当前 main 主目录，确认 `project.config.json` 的 AppID 为 `wx698f21721461ccf5`，并与后端配置一致。使用有该小程序开发权限的微信账号。
 
 ### 2. 配置后端微信凭据
 
-本次没有读取或复制原主目录的私密 `backend/wechat.local.toml`。可由你在本机将现有有效配置复制到实施目录，或者在实施目录执行以下命令建立模板，然后填写该 AppID 对应的真实 AppSecret：
+主目录现有私密 `backend/wechat.local.toml` 已保留且被 Git 忽略。若尚无配置，可在主目录建立模板并填写该 AppID 对应的真实 AppSecret：
 
 ```powershell
-cd 'E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration'
+cd 'E:\C盘Doucment\ChatGPT\wuma最终版'
 if (-not (Test-Path -LiteralPath 'backend/wechat.local.toml')) {
     Copy-Item -LiteralPath 'backend/wechat.local.toml.example' -Destination 'backend/wechat.local.toml'
 }
@@ -72,12 +72,12 @@ if (-not (Test-Path -LiteralPath 'backend/wechat.local.toml')) {
 
 配置字段：`WECHAT_APP_ID`、`WECHAT_APP_SECRET`、`AUTH_SESSION_DAYS`。该文件已被 Git 和 Docker 构建忽略；环境变量优先于文件。AppSecret 只保存在后端私密配置中，无需发到聊天或写入前端。更改后重启后端。缺配置会明确返回 `WECHAT_NOT_CONFIGURED`。
 
-### 3. 迁移成功后启动实施目录后端
+### 3. 迁移成功后启动 main 主目录后端
 
 若原后端占用 8000，在其原终端按 Ctrl+C 停止后再运行本次代码。以下步骤由你启用时执行，本次测试没有替你迁移业务库：
 
 ```powershell
-cd 'E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration'
+cd 'E:\C盘Doucment\ChatGPT\wuma最终版'
 Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
 $env:DB_HOST = '127.0.0.1'
 $env:DB_PORT = '3306'
@@ -99,7 +99,7 @@ if ($LASTEXITCODE -ne 0) { throw '数据库版本检查失败，停止启动后�
 - 开发者工具本机测试：当前开发地址 `http://127.0.0.1:8000` 可连接本机后端。
 - 手机预览、体验版和正式版：配置手机可访问的 HTTPS API，并在微信后台登记 request 合法域名；手机的 `127.0.0.1` 不指向电脑。
 - `miniprogram/config/api.ts` 中体验版 `test` 和正式版 `production` 地址目前为空，发布前必须填写实际部署地址。不同环境使用独立缓存会话。
-- 重新编译实施目录小程序，无需清空已有历史和房间凭证。
+- 普通编译 main 主目录小程序，无需清空已有历史和房间凭证。
 
 ## 真实验收清单
 
