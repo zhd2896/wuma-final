@@ -5,6 +5,7 @@ __pycache__/
 .pytest_cache/
 *.pyc
 backend/.mysql-test/
+results/staged-mysql*/
 .env
 backend/.env
 deploy/nginx/conf.d/tls.conf

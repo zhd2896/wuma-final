@@ -3,6 +3,8 @@ import { createOnlineApi, requireOnlineRoom } from '../../services/online-api';
 import { requireOnlineSeat } from '../../services/online-credentials';
 import { createGameApi } from '../../services/game-api';
 import { createTrainingApi } from '../../services/training-api';
+import { hasWechatSession } from '../../services/device-auth';
+import { showLogin } from '../../services/auth-navigation';
 import type { GameExplanationDto, GameReviewDto } from '../../services/api-contract';
 import type { GameApi } from '../../services/game-api';
 import type { BoardState } from '../../types/domain';
@@ -155,5 +157,14 @@ Page({
       this.setData({ isGeneratingTraining: false });
     }
   },
-  back() { wx.navigateBack({ delta: 1 }); },
+  back() {
+    const fallback = () => {
+      const route = '/pages/history/history?filter=reviewable';
+      if (hasWechatSession()) wx.reLaunch({ url: route });
+      else showLogin(route);
+    };
+    if (getCurrentPages().length <= 1) { fallback(); return; }
+    try { wx.navigateBack({ delta: 1, fail: fallback }); }
+    catch { fallback(); }
+  },
 });
