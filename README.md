@@ -73,10 +73,11 @@ Compose 创建数据库 `wuma` 和同名用户，并映射到本机 `3306` 端�
 
 ```powershell
 .\backend\.venv\Scripts\python.exe -m alembic -c backend/alembic.ini upgrade head
+if ($LASTEXITCODE -ne 0) { throw '数据库迁移失败，请先处理错误；不要继续启动后端' }
 .\backend\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-第二条命令会持续运行，保留此终端。若改用已有 MySQL，先在此终端设置匹配的 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`；若设置了 `DATABASE_URL`，请确认它指向**开发库**。当前迁移唯一最终版本为 `0013_remote_undo_revert_count`（含 `0011_game_operations` 与 `0012_remote_undo_idempotency`）。
+Uvicorn 命令会持续运行，保留此终端。若改用已有 MySQL，先在此终端设置匹配的 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`；若设置了 `DATABASE_URL`，请确认它指向**开发库**。当前迁移唯一最终版本为 `0014_merge_auth_operations`，合并对局操作迁移与既有 `0011_wechat_auth_sessions` 分支；已在任一分支的库只补齐另一分支的迁移，不重建已有会话或棋局。2026-10-05 本机业务库恢复和数据保留验证见 [兼容修复记录](docs/database-migration-compatibility-repair-2026-10-05.md)。
 
 在另一 PowerShell 窗口确认引擎和数据库都可用：
 
@@ -190,7 +191,7 @@ docker compose -f backend/docker-compose.mysql.yml down
 
 **2026-10-05 补测更新**：前端 422 项、后端 181 项全量通过，均无失败或跳过；后端已包含此前跳过的 32 项真实 MySQL 测试与全新数据库迁移。真实开发者工具 `test:e2e:game-operations` 主流程 exit 0。真实迁移暴露的字符集不一致及 IDE 脚本连接上下文问题已修复。补充测试验证了 AI 历史/复盘和远程认输/席位复盘，但复盘返回/跳转出现超时，补充脚本整体失败，尚需复核；两台真机及真实断网重试仍未验收。阶段仍为“代码完成，尚未满足验收条件”。详见 [最新测试报告](docs/game-operations-test-report-2026-10-05.md) 和附带日志；上表保留 2026-10-04 当时结果。
 
-微信开发者工具必须打开并编译**包含本阶段提交的项目目录**。2026-10-05 已按用户要求将 `codex/game-operations` 快进合并到 `main`，现在可以使用主项目目录；`.worktrees/game-operations` 仍保留用于后续验收。后端应从同一代码版本的目录启动。小程序 `miniprogram/config/api.ts` 的开发 API 地址必须与 `WUMA_GAME_OPERATIONS_API` 一致（默认 `http://127.0.0.1:8000`）。
+微信开发者工具必须打开并编译**包含本阶段提交的项目目录**。2026-10-05 已按用户要求将 `codex/game-operations` 快进合并到 `main`，现在可以使用主项目目录；`.worktrees/game-operations` 仍保留用于后续验收，运行后端前需同步最新的 0014 兼容迁移。后端应从同一代码版本的目录启动。小程序 `miniprogram/config/api.ts` 的开发 API 地址必须与 `WUMA_GAME_OPERATIONS_API` 一致（默认 `http://127.0.0.1:8000`）。
 
 在该工作树的 PowerShell 中，使用现有 Python 环境（`WUMA_PYTHON` 指向可运行后端的解释器），把 `WUMA_TEST_DATABASE_URL` 设置为自己有权限的独立 MySQL `*_test` 库。不要使用开发库或生产库。URL 可含 `charset=utf8mb4` 和连接/读写超时参数，不接受覆盖 database/host 等参数。
 

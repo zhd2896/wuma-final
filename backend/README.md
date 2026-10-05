@@ -13,11 +13,14 @@ python -m venv backend/.venv
 backend/.venv/Scripts/python -m pip install -r backend/requirements.txt
 cd backend
 .venv/Scripts/python -m alembic upgrade head
+if ($LASTEXITCODE -ne 0) { throw 'Database migration failed; do not start the API' }
 cd ..
 backend/.venv/Scripts/python -m uvicorn backend.app.main:app
 ```
 
 Run `backend/.venv/Scripts/python -m pytest backend/tests -q`. For real MySQL integration tests, first apply the migration to an isolated test database and set `WUMA_TEST_DATABASE_URL` to its URL. Those tests are skipped when this variable is absent; they never use the app's default database implicitly.
+
+The current single migration head is `0014_merge_auth_operations`. It merges the existing `0011_wechat_auth_sessions` branch and the operation branch ending at `0013_remote_undo_revert_count`. Existing databases on either branch apply only their missing migrations; existing sessions, games and moves are retained. The restored session migration provides database compatibility; the current app still uses anonymous device accounts. An API `/ready` success checks connectivity and engine availability and does not prove the schema migration succeeded.
 
 ## Persistence
 
