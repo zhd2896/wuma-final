@@ -149,7 +149,7 @@ Page({
     this.setData({ isGeneratingTraining: true, trainingError: '' });
     try {
       await createTrainingApi(createApiClient()).generate(this.data.gameId);
-      wx.navigateTo({ url: '/pages/training/training' });
+      wx.navigateTo({ url: `/pages/training/training?source=REVIEW&gameId=${encodeURIComponent(this.data.gameId)}` });
     } catch (error) {
       this.setData({ trainingError: messageForApiError(error) });
     } finally {

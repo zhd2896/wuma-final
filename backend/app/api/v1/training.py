@@ -16,16 +16,20 @@ router = APIRouter(prefix="/api/v1/training", tags=["training"])
 async def list_training(request: Request, limit: int = Query(20, ge=1, le=100),
                         offset: int = Query(0, ge=0),
                         category: Literal["MISTAKE", "BLUNDER"] | None = Query(None),
-                        training_type: Literal["BEST_MOVE"] | None = Query(None)) -> ApiResponse[TrainingList]:
+                        training_type: Literal["BEST_MOVE"] | None = Query(None),
+                        source: Literal['REVIEW', 'CURATED'] = Query('REVIEW'),
+                        difficulty: Literal['EASY', 'NORMAL', 'COMPLEX', 'UNCALIBRATED'] | None = Query(None),
+                        completed: bool | None = Query(None),
+                        source_game_id: str | None = Query(None)) -> ApiResponse[TrainingList]:
     user_id = await require_account(request)
     return ApiResponse(data=await request.app.state.training_service.list(
-        limit, offset, category, training_type, user_id))
+        limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id))
 
 
 @router.get("/{training_id}", response_model=ApiResponse[TrainingQuestion])
 async def get_training(request: Request, training_id: str) -> ApiResponse[TrainingQuestion]:
-    await require_training_owner(request, training_id)
-    return ApiResponse(data=await request.app.state.training_service.get(training_id))
+    user_id = await require_training_owner(request, training_id)
+    return ApiResponse(data=await request.app.state.training_service.get(training_id, user_id))
 
 
 @router.get("/{training_id}/legal-moves", response_model=ApiResponse[TrainingLegalMoves])

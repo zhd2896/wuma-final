@@ -1,6 +1,7 @@
 """Historical training from immutable reviewed turns and canonical Engine scores."""
 
 import math
+import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -12,6 +13,7 @@ from backend.app.schemas.training import (
 )
 from backend.app.services.game_service import GameService
 from backend.app.services.game_store import GameStore
+from backend.app.services.training_catalog import build_catalog
 
 
 THREAT_TAGS = {
@@ -28,8 +30,22 @@ class TrainingService:
     def __init__(self, games: GameService, store: GameStore):
         self.games = games
         self.store = store
+        self._catalog_lock = asyncio.Lock()
+        self._catalog_loaded = False
 
-    async def generate(self, game_id: str, reviewed_player: str | None = None) -> TrainingList:
+    async def ensure_catalog(self) -> None:
+        async with self._catalog_lock:
+            if not self._catalog_loaded:
+                await self.store.commit_curated_items(await build_catalog(self.games.adapter))
+                self._catalog_loaded = True
+
+    async def question(self, item, user_id):
+        question = TrainingQuestion.from_item(item)
+        question.progress = await self.store.training_progress(item.id, user_id)
+        return question
+
+    async def generate(self, game_id: str, reviewed_player: str | None = None,
+                       user_id: str | None = None) -> TrainingList:
         snapshot = await self.store.get_snapshot(game_id)
         if snapshot.state.game_status != "FINISHED":
             raise ApiError("GAME_NOT_FINISHED", "Training requires a finished reviewed game")
@@ -68,19 +84,23 @@ class TrainingService:
                 reviewConfigVersion=review.reviewConfigVersion,
                 generationVersion=GENERATION_VERSION, createdAt=datetime.now(timezone.utc),
             ))
-        saved = await self.store.commit_training_items(review.id, items)
-        public = [TrainingQuestion.from_item(item) for item in saved]
+        saved = await self.store.commit_training_items(review.id, items, user_id)
+        public = [await self.question(item, user_id) for item in saved]
         return TrainingList(items=public, total=len(public))
 
     async def list(self, limit: int, offset: int, category: str | None,
                    training_type: str | None,
-                   user_id: str | None = None) -> TrainingList:
+                   user_id: str | None = None, source: str = 'REVIEW',
+                   difficulty: str | None = None, completed: bool | None = None,
+                   source_game_id: str | None = None) -> TrainingList:
+        if source == 'CURATED':
+            await self.ensure_catalog()
         items, total = await self.store.list_training_items(limit, offset, category, training_type,
-                                                              user_id)
-        return TrainingList(items=[TrainingQuestion.from_item(item) for item in items], total=total)
+            user_id, source, difficulty, completed, source_game_id)
+        return TrainingList(items=[await self.question(item, user_id) for item in items], total=total)
 
-    async def get(self, training_id: str) -> TrainingQuestion:
-        return TrainingQuestion.from_item(await self.store.get_training_item(training_id))
+    async def get(self, training_id: str, user_id: str | None = None) -> TrainingQuestion:
+        return await self.question(await self.store.get_training_item(training_id), user_id)
 
     async def legal_moves(self, training_id: str, from_node: str | None) -> TrainingLegalMoves:
         item = await self.store.get_training_item(training_id)
@@ -108,7 +128,7 @@ class TrainingService:
             raise
         score = await self.games.adapter.review_move(
             item.stateSnapshot, turn.state, submitted, item.scoringConfig)
-        if (score.scorePerspective != item.player or score.searchDepth != item.scoringDepth or
+        if (score.timedOut or score.scorePerspective != item.player or score.searchDepth != item.scoringDepth or
             not math.isfinite(score.bestScore) or not math.isfinite(score.actualMoveScore) or
             abs(score.bestScore - item.bestScore) > SCORE_TOLERANCE):
             raise ApiError("TRAINING_SCORING_INCOMPLETE", "Training score is not comparable")

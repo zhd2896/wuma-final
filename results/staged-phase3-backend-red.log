@@ -1,0 +1,31 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______________ test_public_catalog_answers_progress_and_filters _______________
+
+    def test_public_catalog_answers_progress_and_filters():
+        with TestClient(create_app(store=InMemoryGameStore(), require_auth=True)) as client:
+>           exercise_catalog(client)
+
+backend\tests\test_training_catalog.py:77: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <starlette.testclient.TestClient object at 0x000002060831E240>
+
+    def exercise_catalog(client):
+        first = account(client)
+        second = account(client)
+        client.headers.update(first)
+        listed = client.get('/api/v1/training?source=CURATED').json()['data']
+>       assert listed['total'] >= 3
+E       assert 0 >= 3
+
+backend\tests\test_training_catalog.py:17: AssertionError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_training_catalog.py::test_public_catalog_answers_progress_and_filters
+1 failed, 1 warning in 2.40s

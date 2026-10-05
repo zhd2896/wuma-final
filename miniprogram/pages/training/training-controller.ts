@@ -2,9 +2,11 @@ import { NODE_IDS } from '../../domain/index';
 import type { Move, NodeId } from '../../domain/index';
 import { messageForApiError } from '../../services/api-client';
 import type { TrainingAnswerDto, TrainingQuestionDto } from '../../services/api-contract';
-import type { TrainingApi } from '../../services/training-api';
+import type { TrainingApi, TrainingFilters } from '../../services/training-api';
 
 export interface TrainingSnapshot {
+  readonly filters: TrainingFilters;
+  readonly noticeMessage: string | null;
   readonly items: readonly TrainingQuestionDto[];
   readonly total: number;
   readonly question: TrainingQuestionDto | null;
@@ -19,6 +21,7 @@ export interface TrainingSnapshot {
 }
 
 const initial: TrainingSnapshot = {
+  filters: { source: 'CURATED' }, noticeMessage: null,
   items: [], total: 0, question: null, selectedNode: null, legalTargets: [],
   answer: null, isLoading: false, isLoadingMore: false, isLoadingLegalMoves: false,
   isSubmittingAnswer: false, errorMessage: null,
@@ -50,6 +53,15 @@ export class TrainingController {
 
   get snapshot(): TrainingSnapshot { return this.state; }
 
+  async setFilters(filters: TrainingFilters): Promise<void> {
+    if (this.disposed || this.state.isSubmittingAnswer) return;
+    this.generation++;
+    this.legalGeneration++;
+    this.pending = null;
+    this.publish({ ...initial, filters: { ...filters } });
+    await this.enter();
+  }
+
   private publish(patch: Partial<TrainingSnapshot>): void {
     if (this.disposed) return;
     this.state = { ...this.state, ...patch };
@@ -61,7 +73,7 @@ export class TrainingController {
     const generation = ++this.generation;
     this.publish({ isLoading: true, errorMessage: null });
     try {
-      const list = await this.api.list();
+      const list = await this.api.list(20, 0, this.state.filters);
       if (this.disposed || generation !== this.generation) return;
       this.publish({ items: list.items, total: list.total, isLoading: false });
     } catch (error) {
@@ -77,7 +89,7 @@ export class TrainingController {
     const offset = this.state.items.length;
     this.publish({ isLoadingMore: true, errorMessage: null });
     try {
-      const list = await this.api.list(20, offset);
+      const list = await this.api.list(20, offset, this.state.filters);
       if (this.disposed || generation !== this.generation) return;
       const seen = new Set(this.state.items.map(item => item.id));
       this.publish({ items: [...this.state.items, ...list.items.filter(item => !seen.has(item.id))],
@@ -94,7 +106,7 @@ export class TrainingController {
     this.legalGeneration++;
     this.pending = null;
     this.publish({ question: null, answer: null, selectedNode: null, legalTargets: [],
-      isLoadingLegalMoves: false, isLoading: true, errorMessage: null });
+      isLoadingLegalMoves: false, isLoadingMore: false, isLoading: true, errorMessage: null });
     try {
       const question = await this.api.get(id);
       if (this.disposed || generation !== this.generation) return;
@@ -157,7 +169,18 @@ export class TrainingController {
       if (this.disposed || generation !== this.generation ||
           this.state.question?.id !== question.id) return;
       this.pending = null;
-      this.publish({ answer, selectedNode: null, legalTargets: [], isSubmittingAnswer: false });
+      const progress = { attemptCount: (question.progress?.attemptCount ?? 0) + 1,
+        latestResult: answer.result,
+        completed: question.progress?.completed === true || answer.result === 'CORRECT' };
+      const updatedQuestion = { ...question, progress };
+      let items = this.state.items.map(item => item.id === question.id ? updatedQuestion : item);
+      let total = this.state.total;
+      if (this.state.filters.completed === false && progress.completed) {
+        total -= items.some(item => item.id === question.id) ? 1 : 0;
+        items = items.filter(item => item.id !== question.id);
+      }
+      this.publish({ answer, question: updatedQuestion, items, total,
+        selectedNode: null, legalTargets: [], isSubmittingAnswer: false });
     } catch (error) {
       if (this.disposed || generation !== this.generation) return;
       this.publish({ isSubmittingAnswer: false, errorMessage: messageForApiError(error) });
@@ -169,12 +192,27 @@ export class TrainingController {
   }
 
   async next(): Promise<void> {
-    const index = this.state.items.findIndex(item => item.id === this.state.question?.id);
-    if (index === this.state.items.length - 1 && this.state.items.length < this.state.total) {
+    if (this.disposed || this.state.isLoading || this.state.isLoadingMore || this.state.isSubmittingAnswer) return;
+    const generation = this.generation;
+    const currentId = this.state.question?.id;
+    let index = this.state.items.findIndex(item => item.id === this.state.question?.id);
+    while (true) {
+      const candidate = this.state.items.slice(index + 1).find(item => !item.progress?.completed);
+      if (candidate) { await this.open(candidate.id); return; }
+      if (this.state.items.length >= this.state.total) {
+        const earlier = this.state.items.find(item => item.id !== currentId && !item.progress?.completed);
+        if (earlier) { await this.open(earlier.id); return; }
+        this.backToList();
+        this.publish({ noticeMessage: '暂无其他未完成题，可切换筛选或再练已完成题。' });
+        return;
+      }
+      index = this.state.items.length - 1;
       await this.loadMore();
+      if (this.disposed || generation !== this.generation || this.state.errorMessage) return;
+      if (index === this.state.items.length - 1 && this.state.items.length < this.state.total) {
+        this.publish({ errorMessage: '题目列表未更新，请重试。' }); return;
+      }
     }
-    if (index >= 0 && index + 1 < this.state.items.length) await this.open(this.state.items[index + 1].id);
-    else if (this.state.items.length >= this.state.total) this.backToList();
   }
 
   backToList(): void {
@@ -183,7 +221,7 @@ export class TrainingController {
     this.legalGeneration++;
     this.pending = null;
     this.publish({ question: null, answer: null, selectedNode: null, legalTargets: [],
-      isLoading: false, isLoadingLegalMoves: false, errorMessage: null });
+      isLoading: false, isLoadingMore: false, isLoadingLegalMoves: false, errorMessage: null });
   }
 
   dispose(): void {

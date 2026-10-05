@@ -16,7 +16,7 @@ from backend.app.services.remote_accounts import recovery_seat
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
-                                          TrainingSource)
+                                          TrainingSource, TrainingProgress)
 
 
 @dataclass(frozen=True)
@@ -138,11 +138,15 @@ class GameStore(Protocol):
     async def commit_coach_hint(self, hint: CoachHint) -> CoachHint: ...
     async def list_training_sources(self, review_id: str) -> list[TrainingSource]: ...
     async def commit_training_items(self, review_id: str,
-                                    items: list[TrainingItemInternal]) -> list[TrainingItemInternal]: ...
+                                    items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]: ...
     async def list_training_items(self, limit: int, offset: int, category: str | None,
                                   training_type: str | None,
-                                  user_id: str | None = None) -> tuple[list[TrainingItemInternal], int]: ...
+                                  user_id: str | None = None, source: str = 'REVIEW',
+                                  difficulty: str | None = None, completed: bool | None = None,
+                                  source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]: ...
     async def get_training_item(self, training_id: str) -> TrainingItemInternal: ...
+    async def commit_curated_items(self, items: list[TrainingItemInternal]) -> None: ...
+    async def training_progress(self, training_id: str, user_id: str | None) -> TrainingProgress: ...
     async def get_training_attempt(self, client_attempt_id: str,
                                    user_id: str | None = None) -> TrainingAnswerResult | None: ...
     async def commit_training_record(self, record: TrainingAnswerResult,
@@ -299,7 +303,8 @@ class InMemoryGameStore:
                 "wins": wins, "losses": losses,
                 "reviewedGames": len({key[0] for key in self._reviews
                                       if self._owns_personal(self._games[key[0]], user_id) and (self._games[key[0]].mode != "REMOTE" or key[1] == self._personal_seat(key[0], user_id))}),
-                "training": len(records),
+                "training": len({record.trainingId for record in records if record.result == "CORRECT"}),
+                "trainingAttempts": len(records),
                 "correct": sum(record.result == "CORRECT" for record in records)}
 
     async def create(self, state: GameState, mode: str = "LOCAL",
@@ -920,11 +925,19 @@ class InMemoryGameStore:
                 for review_move in review.moveReviews]
 
     async def commit_training_items(self, review_id: str,
-                                    items: list[TrainingItemInternal]) -> list[TrainingItemInternal]:
+                                    items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]:
         async with self._catalog_lock:
             review = next((item for item in self._reviews.values() if item.id == review_id), None)
             if review is None or self._games[review.gameId].state.game_status != "FINISHED":
                 raise ApiError("REVIEW_REQUIRED", "Generate a finished game review first")
+            if user_id in self._retired_users:
+                raise ApiError('AUTH_INVALID', 'Account was migrated; login again')
+            game = self._games[review.gameId]
+            if user_id is not None:
+                if game.mode == 'REMOTE':
+                    raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
+                if game.user_id != user_id:
+                    raise ApiError('AUTH_FORBIDDEN', 'Game belongs to another account')
             saved = []
             for item in items:
                 key = (review_id, item.sourceMoveReviewId,
@@ -937,14 +950,39 @@ class InMemoryGameStore:
 
     async def list_training_items(self, limit: int, offset: int, category: str | None,
                                   training_type: str | None,
-                                  user_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                                  user_id: str | None = None, source: str = 'REVIEW',
+                                  difficulty: str | None = None, completed: bool | None = None,
+                                  source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         items = [item for item in self._training_items.values()
-                 if (category is None or item.sourceCategory == category) and
+                 if item.sourceKind == source and
+                 (difficulty is None or item.difficultyTag == difficulty) and
+                 (source_game_id is None or item.sourceGameId == source_game_id) and
+                 (completed is None or (await self.training_progress(item.id, user_id)).completed == completed) and
+                 (category is None or item.sourceCategory == category) and
                  (training_type is None or item.trainingType == training_type) and
-                 (user_id is None or self._games[item.sourceGameId].user_id == user_id)]
+                 (item.sourceKind == 'CURATED' or user_id is None or
+                  (self._games[item.sourceGameId].user_id == user_id and
+                   self._games[item.sourceGameId].mode != 'REMOTE'))]
         items.sort(key=lambda item: (item.sourceCategory == "BLUNDER", item.createdAt, item.id),
                    reverse=True)
         return items[offset:offset + limit], len(items)
+
+    async def commit_curated_items(self, items: list[TrainingItemInternal]) -> None:
+        async with self._catalog_lock:
+            for item in items:
+                existing = self._training_items.get(item.id)
+                if existing is not None and existing != item:
+                    raise ApiError('REPLAY_INTEGRITY_ERROR', 'Catalog ID/version contents differ')
+            for item in items:
+                self._training_items.setdefault(item.id, item)
+
+    async def training_progress(self, training_id: str, user_id: str | None) -> TrainingProgress:
+        records = [record for key, record in self._training_records.items()
+                   if record.trainingId == training_id and self._training_owners.get(key) == user_id]
+        records.sort(key=lambda record: (record.answeredAt, record.id), reverse=True)
+        return TrainingProgress(attemptCount=len(records),
+            latestResult=records[0].result if records else None,
+            completed=any(record.result == 'CORRECT' for record in records))
 
     async def get_training_item(self, training_id: str) -> TrainingItemInternal:
         item = self._training_items.get(training_id)
@@ -965,7 +1003,14 @@ class InMemoryGameStore:
                 raise ApiError("AUTH_INVALID", "Account was migrated; login again")
             if record.trainingId not in self._training_items:
                 raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
-            existing = self._training_records.get(record.clientAttemptId)
+            item = self._training_items[record.trainingId]
+            if user_id is not None and item.sourceKind == 'REVIEW':
+                game = self._games[item.sourceGameId]
+                if game.mode == 'REMOTE':
+                    raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
+                if game.user_id != user_id:
+                    raise ApiError('AUTH_FORBIDDEN', 'Training belongs to another account')
+            existing = await self.get_training_attempt(record.clientAttemptId, user_id)
             if existing is not None:
                 if existing.trainingId != record.trainingId or existing.submittedMove != record.submittedMove:
                     raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used")

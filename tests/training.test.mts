@@ -152,3 +152,108 @@ test('more than twenty questions remain reachable from list and next action', as
   assert.equal(controller.snapshot.question?.id, questions[20].id);
   controller.dispose();
 });
+
+test('filter reset isolates stale initial list replies', async () => {
+  const stale = deferred<any>();
+  const calls: any[] = [];
+  const api = {
+    list: async (_limit = 20, offset = 0, filters: any = {}) => {
+      calls.push({ offset, filters });
+      if (calls.length === 1) return stale.promise;
+      return { items: [{ ...question, id: 'fresh' }], total: 1 };
+    },
+    get: async () => question, legalMoves: async () => ({ moves: [bestMove] }),
+    answer: async () => answer, generate: async () => ({ items: [], total: 0 }),
+  };
+  const controller = new TrainingController(api, () => {});
+  const first = controller.enter();
+  await controller.setFilters({ source: 'REVIEW', category: 'BLUNDER', source_game_id: 'game-a' });
+  stale.resolve({ items: [question], total: 20 });
+  await first;
+  assert.deepEqual(controller.snapshot.items.map(item => item.id), ['fresh']);
+  assert.equal(calls[1].offset, 0);
+  assert.deepEqual(calls[1].filters, { source: 'REVIEW', category: 'BLUNDER', source_game_id: 'game-a' });
+});
+
+test('filter reset isolates stale pagination and clears the old load-more state', async () => {
+  const more = deferred<any>();
+  const oldItems = Array.from({ length: 20 }, (_, index) => ({ ...question, id: `old-${index}` }));
+  const api = {
+    list: async (_limit = 20, offset = 0, filters: any = {}) => {
+      if (filters.source === 'REVIEW') return { items: [{ ...question, id: 'review-fresh' }], total: 1 };
+      return offset ? more.promise : { items: oldItems, total: 21 };
+    },
+    get: async () => question, legalMoves: async () => ({ moves: [bestMove] }),
+    answer: async () => answer, generate: async () => ({ items: [], total: 0 }),
+  };
+  const controller = new TrainingController(api, () => {});
+  await controller.enter();
+  const oldPage = controller.loadMore();
+  await controller.setFilters({ source: 'REVIEW' });
+  more.resolve({ items: [{ ...question, id: 'old-late' }], total: 21 });
+  await oldPage;
+  assert.deepEqual(controller.snapshot.items.map(item => item.id), ['review-fresh']);
+  assert.equal(controller.snapshot.isLoadingMore, false);
+});
+
+test('answer syncs progress and next skips completed pages with an explicit end message', async () => {
+  const completed = { ...question, id: 'done', progress: { attemptCount: 1, latestResult: 'CORRECT', completed: true } };
+  const fresh = { ...question, id: 'fresh', progress: { attemptCount: 0, latestResult: null, completed: false } };
+  const calls: number[] = [];
+  const api = {
+    list: async (_limit = 20, offset = 0) => {
+      calls.push(offset);
+      return offset ? { items: [fresh], total: 3 } : { items: [question, completed], total: 3 };
+    },
+    get: async (id: string) => id === 'fresh' ? fresh : question,
+    legalMoves: async () => ({ moves: [bestMove] }), answer: async () => answer,
+    generate: async () => ({ items: [], total: 0 }),
+  };
+  const controller = new TrainingController(api, () => {}, () => 'attempt-123');
+  await controller.enter(); await controller.open(question.id);
+  await controller.tapNode(bestMove.from); await controller.tapNode(bestMove.to);
+  assert.equal(controller.snapshot.items[0].progress?.completed, true);
+  assert.equal(controller.snapshot.items[0].progress?.attemptCount, 1);
+  await controller.next();
+  assert.equal(controller.snapshot.question?.id, 'fresh');
+  assert.deepEqual(calls, [0, 2]);
+  await controller.next();
+  assert.equal(controller.snapshot.question, null);
+  assert.match(controller.snapshot.noticeMessage || '', /暂无其他未完成/);
+});
+
+test('next from the final question wraps to an earlier incomplete question', async () => {
+  const last = { ...question, id: 'last' };
+  const api = { list: async () => ({ items: [question, last], total: 2 }),
+    get: async (id: string) => id === 'last' ? last : question,
+    legalMoves: async () => ({ moves: [bestMove] }), answer: async () => answer,
+    generate: async () => ({ items: [], total: 0 }) };
+  const controller = new TrainingController(api, () => {});
+  await controller.enter(); await controller.open('last'); await controller.next();
+  assert.equal(controller.snapshot.question?.id, question.id);
+});
+
+test('completing an incomplete filtered page keeps the following page first question reachable', async () => {
+  const questions = Array.from({ length: 21 }, (_, index) => ({ ...question, id: `filtered-${index}`,
+    progress: { attemptCount: 0, latestResult: null, completed: false } }));
+  const calls: number[] = [];
+  let answered = false;
+  const api = {
+    list: async (limit = 20, offset = 0) => {
+      calls.push(offset);
+      const remaining = answered ? questions.slice(1) : questions;
+      return { items: remaining.slice(offset, offset + limit), total: remaining.length };
+    },
+    get: async (id: string) => questions.find(q => q.id === id)!,
+    legalMoves: async () => ({ moves: [bestMove] }),
+    answer: async () => { answered = true; return { ...answer, trainingId: questions[0].id }; },
+    generate: async () => ({ items: [], total: 0 }),
+  };
+  const controller = new TrainingController(api, () => {});
+  await controller.setFilters({ source: 'CURATED', completed: false });
+  await controller.open(questions[0].id);
+  await controller.tapNode(bestMove.from); await controller.tapNode(bestMove.to);
+  await controller.open(questions[19].id); await controller.next();
+  assert.equal(controller.snapshot.question?.id, questions[20].id);
+  assert.deepEqual(calls, [0, 19]);
+});

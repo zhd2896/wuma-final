@@ -19,9 +19,9 @@ router = APIRouter(prefix="/api/v1/game", tags=["game"])
 @router.post("/{game_id}/training", response_model=ApiResponse[TrainingList])
 async def generate_training(request: Request, game_id: str,
                             body: ReviewRequest = ReviewRequest()) -> ApiResponse[TrainingList]:
-    await require_game_owner(request, game_id)
+    user_id = await require_game_owner(request, game_id)
     return ApiResponse(data=await request.app.state.training_service.generate(
-        game_id, body.reviewed_player))
+        game_id, body.reviewed_player, user_id))
 
 
 @router.post("/{game_id}/coach/hint", response_model=ApiResponse[CoachHint])

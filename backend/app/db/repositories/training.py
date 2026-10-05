@@ -2,14 +2,15 @@
 
 from datetime import timezone
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, exists
+from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.orm import Session
 
 from backend.app.core.errors import ApiError
 from backend.app.db.models import (GameModel, GameMoveModel, GameReviewModel,
                                    MoveReviewModel, TrainingItemModel, TrainingRecordModel)
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
-                                          TrainingSource)
+                                          TrainingSource, TrainingProgress)
 
 
 class TrainingRepository:
@@ -20,6 +21,8 @@ class TrainingRepository:
     def item_from_row(row: TrainingItemModel) -> TrainingItemInternal:
         return TrainingItemInternal(
             id=row.id, sourceGameId=row.source_game_id,
+            sourceKind=row.source_kind, title=row.title, catalogVersion=row.catalog_version,
+            difficultyBasis=row.difficulty_basis,
             sourceMoveId=row.source_move_id,
             sourceMoveReviewId=row.source_move_review_id,
             sourceTurn=row.source_turn, player=row.player,
@@ -61,7 +64,7 @@ class TrainingRepository:
                 for review, move in rows]
 
     def commit_items(self, review_id: str,
-                     items: list[TrainingItemInternal]) -> list[TrainingItemInternal]:
+                     items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]:
         parent = self.session.scalar(select(GameReviewModel).where(
             GameReviewModel.id == review_id).with_for_update())
         if parent is None:
@@ -69,6 +72,11 @@ class TrainingRepository:
         game = self.session.get(GameModel, parent.game_id)
         if game is None or game.status != "FINISHED":
             raise ApiError("GAME_NOT_FINISHED", "Training requires a finished game")
+        if user_id is not None:
+            if game.mode == 'REMOTE':
+                raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
+            if game.user_id != user_id:
+                raise ApiError('AUTH_FORBIDDEN', 'Game belongs to another account')
         saved = []
         for item in items:
             source = self.session.get(MoveReviewModel, item.sourceMoveReviewId)
@@ -86,6 +94,8 @@ class TrainingRepository:
                 continue
             row = TrainingItemModel(
                 id=item.id, source_game_id=item.sourceGameId,
+                source_kind=item.sourceKind, title=item.title, catalog_version=item.catalogVersion,
+                difficulty_basis=item.difficultyBasis.model_dump() if item.difficultyBasis else None,
                 source_move_id=item.sourceMoveId,
                 source_move_review_id=item.sourceMoveReviewId,
                 source_turn=item.sourceTurn, player=item.player,
@@ -108,19 +118,59 @@ class TrainingRepository:
         self.session.flush()
         return saved
 
+    def commit_curated(self, items):
+        for item in sorted(items, key=lambda value: value.id):
+            values = dict(id=item.id, source_kind=item.sourceKind, title=item.title,
+                catalog_version=item.catalogVersion, player=item.player,
+                state_snapshot=item.stateSnapshot.model_dump(mode='json'),
+                state_schema_version=item.stateSchemaVersion,
+                best_move=item.bestMove.model_dump(mode='json', by_alias=True), best_score=item.bestScore,
+                training_type=item.trainingType, training_tags=item.trainingTags,
+                difficulty_tag=item.difficultyTag, difficulty_basis=item.difficultyBasis.model_dump(),
+                scoring_config=item.scoringConfig.model_dump(mode='json'), scoring_depth=item.scoringDepth,
+                review_config_version=item.reviewConfigVersion, generation_version=item.generationVersion,
+                created_at=item.createdAt.replace(tzinfo=None))
+            statement = insert(TrainingItemModel).values(**values)
+            self.session.execute(statement.on_duplicate_key_update(id=statement.inserted.id))
+            saved = self.get_item(item.id)
+            if saved != item:
+                raise ApiError('REPLAY_INTEGRITY_ERROR', 'Catalog ID/version contents differ')
+
+    def progress(self, training_id, user_id):
+        conditions = (TrainingRecordModel.training_item_id == training_id,
+                      TrainingRecordModel.user_id == user_id)
+        count, correct = self.session.execute(select(func.count(),
+            func.max(case((TrainingRecordModel.result == 'CORRECT', 1), else_=0)))
+            .select_from(TrainingRecordModel).where(*conditions)).one()
+        latest = self.session.scalar(select(TrainingRecordModel.result).where(*conditions)
+            .order_by(TrainingRecordModel.answered_at.desc(), TrainingRecordModel.id.desc()).limit(1))
+        return TrainingProgress(attemptCount=count, latestResult=latest, completed=bool(correct))
+
     def list_items(self, limit: int, offset: int, category: str | None,
                    training_type: str | None,
-                   user_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
-        conditions = []
+                   user_id: str | None = None, source: str = 'REVIEW',
+                   difficulty: str | None = None, completed: bool | None = None,
+                   source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+        conditions = [TrainingItemModel.source_kind == source]
         if category:
             conditions.append(TrainingItemModel.source_category == category)
         if training_type:
             conditions.append(TrainingItemModel.training_type == training_type)
-        if user_id is not None:
+        if difficulty:
+            conditions.append(TrainingItemModel.difficulty_tag == difficulty)
+        if source_game_id:
+            conditions.append(TrainingItemModel.source_game_id == source_game_id)
+        if completed is not None:
+            correct = exists(select(TrainingRecordModel.id).where(
+                TrainingRecordModel.training_item_id == TrainingItemModel.id,
+                TrainingRecordModel.user_id == user_id, TrainingRecordModel.result == 'CORRECT'))
+            conditions.append(correct if completed else ~correct)
+        if source == 'REVIEW' and user_id is not None:
             conditions.append(GameModel.user_id == user_id)
+            conditions.append(GameModel.mode != 'REMOTE')
         base = select(TrainingItemModel)
         count = select(func.count()).select_from(TrainingItemModel)
-        if user_id is not None:
+        if source == 'REVIEW' and user_id is not None:
             base = base.join(GameModel, GameModel.id == TrainingItemModel.source_game_id)
             count = count.join(GameModel, GameModel.id == TrainingItemModel.source_game_id)
         total = self.session.scalar(count.where(*conditions)) or 0
@@ -152,6 +202,12 @@ class TrainingRepository:
             TrainingItemModel.id == record.trainingId).with_for_update())
         if parent is None:
             raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
+        if user_id is not None and parent.source_kind == 'REVIEW':
+            game = self.session.get(GameModel, parent.source_game_id)
+            if game.mode == 'REMOTE':
+                raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
+            if game.user_id != user_id:
+                raise ApiError('AUTH_FORBIDDEN', 'Training belongs to another account')
         existing = self.get_attempt(record.clientAttemptId, user_id)
         if existing is not None:
             if existing.trainingId != record.trainingId or existing.submittedMove != record.submittedMove:

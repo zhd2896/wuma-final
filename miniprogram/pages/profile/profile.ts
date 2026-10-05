@@ -6,7 +6,7 @@ import { openPage, backHome } from '../../utils/navigation';
 Page({
   data: {
     state: 'loading', errorMessage: '', name: '微信棋手',
-    cloudGames: 0, localGames: 0, finishedGames: 0, training: 0,
+    cloudGames: 0, localGames: 0, finishedGames: 0, training: 0, trainingAttempts: 0,
     wins: 0, losses: 0, reviewedGames: 0, remoteGames: 0, remoteWins: 0, remoteLosses: 0,
     accuracy: '数据不足',
   },
@@ -25,8 +25,9 @@ Page({
         remoteGames: profile.remoteGames ?? 0, remoteWins: profile.remoteWins ?? 0, remoteLosses: profile.remoteLosses ?? 0,
         reviewedGames: profile.reviewedGames,
         training: profile.training,
-        accuracy: profile.training > 0
-          ? `${Math.round(profile.correct / profile.training * 100)}%` : '数据不足',
+        trainingAttempts: profile.trainingAttempts,
+        accuracy: profile.trainingAttempts > 0
+          ? `${Math.round(profile.correct / profile.trainingAttempts * 100)}%` : '数据不足',
       });
     } catch (error) {
       this.setData({ state: 'error', errorMessage: messageForApiError(error) });

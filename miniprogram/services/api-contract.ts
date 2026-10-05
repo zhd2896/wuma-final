@@ -67,13 +67,21 @@ export interface CoachHintDto {
 
 export interface TrainingQuestionDto {
   readonly id: string;
+  readonly sourceKind: 'REVIEW' | 'CURATED';
+  readonly title: string;
+  readonly catalogVersion: number | null;
+  readonly sourceGameId: string | null;
   readonly player: Player;
   readonly stateSnapshot: GameState;
-  readonly sourceTurn: number;
-  readonly sourceCategory: 'MISTAKE' | 'BLUNDER';
+  readonly sourceTurn: number | null;
+  readonly sourceCategory: 'MISTAKE' | 'BLUNDER' | null;
   readonly trainingType: 'BEST_MOVE';
   readonly trainingTags: readonly string[];
-  readonly difficultyTag: 'UNCALIBRATED';
+  readonly difficultyTag: 'UNCALIBRATED' | 'EASY' | 'NORMAL' | 'COMPLEX';
+  readonly difficultyBasis: { readonly kind: 'ENGINE_ESTIMATE'; readonly legalCandidateCount: number;
+    readonly scoringDepth: number; readonly configVersion: number; readonly methodVersion: number } | null;
+  readonly progress: { readonly attemptCount: number; readonly latestResult: 'CORRECT' | 'SUBOPTIMAL' | null;
+    readonly completed: boolean };
 }
 
 export interface TrainingListDto {

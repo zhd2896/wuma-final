@@ -16,7 +16,7 @@ for (const name of expectedPages) if (!seenPages.includes(name)) errors.push(`mi
 
 const knownNative = new Set([
   'view', 'text', 'image', 'button', 'canvas', 'scroll-view', 'block',
-  'switch', 'input', 'radio-group', 'label', 'radio',
+  'switch', 'input', 'radio-group', 'label', 'radio', 'picker',
 ]);
 const sourceDirs = [path.join(mini, 'pages'), path.join(mini, 'components'),
   ...subPackages.flatMap(pkg => [path.join(mini, pkg.root, 'pages'),

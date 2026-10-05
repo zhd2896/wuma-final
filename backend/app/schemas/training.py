@@ -10,6 +10,21 @@ from backend.app.schemas.game import GameState, Move, NodeId, Player, ReviewConf
 
 TrainingCategory = Literal["MISTAKE", "BLUNDER"]
 TrainingResultKind = Literal["CORRECT", "SUBOPTIMAL"]
+DifficultyTag = Literal["UNCALIBRATED", "EASY", "NORMAL", "COMPLEX"]
+
+
+class TrainingProgress(StrictModel):
+    attemptCount: int = 0
+    latestResult: TrainingResultKind | None = None
+    completed: bool = False
+
+
+class TrainingDifficultyBasis(StrictModel):
+    kind: Literal["ENGINE_ESTIMATE"] = "ENGINE_ESTIMATE"
+    legalCandidateCount: int
+    scoringDepth: int
+    configVersion: int
+    methodVersion: int = 1
 
 
 class TrainingSource(StrictModel):
@@ -22,21 +37,25 @@ class TrainingSource(StrictModel):
 
 class TrainingItemInternal(StrictModel):
     id: str
-    sourceGameId: str
-    sourceMoveId: int
-    sourceMoveReviewId: int
-    sourceTurn: int
+    sourceKind: Literal["REVIEW", "CURATED"] = "REVIEW"
+    title: str = "复盘最佳走法"
+    catalogVersion: int | None = None
+    sourceGameId: str | None = None
+    sourceMoveId: int | None = None
+    sourceMoveReviewId: int | None = None
+    sourceTurn: int | None = None
     player: Player
     stateSnapshot: GameState
     stateSchemaVersion: int
-    originalMove: Move
+    originalMove: Move | None = None
     bestMove: Move
     bestScore: float
-    sourceCategory: TrainingCategory
-    sourceScoreLoss: float
+    sourceCategory: TrainingCategory | None = None
+    sourceScoreLoss: float | None = None
     trainingType: Literal["BEST_MOVE"] = "BEST_MOVE"
     trainingTags: list[str]
-    difficultyTag: Literal["UNCALIBRATED"] = "UNCALIBRATED"
+    difficultyTag: DifficultyTag = "UNCALIBRATED"
+    difficultyBasis: TrainingDifficultyBasis | None = None
     scoringConfig: ReviewConfig
     reviewConfigVersion: int
     scoringDepth: int = Field(ge=1)
@@ -46,13 +65,19 @@ class TrainingItemInternal(StrictModel):
 
 class TrainingQuestion(StrictModel):
     id: str
+    sourceKind: Literal["REVIEW", "CURATED"]
+    title: str
+    catalogVersion: int | None
+    sourceGameId: str | None
     player: Player
     stateSnapshot: GameState
-    sourceTurn: int
-    sourceCategory: TrainingCategory
+    sourceTurn: int | None
+    sourceCategory: TrainingCategory | None
     trainingType: Literal["BEST_MOVE"]
     trainingTags: list[str]
-    difficultyTag: Literal["UNCALIBRATED"]
+    difficultyTag: DifficultyTag
+    difficultyBasis: TrainingDifficultyBasis | None
+    progress: TrainingProgress = Field(default_factory=TrainingProgress)
 
     @classmethod
     def from_item(cls, item: TrainingItemInternal) -> "TrainingQuestion":

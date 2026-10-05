@@ -26,6 +26,7 @@ export interface PersonalProfileDto {
   readonly remoteLosses: number;
   readonly reviewedGames: number;
   readonly training: number;
+  readonly trainingAttempts: number;
   readonly correct: number;
 }
 
