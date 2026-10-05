@@ -35,10 +35,10 @@ test at tests\training.test.mts:178:1
 ✖ answer syncs progress and next skips completed pages with an explicit end message (1.2743ms)
   AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
   + actual - expected
-  
+
   + undefined
   - true
-  
+
       at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/training.test.mts:194:10)
       at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
       at async Test.run (node:internal/test_runner/test:1313:7)

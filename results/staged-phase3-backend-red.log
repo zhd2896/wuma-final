@@ -6,7 +6,7 @@ ______________ test_public_catalog_answers_progress_and_filters _______________
         with TestClient(create_app(store=InMemoryGameStore(), require_auth=True)) as client:
 >           exercise_catalog(client)
 
-backend\tests\test_training_catalog.py:77: 
+backend\tests\test_training_catalog.py:77:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 client = <starlette.testclient.TestClient object at 0x000002060831E240>

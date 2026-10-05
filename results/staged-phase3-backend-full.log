@@ -13,7 +13,7 @@ client = <starlette.testclient.TestClient object at 0x0000023941AE9220>
 >       second, _ = finished_review(client)
                     ^^^^^^^^^^^^^^^^^^^^^^^
 
-backend\tests\test_mysql_training_catalog.py:40: 
+backend\tests\test_mysql_training_catalog.py:40:
 _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
 
 client = <starlette.testclient.TestClient object at 0x0000023941AE9220>
