@@ -1,3 +1,6 @@
+export type AiLevel = 'BEGINNER' | 'STANDARD' | 'ADVANCED';
+export const AI_LEVEL_LABELS: Record<AiLevel, string> = { BEGINNER: '入门', STANDARD: '标准', ADVANCED: '进阶' };
+export function isAiLevel(value: unknown): value is AiLevel { return value === 'BEGINNER' || value === 'STANDARD' || value === 'ADVANCED'; }
 /** Transport types copied from backend/app/schemas/game.py, reusing the canonical DTO shape. */
 import type { CaptureResult, GameState, Move, NodeId, Player, TurnResult } from '../domain/index';
 import type { IterativeDeepeningSearchResult } from '../ai/iterative-deepening';
@@ -41,7 +44,7 @@ export interface GameDto {
   readonly mode: 'LOCAL' | 'AI';
   readonly human_player: Player | null;
   readonly ai_player: Player | null;
-  readonly ai_level: 'STANDARD' | null;
+  readonly ai_level: AiLevel | null;
 }
 export interface GameOperationRequestDto {
   readonly expected_version: number;
@@ -56,7 +59,7 @@ export interface GameOperationDto {
 export type CreateGameRequestDto =
   | { readonly first_player: Player; readonly mode: 'LOCAL' }
   | { readonly first_player: Player; readonly mode: 'AI';
-      readonly ai_player: Player; readonly ai_level: 'STANDARD' };
+      readonly ai_player?: Player; readonly ai_level?: AiLevel };
 export interface LegalMovesDto { readonly moves: readonly Move[] }
 export interface MoveRequestDto { readonly from_node: NodeId; readonly to_node: NodeId }
 export interface MoveResponseDto { readonly turn: TurnResultDto }

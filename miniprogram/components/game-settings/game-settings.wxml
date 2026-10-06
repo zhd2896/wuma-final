@@ -1,4 +1,8 @@
 <view class="game-settings">
+  <view wx:if="{{showAiFirstPlayer}}" class="setting-row">
+    <view class="setting-copy"><view class="setting-title">AI 难度</view><view class="setting-description">下一局 AI 对弈生效</view></view>
+    <picker range="{{aiLevelLabels}}" value="{{settings.defaultAiLevel == 'BEGINNER' ? 0 : settings.defaultAiLevel == 'ADVANCED' ? 2 : 1}}" bindchange="onAiLevelChange"><text>{{settings.defaultAiLevel == 'BEGINNER' ? '入门' : settings.defaultAiLevel == 'ADVANCED' ? '进阶' : '标准'}}</text></picker>
+  </view>
   <view class="setting-row">
     <view class="setting-copy">
       <view class="setting-title">显示点位编号</view>

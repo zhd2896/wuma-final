@@ -1,3 +1,4 @@
+import { isAiLevel } from './api-contract';
 /** Validate saved transport snapshots without executing current game rules. */
 import { NODE_IDS } from '../domain/index';
 import type { GameState, CaptureResult, Player } from '../domain/index';
@@ -33,7 +34,7 @@ export function requireReviewContext(g: GameDto, id: string): GameDto {
   if (g.mode === 'LOCAL') {
     if (g.ai_player !== null || g.human_player !== null || g.ai_level !== null) invalid();
   } else if (g.mode === 'AI') {
-    if (!player(g.ai_player) || g.human_player !== (g.ai_player === 'A' ? 'B' : 'A') || g.ai_level !== 'STANDARD') invalid();
+    if (!player(g.ai_player) || g.human_player !== (g.ai_player === 'A' ? 'B' : 'A') || !isAiLevel(g.ai_level)) invalid();
   } else invalid();
   return g;
 }

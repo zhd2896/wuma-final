@@ -1,3 +1,4 @@
+import { AI_LEVEL_LABELS, isAiLevel } from '../../services/api-contract';
 import { createWxDeviceHistoryStore } from '../../services/device-history';
 import type { DeviceHistoryEntry } from '../../services/device-history';
 import { ApiError, createApiClient, messageForApiError } from '../../services/api-client';
@@ -41,7 +42,7 @@ function rowForDevice(entry: DeviceHistoryEntry): HistoryRow {
     syncReason: linked ? '已同步到云端'
       : entry.localSync?.status === 'pending' ? '结果待确认，棋谱已冻结；需原账号和原服务重试'
       : entry.mode === 'local' && !entry.localScore ? '旧记录缺少完整棋谱，无法同步' : undefined,
-    title: entry.mode === 'online' ? '远程双人' : '本地双人',
+    title: entry.mode === 'ai' ? `AI 对弈${entry.aiLevel ? ' · ' + AI_LEVEL_LABELS[entry.aiLevel] : ''}` : entry.mode === 'online' ? '远程双人' : '本地双人',
     result: finished ? (entry.winnerReason === 'RESIGN' && entry.winner
       ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
       : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
@@ -52,7 +53,7 @@ function rowForCloud(entry: PersonalGameDto): HistoryRow {
   const finished = entry.status === 'FINISHED';
   const updatedAt = Date.parse(entry.finishedAt || entry.startedAt);
   return { id: entry.gameId, mode: entry.mode === 'AI' ? 'ai' : entry.mode === 'REMOTE' ? 'online' : 'remote',
-    status: entry.status, title: entry.mode === 'AI' ? 'AI 对弈' : entry.mode === 'REMOTE' ? `远程双人 · 我的席位 ${entry.seat || ''}` : '云端双人',
+    status: entry.status, title: entry.mode === 'AI' ? `AI 对弈${isAiLevel(entry.aiLevel) ? ' · ' + AI_LEVEL_LABELS[entry.aiLevel] : ''}` : entry.mode === 'REMOTE' ? `远程双人 · 我的席位 ${entry.seat || ''}` : '云端双人',
     result: finished ? (entry.winnerReason === 'RESIGN' && entry.winner
       ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
       : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
@@ -91,7 +92,7 @@ Page({
   },
   renderRows() {
     const local = createWxDeviceHistoryStore().list().filter(item =>
-      item.mode === 'local' || item.mode === 'online').map(rowForDevice).map(row =>
+      item.mode === 'local' || item.mode === 'online' || item.mode === 'ai').map(rowForDevice).map(row =>
         row.localId && this.syncBusy.has(row.localId) ? { ...row, syncing: true,
           syncLabel: '同步中', syncReason: '正在同步，棋谱将冻结并由云端继续' } : row);
     const cloud = this.cloud.map(rowForCloud);

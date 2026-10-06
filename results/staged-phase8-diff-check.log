@@ -1,0 +1,14 @@
+warning: in the working copy of 'backend/tests/test_mysql_persistence.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/superpowers/specs/2026-10-06-profile-release-design.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/components/game-settings/game-settings.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/components/game-settings/game-settings.wxml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/coach/coach-controller.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/game/ai-game.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/game/game.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/game/game.wxml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/history/history.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/services/account-api.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/services/api-contract.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/services/device-history.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/services/game-settings.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/services/replay-contract.ts', LF will be replaced by CRLF the next time Git touches it

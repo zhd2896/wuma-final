@@ -1,3 +1,4 @@
+import { AI_LEVEL_LABELS, type AiLevel } from '../../services/api-contract';
 import { gameService } from '../../services/index';
 import type { BoardState } from '../../types/domain';
 import { boardLines, boardNodes } from '../../mock/game';
@@ -69,7 +70,7 @@ Page({
     remoteState: null as RemoteGameSnapshot | null, remoteView: null as GameViewModel | null,
     remoteReady: false, aiState: null as AiGameSnapshot | null,
     aiView: null as GameViewModel | null, aiReady: false,
-    aiAName: '玩家 A', aiBName: '标准 AI · B',
+    aiAName: '玩家 A', aiBName: 'AI · B', aiLevelLabel: '',
     remoteCaptureText: '', aiCaptureText: '',
     aiAnalysisView: null as AnalysisViewModel | null,
     mode: 'ai', showHint: false, thinking: false,
@@ -103,7 +104,7 @@ Page({
       this.aiController = new AiGameController(
         createGameApi(createApiClient()), storageForRoute(aiGameIdStorage, options.gameId),
         snapshot => this.renderAi(snapshot),
-        { createOnMissing: !options.gameId },
+        { createOnMissing: !options.gameId, getAiLevel: () => this.data.settings.defaultAiLevel },
       );
       this.renderAi(this.aiController.snapshot);
       void this.aiController.enter(this.aiFirstPlayer);
@@ -155,7 +156,7 @@ Page({
     const previous = this.data.aiState as AiGameSnapshot | null;
     if (snapshot.gameId && snapshot.gameState) {
       this.saveHistory(snapshot.gameId, 'ai', snapshot.gameState,
-        snapshot.plyCount);
+        snapshot.plyCount, null, null, undefined, snapshot.aiLevel ?? undefined);
     }
     const view = snapshot.gameState ? mapGameStateToView(snapshot.gameState, {
       selectedNode: snapshot.selectedNode,
@@ -173,8 +174,9 @@ Page({
       aiCaptureText: this.data.settings.showCaptureNotice && snapshot.lastCapture?.was_applied
         ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚`
         : '',
-      aiAName: snapshot.aiPlayer === 'A' ? '标准 AI · A' : '玩家 A',
-      aiBName: snapshot.aiPlayer === 'B' ? '标准 AI · B' : '玩家 B',
+      aiLevelLabel: snapshot.aiLevel ? AI_LEVEL_LABELS[snapshot.aiLevel] : '',
+      aiAName: snapshot.aiPlayer === 'A' ? `${AI_LEVEL_LABELS[snapshot.aiLevel ?? 'STANDARD']} AI · A` : '玩家 A',
+      aiBName: snapshot.aiPlayer === 'B' ? `${AI_LEVEL_LABELS[snapshot.aiLevel ?? 'STANDARD']} AI · B` : '玩家 B',
       aiReady: view !== null, board: view?.board ?? emptyBoard });
   },
   back() { backHome(); },
@@ -246,10 +248,12 @@ Page({
   saveHistory(id: string, mode: 'local' | 'remote' | 'ai',
               state: LocalGameSession['gameState'], turns: number,
               lastMove: LocalGameSession['lastMove'] = null,
-              localUndoFrame: LocalGameSession['undoFrame'] = null, localScore?: LocalScore): boolean {
+              localUndoFrame: LocalGameSession['undoFrame'] = null, localScore?: LocalScore,
+              aiLevel?: AiLevel): boolean {
     try {
       createWxDeviceHistoryStore().record({
         id, mode, state, turns, lastMove,
+        ...(mode === 'ai' && aiLevel ? { aiLevel } : {}),
         ...(mode === 'local' ? { localUndoFrame, localScore } : {}),
       });
       return true;

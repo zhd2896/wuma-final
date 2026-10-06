@@ -256,7 +256,7 @@ class CreateGameRequest(StrictModel):
     first_player: Player = "A"
     mode: Literal["LOCAL", "AI"] = "LOCAL"
     ai_player: Player | None = None
-    ai_level: Literal["STANDARD"] | None = None
+    ai_level: Literal["BEGINNER", "STANDARD", "ADVANCED"] | None = None
 
 
 class LocalImportMove(BaseModel):
@@ -300,7 +300,7 @@ class GameResponse(StrictModel):
     mode: Literal["LOCAL", "AI"]
     human_player: Player | None
     ai_player: Player | None
-    ai_level: Literal["STANDARD"] | None
+    ai_level: Literal["BEGINNER", "STANDARD", "ADVANCED"] | None
 
 
 class GameOperationResponse(StrictModel):

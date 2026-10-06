@@ -1,3 +1,4 @@
+import type { AiLevel } from './api-contract';
 import type { WinnerReason } from '../domain/index';
 import type { ApiClient } from './api-client';
 import { ApiError } from './api-client';
@@ -24,6 +25,7 @@ export interface SkillProfileDto {
 
 export interface PersonalGameDto {
   readonly gameId: string;
+  readonly aiLevel?: AiLevel | null;
   readonly mode: 'AI' | 'LOCAL' | 'REMOTE';
   readonly seat?: 'A' | 'B' | null;
   readonly status: 'PLAYING' | 'FINISHED';

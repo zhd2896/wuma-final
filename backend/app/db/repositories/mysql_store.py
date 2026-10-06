@@ -179,7 +179,7 @@ class MySQLGameStore:
                     GameReviewModel.game_id.in_([row.id for row in selected]))).all()) if selected else set()
                 result = []
                 for row in selected:
-                    result.append({"gameId": row.id, "mode": row.mode,
+                    result.append({"gameId": row.id, "mode": row.mode, "aiLevel": row.ai_level,
                                    "seat": self._personal_seat(rooms.get(row.id), user_id),
                                    "status": row.status, "winner": row.winner,
                                    "winnerReason": row.winner_reason,

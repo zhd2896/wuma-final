@@ -1,6 +1,7 @@
 import { DEFAULT_GAME_SETTINGS, type GameSettings } from '../../services/game-settings';
 
 Component({
+  data: { aiLevelLabels: ['入门', '标准', '进阶'] },
   properties: {
     settings: { type: Object, value: { ...DEFAULT_GAME_SETTINGS } },
     showAiFirstPlayer: { type: Boolean, value: true },
@@ -21,6 +22,12 @@ Component({
     },
     onVibrationChange(event: WechatMiniprogram.SwitchChange) {
       this.emitChange({ vibrateOnAction: event.detail.value });
+    },
+    onAiLevelChange(event: { detail: { value: unknown } }) {
+      const raw = event.detail.value;
+      if ((typeof raw !== 'string' && typeof raw !== 'number') || !/^[012]$/.test(String(raw))) return;
+      const level = (['BEGINNER', 'STANDARD', 'ADVANCED'] as const)[Number(raw)];
+      this.emitChange({ defaultAiLevel: level });
     },
     onAiFirstPlayerChange(event: WechatMiniprogram.RadioGroupChange) {
       this.emitChange({ aiFirstPlayer: event.detail.value === 'B' ? 'B' : 'A' });

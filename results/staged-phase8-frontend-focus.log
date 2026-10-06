@@ -1,0 +1,46 @@
+(node:24612) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy preferences keep all choices and gain STANDARD; all levels persist (1.9845ms)
+✔ native picker string index emits selected difficulty and ignores invalid indexes (6.9103ms)
+✔ actual page uses next default on new/restart, keeps saved current label, and restores difficulty (153.3718ms)
+✔ independent coach and replay context accept all saved AI levels (6.7069ms)
+✔ history displays real cloud/device levels and leaves unknown older metadata unlabeled (41.5253ms)
+(node:1380) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ loads the active authoritative AI game and explicit id takes priority (4.3051ms)
+✔ reports empty, rejects non-AI games, and marks finished or AI-turn games unavailable (1.4734ms)
+✔ rejects a mismatched game id, invalid players, or non-integer authoritative version (0.5046ms)
+✔ requests three real levels in order for the authoritative version without duplicates (4.2443ms)
+✔ rejects mismatched hint identity without unlocking the next level (0.9903ms)
+✔ conflict reloads the authoritative game, clears hints, and requires level one again (0.822ms)
+✔ duplicate loading and disposal prevent late hints from publishing (0.5089ms)
+✔ visibility refresh cancels an in-flight hint and loads the newest version (0.5384ms)
+(node:24144) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/services/game-settings.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ game settings use safe defaults and persist versioned changes (3.3171ms)
+✔ adding node labels preserves legacy settings and persists the new preference (0.4086ms)
+✔ damaged, partial, and wrongly typed stored settings are replaced with defaults (0.636ms)
+✔ store reads and writes defensive copies (0.3702ms)
+✔ wx store uses the versioned storage key (0.316ms)
+✔ successful-action vibration respects settings and never breaks the operation (0.5109ms)
+✔ game settings component emits a complete settings object for every control (8.314ms)
+✔ component template contains four switches, one AI radio group, and no controller access (2.8288ms)
+(node:22948) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ history page shows real local records and routes each status to a usable destination (96.3373ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 459.8236

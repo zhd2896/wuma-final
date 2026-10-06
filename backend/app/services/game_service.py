@@ -13,6 +13,7 @@ from backend.app.schemas.game import (
     GameOperationResponse, GameResponse, LegalMovesResponse, Move, MoveRequest, MoveResponse,
     GameState, GameReview, MoveReview, ReviewConfig, LocalImportRequest, GameReplay, ReplayStep,
 )
+from backend.app.services.ai_levels import ai_search_budget
 from backend.app.services.game_store import GameStore, StoredGame, StoredMove
 
 
@@ -26,7 +27,7 @@ class GameService:
         if request.mode == "LOCAL" and (request.ai_player is not None or request.ai_level is not None):
             raise ApiError("INVALID_REQUEST", "AI options require AI mode")
         ai_player = (request.ai_player or "B") if request.mode == "AI" else None
-        ai_level = "STANDARD" if request.mode == "AI" else None
+        ai_level = (request.ai_level or "STANDARD") if request.mode == "AI" else None
         state = await self.adapter.initialize(request.first_player)
         game_id = await self.store.create(state, request.mode, ai_player, ai_level, user_id)
         return GameResponse(game_id=game_id, version=0, ply_count=0,
@@ -109,8 +110,7 @@ class GameService:
                 raise ApiError("AI_MODE_REQUIRED", "This game has no AI player")
             if snapshot.state.current_player != snapshot.ai_player:
                 raise ApiError("NOT_AI_TURN", "It is the human turn")
-            depth = self.settings.ai_default_max_depth
-            budget = self.settings.ai_default_time_limit_ms
+            depth, budget = ai_search_budget(snapshot.ai_level, self.settings)
             search, turn = await self.adapter.ai_move(snapshot.state, depth, budget)
             await self.store.commit_turn(game_id, snapshot.version, turn, "AI", search)
             return AiMoveResponse(search=search, turn=turn)

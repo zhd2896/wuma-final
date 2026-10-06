@@ -51,6 +51,7 @@ test('game settings use safe defaults and persist versioned changes', () => {
     showCaptureNotice: true,
     vibrateOnAction: true,
     aiFirstPlayer: 'A',
+    defaultAiLevel: 'STANDARD',
   });
 
   store.write({ ...store.read(), showLegalTargets: false, aiFirstPlayer: 'B' });
@@ -63,6 +64,7 @@ test('game settings use safe defaults and persist versioned changes', () => {
       showCaptureNotice: true,
       vibrateOnAction: true,
       aiFirstPlayer: 'B',
+      defaultAiLevel: 'STANDARD',
     },
   });
   assert.equal(createGameSettingsStore(memory.storage).read().aiFirstPlayer, 'B');
@@ -73,10 +75,10 @@ test('adding node labels preserves legacy settings and persists the new preferen
     vibrateOnAction: false, aiFirstPlayer: 'B' };
   const memory = memoryStorage({ version: 1, settings: legacy });
   const store = createGameSettingsStore(memory.storage);
-  assert.deepEqual(store.read(), { ...legacy, showNodeLabels: false });
+  assert.deepEqual(store.read(), { ...legacy, showNodeLabels: false, defaultAiLevel: 'STANDARD' });
   store.write({ ...store.read(), showNodeLabels: true });
   assert.deepEqual(createGameSettingsStore(memory.storage).read(),
-    { ...legacy, showNodeLabels: true });
+    { ...legacy, showNodeLabels: true, defaultAiLevel: 'STANDARD' });
 });
 
 test('damaged, partial, and wrongly typed stored settings are replaced with defaults', () => {

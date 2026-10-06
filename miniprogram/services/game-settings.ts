@@ -1,3 +1,4 @@
+import { isAiLevel, type AiLevel } from './api-contract';
 import type { Player } from '../domain/index';
 
 export const GAME_SETTINGS_STORAGE_KEY = 'wuma:game-settings:v1';
@@ -8,6 +9,7 @@ export interface GameSettings {
   readonly showCaptureNotice: boolean;
   readonly vibrateOnAction: boolean;
   readonly aiFirstPlayer: Player;
+  readonly defaultAiLevel: AiLevel;
 }
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = Object.freeze({
@@ -16,6 +18,7 @@ export const DEFAULT_GAME_SETTINGS: GameSettings = Object.freeze({
   showCaptureNotice: true,
   vibrateOnAction: true,
   aiFirstPlayer: 'A',
+  defaultAiLevel: 'STANDARD',
 });
 
 export interface GameSettingsStorage {
@@ -40,13 +43,14 @@ function copySettings(settings: GameSettings): GameSettings {
     showCaptureNotice: settings.showCaptureNotice,
     vibrateOnAction: settings.vibrateOnAction,
     aiFirstPlayer: settings.aiFirstPlayer,
+    defaultAiLevel: settings.defaultAiLevel ?? 'STANDARD',
   };
 }
 
 function isGameSettings(value: unknown): value is GameSettings {
   if (!value || typeof value !== 'object') return false;
   const settings = value as Partial<GameSettings>;
-  return typeof settings.showLegalTargets === 'boolean' &&
+  return (settings.defaultAiLevel === undefined || isAiLevel(settings.defaultAiLevel)) && typeof settings.showLegalTargets === 'boolean' &&
     (settings.showNodeLabels === undefined || typeof settings.showNodeLabels === 'boolean') &&
     typeof settings.showCaptureNotice === 'boolean' &&
     typeof settings.vibrateOnAction === 'boolean' &&

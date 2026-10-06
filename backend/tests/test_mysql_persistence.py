@@ -84,6 +84,25 @@ def create_game(client, mode="LOCAL", first_player="A", ai_player=None):
     return response.json()["data"]["game_id"]
 
 
+@pytest.mark.parametrize('level', ['BEGINNER', 'STANDARD', 'ADVANCED'])
+def test_ai_level_sql_persists_history_and_restart(client, db, level):
+    response = client.post('/api/v1/game', json={'mode':'AI','ai_player':'A','ai_level':level})
+    assert response.status_code == 200,response.text
+    game = response.json()['data']
+    with Session(db) as session:
+        assert session.get(GameModel,game['game_id']).ai_level == level
+    assert client.get('/api/v1/me/games').json()['data']['items'][0]['aiLevel'] == level
+    with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
+        restarted.headers['Authorization'] = client.headers['Authorization']
+        assert restarted.get('/api/v1/game/'+game['game_id']).json()['data']['ai_level'] == level
+        adapter = restarted.app.state.adapter
+        with patch.object(adapter,'ai_move',wraps=adapter.ai_move) as search:
+            moved = restarted.post('/api/v1/game/'+game['game_id']+'/ai-move',json={})
+            assert moved.status_code == 200,moved.text
+            assert search.call_args.args[1:] == {'BEGINNER':(2,500),'STANDARD':(4,1000),'ADVANCED':(6,2000)}[level]
+        restarted.app.state.store.close()
+
+
 def test_personal_accounts_filter_mysql_history_and_survive_restart(client, db):
     first_auth = client.headers["Authorization"]
     first_ids = [create_game(client, mode="AI") for _ in range(3)]

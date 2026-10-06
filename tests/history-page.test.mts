@@ -46,8 +46,8 @@ test('history page shows real local records and routes each status to a usable d
   history.record({ id: 'local-finished', mode: 'local', state: finished, turns: 8 });
   page.onShow();
   assert.equal(page.data.state, 'success');
-  assert.equal(page.data.records.length, 2);
-  assert.equal(page.data.records.find((item: any) => item.id === 'server-ai'), undefined);
+  assert.equal(page.data.records.length, 3);
+  assert.equal(page.data.records.find((item: any) => item.id === 'server-ai').title, 'AI 对弈');
   page.openRecord({ currentTarget: { dataset: { id: 'local-1' } } });
   assert.deepEqual(destinations, [
     '/pages/game/game?mode=local&gameId=local-1',
@@ -55,10 +55,10 @@ test('history page shows real local records and routes each status to a usable d
   const finishedOnly = makePage();
   finishedOnly.onLoad({ filter: 'finished' });
   assert.deepEqual(finishedOnly.data.records.map((item: any) => item.id),
-    ['local-finished']);
+    ['local-finished', 'server-ai']);
   const reviewableOnly = makePage();
   reviewableOnly.onLoad({ filter: 'reviewable' });
-  assert.deepEqual(reviewableOnly.data.records.map((item: any) => item.id), []);
+  assert.deepEqual(reviewableOnly.data.records.map((item: any) => item.id), ['server-ai']);
   assert.equal(reviewableOnly.data.emptyTitle, '还没有可复盘的棋局');
   history.remove('server-ai');
   reviewableOnly.onShow();

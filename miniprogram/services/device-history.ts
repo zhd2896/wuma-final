@@ -1,3 +1,4 @@
+import { isAiLevel, type AiLevel } from './api-contract';
 import { NODE_IDS } from '../domain/index';
 import type { GameState, Move, Player } from '../domain/index';
 import type { LocalScore, LocalUndoFrame } from '../pages/game/local-game';
@@ -23,6 +24,7 @@ export type HistoryMode = 'local' | 'remote' | 'ai' | 'online';
 export interface DeviceHistoryEntry {
   readonly id: string;
   readonly mode: HistoryMode;
+  readonly aiLevel?: AiLevel;
   readonly startedAt: number;
   readonly updatedAt: number;
   readonly turns: number;
@@ -45,6 +47,7 @@ export interface DeviceHistoryStorage {
 export interface RecordDeviceGame {
   readonly id: string;
   readonly mode: HistoryMode;
+  readonly aiLevel?: AiLevel;
   readonly state: GameState;
   readonly turns: number;
   readonly lastMove?: Move | null;
@@ -177,7 +180,7 @@ function validEntry(value: unknown): value is DeviceHistoryEntry {
     typeof row.updatedAt === 'number' && Number.isFinite(row.updatedAt) &&
     typeof row.turns === 'number' && Number.isInteger(row.turns) && row.turns >= 0 &&
     (row.status === 'PLAYING' || row.status === 'FINISHED') &&
-    validWinner && validReason && validState && validSync(row.localSync, row) &&
+    (row.aiLevel === undefined || (row.mode === 'ai' && isAiLevel(row.aiLevel))) && validWinner && validReason && validState && validSync(row.localSync, row) &&
     (row.localUndoFrame == null || row.turns > 0);
 }
 
@@ -220,13 +223,14 @@ export function createDeviceHistoryStore(storage: DeviceHistoryStorage,
       if (game.localSync) throw new Error('Use the explicit local sync metadata operation');
       if (previous && previous.mode !== game.mode) throw new Error('Device game mode changed');
       if (previous && previous.turns === game.turns &&
+          previous.aiLevel === game.aiLevel &&
           previous.status === game.state.game_status &&
           previous.winner === game.state.winner &&
           previous.winnerReason === game.state.winner_reason &&
           JSON.stringify(previous.localScore) === JSON.stringify(game.localScore)) return previous;
       const timestamp = now();
       const row: DeviceHistoryEntry = {
-        id: game.id, mode: game.mode, startedAt: previous?.startedAt ?? timestamp,
+        id: game.id, mode: game.mode, ...(game.mode === 'ai' && game.aiLevel ? { aiLevel: game.aiLevel } : {}), startedAt: previous?.startedAt ?? timestamp,
         updatedAt: timestamp, turns: game.turns,
         status: game.state.game_status, winner: game.state.winner,
         winnerReason: game.state.winner_reason,
