@@ -2,7 +2,7 @@
 
 from datetime import timezone
 
-from sqlalchemy import case, func, select, exists
+from sqlalchemy import case, func, select, exists, and_, or_
 from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.orm import Session
 
@@ -64,7 +64,7 @@ class TrainingRepository:
                 for review, move in rows]
 
     def commit_items(self, review_id: str,
-                     items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]:
+                     items: list[TrainingItemInternal], user_id: str | None = None, *, remote: bool = False) -> list[TrainingItemInternal]:
         parent = self.session.scalar(select(GameReviewModel).where(
             GameReviewModel.id == review_id).with_for_update())
         if parent is None:
@@ -72,7 +72,7 @@ class TrainingRepository:
         game = self.session.get(GameModel, parent.game_id)
         if game is None or game.status != "FINISHED":
             raise ApiError("GAME_NOT_FINISHED", "Training requires a finished game")
-        if user_id is not None:
+        if user_id is not None and not remote:
             if game.mode == 'REMOTE':
                 raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
             if game.user_id != user_id:
@@ -93,7 +93,7 @@ class TrainingRepository:
                 saved.append(self.item_from_row(existing))
                 continue
             row = TrainingItemModel(
-                id=item.id, source_game_id=item.sourceGameId,
+                id=item.id, source_game_id=item.sourceGameId, user_id=user_id if remote else None,
                 source_kind=item.sourceKind, title=item.title, catalog_version=item.catalogVersion,
                 difficulty_basis=item.difficultyBasis.model_dump() if item.difficultyBasis else None,
                 source_move_id=item.sourceMoveId,
@@ -168,8 +168,8 @@ class TrainingRepository:
                 TrainingRecordModel.user_id == user_id, TrainingRecordModel.result == 'CORRECT'))
             conditions.append(correct if completed else ~correct)
         if source == 'REVIEW' and user_id is not None:
-            conditions.append(GameModel.user_id == user_id)
-            conditions.append(GameModel.mode != 'REMOTE')
+            conditions.append(or_(and_(GameModel.mode == 'REMOTE', TrainingItemModel.user_id == user_id),
+                                  and_(GameModel.mode != 'REMOTE', GameModel.user_id == user_id)))
         base = select(TrainingItemModel)
         count = select(func.count()).select_from(TrainingItemModel)
         if source == 'REVIEW' and user_id is not None:
@@ -188,6 +188,17 @@ class TrainingRepository:
             raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
         return self.item_from_row(row)
 
+    def authorize(self, training_id, user_id):
+        parent = self.session.scalar(select(TrainingItemModel).where(
+            TrainingItemModel.id == training_id).with_for_update())
+        if parent is None:
+            raise ApiError('TRAINING_NOT_FOUND', 'Training question not found')
+        if user_id is not None and parent.source_kind == 'REVIEW':
+            game = self.session.get(GameModel, parent.source_game_id)
+            owner = parent.user_id if game.mode == 'REMOTE' else game.user_id
+            if owner != user_id:
+                raise ApiError('AUTH_FORBIDDEN', 'Training belongs to another account')
+
     def get_attempt(self, client_attempt_id: str,
                     user_id: str | None = None) -> TrainingAnswerResult | None:
         row = self.session.scalar(select(TrainingRecordModel).where(
@@ -204,12 +215,7 @@ class TrainingRepository:
             TrainingItemModel.id == record.trainingId).with_for_update())
         if parent is None:
             raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
-        if user_id is not None and parent.source_kind == 'REVIEW':
-            game = self.session.get(GameModel, parent.source_game_id)
-            if game.mode == 'REMOTE':
-                raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
-            if game.user_id != user_id:
-                raise ApiError('AUTH_FORBIDDEN', 'Training belongs to another account')
+        self.authorize(record.trainingId, user_id)
         existing = self.get_attempt(record.clientAttemptId, user_id)
         if existing is not None:
             if existing.trainingId != record.trainingId or existing.submittedMove != record.submittedMove:

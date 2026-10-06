@@ -1,0 +1,77 @@
+(node:1472) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent page analyzes saved local state offline and authoritative server version (830.2591ms)
+✔ analysis templates bind real fields and contain no demo labels (1.5911ms)
+(node:9056) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review page reads or creates review, explains it, and keeps structured fields (175.2942ms)
+✖ online review verifies its saved seat and only requests room review, including zero move resignation (42.4141ms)
+✔ online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback (75.8682ms)
+(node:21688) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real review page replays saved after states and distinct before-route, native navigation and terminal count (162.6732ms)
+✖ local B perspective travels through review, explain, generate and training list route (37.0342ms)
+✔ metadata restricts AI view and room account seat restricts REMOTE view including empty resignation (43.5655ms)
+✔ late A view cannot overwrite B, and hidden or unloaded page rejects pending results (22.4219ms)
+✔ malformed replay and forged LOCAL AI metadata fail rather than inventing frames or perspectives (37.8091ms)
+✔ replay APIs require complete captures and allow saved active revisions preceding an undo header (1.7693ms)
+✔ stored capture maps replaced pieces, reserve consumption and natural terminal without extra event (1.1043ms)
+✔ late explanation and generation never overwrite or navigate for old or hidden views (45.4424ms)
+✔ B missing review and explanation are created with B bodies instead of defaulting to A (21.921ms)
+(node:21700) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page route and actual picker handlers send source game and filter requests (146.87ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 13
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1174.2989
+
+✖ failing tests:
+
+test at tests\review-page.test.mts:96:1
+✖ online review verifies its saved seat and only requests room review, including zero move resignation (42.4141ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'error' !== 'idle'
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/review-page.test.mts:134:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'error',
+    expected: 'idle',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\review-replay.test.mts:77:1
+✖ local B perspective travels through review, explain, generate and training list route (37.0342ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + undefined
+  - '/pages/training/training?source=REVIEW&gameId=g1&player=B'
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/review-replay.test.mts:86:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '/pages/training/training?source=REVIEW&gameId=g1&player=B',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

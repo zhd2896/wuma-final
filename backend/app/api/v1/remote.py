@@ -5,6 +5,11 @@ from backend.app.api.v1.account import require_account
 from fastapi import APIRouter, Header, Query, Request
 
 from backend.app.schemas.game import ApiResponse, GameReview, GameReplay, LegalMovesResponse, NodeId
+from backend.app.schemas.game import AnalyzeResponse
+from backend.app.schemas.remote import RemoteAnalyzeRequest
+from backend.app.schemas.explanation import ExplainedReview
+from backend.app.schemas.training import TrainingList
+from backend.app.services.remote_service import token_hash
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
                                          MatchRoomRequest, RemoteMoveRequest,
                                          RemoteMoveResponse, RemoteOperationRequest,
@@ -12,6 +17,50 @@ from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
 
 
 router = APIRouter(prefix="/api/v1/remote", tags=["remote"])
+
+
+@router.post('/rooms/{game_id}/analyze', response_model=ApiResponse[AnalyzeResponse])
+async def analyze_room(request: Request, game_id: str, body: RemoteAnalyzeRequest,
+                       token: str | None = Header(default=None, alias='X-Room-Token')):
+    user_id = await require_account(request)
+    return ApiResponse(data=await request.app.state.remote_service.analyze(
+        game_id, token, body.expected_version, user_id))
+
+
+@router.get('/rooms/{game_id}/review/explanation', response_model=ApiResponse[ExplainedReview])
+async def get_explanation(request: Request, game_id: str,
+                          token: str | None = Header(default=None, alias='X-Room-Token')):
+    user_id = await require_account(request)
+    remote = request.app.state.remote_service
+    seat, version = await remote.learning_context(game_id, token, user_id)
+    review = await request.app.state.service._get_review(game_id, seat, remote=True)
+    result = await request.app.state.explanation_service._get_saved(review)
+    await request.app.state.store.validate_remote_learning(game_id, token_hash(token or ''), user_id, version, seat)
+    return ApiResponse(data=result)
+
+
+@router.post('/rooms/{game_id}/review/explain', response_model=ApiResponse[ExplainedReview])
+async def explain_review(request: Request, game_id: str,
+                         token: str | None = Header(default=None, alias='X-Room-Token')):
+    user_id = await require_account(request)
+    remote = request.app.state.remote_service
+    seat, version = await remote.learning_context(game_id, token, user_id)
+    review = await request.app.state.service._get_review(game_id, seat, remote=True)
+    result = await request.app.state.explanation_service._explain_saved(review,
+        remote_token_hash=token_hash(token or ''), user_id=user_id, expected_version=version)
+    await request.app.state.store.validate_remote_learning(game_id, token_hash(token or ''), user_id, version, seat)
+    return ApiResponse(data=result)
+
+
+@router.post('/rooms/{game_id}/training', response_model=ApiResponse[TrainingList])
+async def generate_training(request: Request, game_id: str,
+                            token: str | None = Header(default=None, alias='X-Room-Token')):
+    user_id = await require_account(request)
+    seat, version = await request.app.state.remote_service.learning_context(game_id, token, user_id)
+    result = await request.app.state.training_service.generate(game_id, seat, user_id,
+        remote_token_hash=token_hash(token or ''), expected_version=version)
+    await request.app.state.store.validate_remote_learning(game_id, token_hash(token or ''), user_id, version, seat)
+    return ApiResponse(data=result)
 
 
 @router.get("/rooms/{game_id}/replay", response_model=ApiResponse[GameReplay])

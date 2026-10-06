@@ -132,18 +132,26 @@ class GameStore(Protocol):
                             request: GameOperationRequest) -> GameOperationResponse: ...
     async def lock_for(self, game_id: str) -> asyncio.Lock: ...
     async def commit_analysis(self, game_id: str, expected_version: int,
-                              analysis: PositionAnalysis) -> None: ...
+                              analysis: PositionAnalysis, *, remote_token_hash: str | None = None,
+                              user_id: str | None = None) -> None: ...
+    async def validate_remote_learning(self, game_id: str, digest: str, user_id: str | None,
+                                       expected_version: int, seat: str | None = None) -> None: ...
+    async def authorize_training(self, training_id: str, user_id: str | None) -> None: ...
+    async def validate_active_user(self, user_id: str | None) -> None: ...
     async def get_review(self, game_id: str, player: str, version: int) -> GameReview | None: ...
     async def commit_review(self, review: GameReview, expected_version: int,
                             user_id: str | None = None, remote_token_hash: str | None = None) -> GameReview: ...
     async def get_explanation(self, review_id: str, prompt_version: str) -> ExplanationBundle | None: ...
-    async def commit_explanation(self, bundle: ExplanationBundle) -> ExplanationBundle: ...
+    async def commit_explanation(self, bundle: ExplanationBundle, *, remote_token_hash: str | None = None,
+                                  user_id: str | None = None, expected_version: int | None = None) -> ExplanationBundle: ...
     async def get_coach_hint(self, game_id: str, game_version: int, player: str,
                              level: int, prompt_version: str) -> CoachHint | None: ...
     async def commit_coach_hint(self, hint: CoachHint) -> CoachHint: ...
     async def list_training_sources(self, review_id: str) -> list[TrainingSource]: ...
     async def commit_training_items(self, review_id: str,
-                                    items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]: ...
+                                    items: list[TrainingItemInternal], user_id: str | None = None, *,
+                                    remote_token_hash: str | None = None,
+                                    expected_version: int | None = None) -> list[TrainingItemInternal]: ...
     async def list_training_items(self, limit: int, offset: int, category: str | None,
                                   training_type: str | None,
                                   user_id: str | None = None, source: str = 'REVIEW',
@@ -196,6 +204,7 @@ class InMemoryGameStore:
         self._explanations: dict[tuple[str, str], ExplanationBundle] = {}
         self._coach_hints: dict[tuple[str, int, str, int, str], CoachHint] = {}
         self._training_items: dict[str, TrainingItemInternal] = {}
+        self._training_item_owners: dict[str, str | None] = {}
         self._training_keys: dict[tuple[str, int, str, int], str] = {}
         self._training_records: dict[str, TrainingAnswerResult] = {}
         self._catalog_lock = asyncio.Lock()
@@ -247,6 +256,9 @@ class InMemoryGameStore:
                 for key, owner in self._training_owners.items():
                     if owner == source:
                         self._training_owners[key] = user_id
+                for key, owner in self._training_item_owners.items():
+                    if owner == source:
+                        self._training_item_owners[key] = user_id
                 if source != user_id:
                     for key, imported in tuple(self._local_imports.items()):
                         if key[0] == source:
@@ -936,13 +948,16 @@ class InMemoryGameStore:
         return move
 
     async def commit_analysis(self, game_id: str, expected_version: int,
-                              analysis: PositionAnalysis) -> None:
+                              analysis: PositionAnalysis, *, remote_token_hash: str | None = None,
+                              user_id: str | None = None) -> None:
         lock = await self.lock_for(game_id)
         async with lock:
             game = await self.get_snapshot(game_id)
-            if game.version != expected_version or game.state.game_status != "PLAYING":
+            if remote_token_hash is not None:
+                await self.validate_remote_learning(game_id, remote_token_hash, user_id, expected_version)
+            if game.version != expected_version or (game.state.game_status != "PLAYING" and remote_token_hash is None):
                 raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
-            self._analyses[game_id].append((expected_version, analysis))
+            self._analyses.setdefault(game_id, []).append((expected_version, analysis))
 
     async def get_review(self, game_id: str, player: str, version: int) -> GameReview | None:
         await self.get_snapshot(game_id)
@@ -968,8 +983,26 @@ class InMemoryGameStore:
     async def get_explanation(self, review_id: str, prompt_version: str) -> ExplanationBundle | None:
         return self._explanations.get((review_id, prompt_version))
 
-    async def commit_explanation(self, bundle: ExplanationBundle) -> ExplanationBundle:
+    async def validate_remote_learning(self, game_id: str, digest: str, user_id: str | None,
+                                       expected_version: int, seat: str | None = None) -> None:
+        room = await self.get_remote_room(game_id)
+        self._require_remote_account(room, digest, user_id)
+        actual = self._remote_seat(room, digest)
+        owner = room.host_user_id if actual == 'A' else room.guest_user_id
+        if (user_id is not None and owner != user_id) or (seat is not None and actual != seat):
+            raise ApiError('REMOTE_ACCESS_DENIED', 'Learning requires your bound seat')
+        if room.status not in ('PLAYING', 'FINISHED'):
+            raise ApiError('REMOTE_ROOM_UNAVAILABLE', 'Room is unavailable for learning')
+        if self._games[game_id].version != expected_version:
+            raise ApiError('GAME_STATE_CONFLICT', 'Game changed during learning')
+
+    async def commit_explanation(self, bundle: ExplanationBundle, *, remote_token_hash: str | None = None,
+                                  user_id: str | None = None, expected_version: int | None = None) -> ExplanationBundle:
         async with self._catalog_lock:
+            if remote_token_hash is not None:
+                review = next(item for item in self._reviews.values() if item.id == bundle.gameReviewId)
+                await self.validate_remote_learning(review.gameId, remote_token_hash, user_id,
+                    expected_version, review.reviewedPlayer)
             key = (bundle.gameReviewId, bundle.promptVersion)
             if key not in self._explanations:
                 self._explanations[key] = bundle
@@ -1005,7 +1038,9 @@ class InMemoryGameStore:
                 for review_move in review.moveReviews]
 
     async def commit_training_items(self, review_id: str,
-                                    items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]:
+                                    items: list[TrainingItemInternal], user_id: str | None = None, *,
+                                    remote_token_hash: str | None = None,
+                                    expected_version: int | None = None) -> list[TrainingItemInternal]:
         async with self._catalog_lock:
             review = next((item for item in self._reviews.values() if item.id == review_id), None)
             if review is None or self._games[review.gameId].state.game_status != "FINISHED":
@@ -1013,7 +1048,10 @@ class InMemoryGameStore:
             if user_id in self._retired_users:
                 raise ApiError('AUTH_INVALID', 'Account was migrated; login again')
             game = self._games[review.gameId]
-            if user_id is not None:
+            if remote_token_hash is not None:
+                await self.validate_remote_learning(review.gameId, remote_token_hash, user_id,
+                    expected_version, review.reviewedPlayer)
+            elif user_id is not None:
                 if game.mode == 'REMOTE':
                     raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
                 if game.user_id != user_id:
@@ -1025,6 +1063,7 @@ class InMemoryGameStore:
                 if key not in self._training_keys:
                     self._training_keys[key] = item.id
                     self._training_items[item.id] = item
+                    self._training_item_owners[item.id] = user_id
                 saved.append(self._training_items[self._training_keys[key]])
             return saved
 
@@ -1042,8 +1081,8 @@ class InMemoryGameStore:
                  (category is None or item.sourceCategory == category) and
                  (training_type is None or item.trainingType == training_type) and
                  (item.sourceKind == 'CURATED' or user_id is None or
-                  (self._games[item.sourceGameId].user_id == user_id and
-                   self._games[item.sourceGameId].mode != 'REMOTE'))]
+                  (self._training_item_owners.get(item.id) == user_id if self._games[item.sourceGameId].mode == 'REMOTE'
+                   else self._games[item.sourceGameId].user_id == user_id))]
         items.sort(key=lambda item: (item.sourceCategory == "BLUNDER", item.createdAt, item.id),
                    reverse=True)
         return items[offset:offset + limit], len(items)
@@ -1071,6 +1110,19 @@ class InMemoryGameStore:
             raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
         return item
 
+    async def authorize_training(self, training_id: str, user_id: str | None) -> None:
+        item = await self.get_training_item(training_id)
+        await self.validate_active_user(user_id)
+        if user_id is not None and item.sourceKind == 'REVIEW':
+            game = self._games[item.sourceGameId]
+            owner = self._training_item_owners.get(item.id) if game.mode == 'REMOTE' else game.user_id
+            if owner != user_id:
+                raise ApiError('AUTH_FORBIDDEN', 'Training belongs to another account')
+
+    async def validate_active_user(self, user_id: str | None) -> None:
+        if user_id in self._retired_users:
+            raise ApiError('AUTH_INVALID', 'Account was migrated; login again')
+
     async def get_training_attempt(self, client_attempt_id: str,
                                    user_id: str | None = None) -> TrainingAnswerResult | None:
         if client_attempt_id in self._training_records and self._training_owners.get(client_attempt_id) != user_id:
@@ -1085,12 +1137,7 @@ class InMemoryGameStore:
             if record.trainingId not in self._training_items:
                 raise ApiError("TRAINING_NOT_FOUND", "Training question not found")
             item = self._training_items[record.trainingId]
-            if user_id is not None and item.sourceKind == 'REVIEW':
-                game = self._games[item.sourceGameId]
-                if game.mode == 'REMOTE':
-                    raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
-                if game.user_id != user_id:
-                    raise ApiError('AUTH_FORBIDDEN', 'Training belongs to another account')
+            await self.authorize_training(record.trainingId, user_id)
             existing = await self.get_training_attempt(record.clientAttemptId, user_id)
             if existing is not None:
                 if existing.trainingId != record.trainingId or existing.submittedMove != record.submittedMove:

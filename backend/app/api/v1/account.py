@@ -52,9 +52,7 @@ async def require_game_owner(request: Request, game_id: str) -> str | None:
 async def require_training_owner(request: Request, training_id: str) -> str | None:
     user_id = await require_account(request)
     if user_id is not None:
-        item = await request.app.state.store.get_training_item(training_id)
-        if item.sourceKind == 'REVIEW':
-            await require_game_owner(request, item.sourceGameId)
+        await request.app.state.store.authorize_training(training_id, user_id)
     return user_id
 
 

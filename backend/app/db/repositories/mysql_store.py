@@ -14,7 +14,7 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, GameModel, G
                                     GameReviewModel, GameTerminalEventModel,
                                     GameUndoEventModel, MoveReviewModel,
                                     RemoteUndoRequestModel, RemoteRoomModel, ReviewExplanationModel, UserModel,
-                                    TrainingRecordModel, AuthSessionModel, LocalGameImportModel, utc_now)
+                                    TrainingRecordModel, TrainingItemModel, AuthSessionModel, LocalGameImportModel, utc_now)
 from backend.app.db.repositories.game import GameRepository
 from backend.app.db.repositories.remote import RemoteRepository
 from backend.app.db.repositories.move import MoveRepository
@@ -108,6 +108,8 @@ class MySQLGameStore:
                         session.execute(update(GameModel).where(GameModel.user_id == source.id).values(user_id=target.id))
                         session.execute(update(TrainingRecordModel).where(
                             TrainingRecordModel.user_id == source.id).values(user_id=target.id))
+                        session.execute(update(TrainingItemModel).where(
+                            TrainingItemModel.user_id == source.id).values(user_id=target.id))
                         source.external_user_id = None
                     session.add(AuthSessionModel(token_hash=token_hash, user_id=target.id,
                         expires_at=expires_at.astimezone(timezone.utc).replace(tzinfo=None)))
@@ -678,6 +680,27 @@ class MySQLGameStore:
         if owner is not None and owner != user_id:
             raise ApiError("REMOTE_ACCESS_DENIED", "Seat belongs to another account")
 
+    def _validate_remote_learning(self, session, game_id, digest, user_id, expected_version, seat=None):
+        self._require_active_owner(session, user_id)
+        remote = RemoteRepository(session)
+        room = remote.get(game_id, lock=True)
+        actual = remote.seat(room, digest)
+        owner = room.host_user_id if actual == 'A' else room.guest_user_id
+        if (user_id is not None and owner != user_id) or (seat is not None and actual != seat):
+            raise ApiError('REMOTE_ACCESS_DENIED', 'Learning requires your bound seat')
+        if room.status not in ('PLAYING', 'FINISHED'):
+            raise ApiError('REMOTE_ROOM_UNAVAILABLE', 'Room is unavailable for learning')
+        game = session.scalar(select(GameModel).where(GameModel.id == game_id).with_for_update())
+        if game.version != expected_version:
+            raise ApiError('GAME_STATE_CONFLICT', 'Game changed during learning')
+
+    async def validate_remote_learning(self, game_id, digest, user_id, expected_version, seat=None):
+        await asyncio.to_thread(self._validate_remote_learning_transaction, game_id, digest, user_id, expected_version, seat)
+
+    def _validate_remote_learning_transaction(self, game_id, digest, user_id, expected_version, seat):
+        with self.sessions.begin() as session:
+            self._validate_remote_learning(session, game_id, digest, user_id, expected_version, seat)
+
     async def cancel_remote_room(self, game_id: str,
                                  token_hash: str, user_id: str | None = None) -> StoredRemoteRoom:
         return await asyncio.to_thread(self._cancel_remote_room, game_id, token_hash, user_id)
@@ -975,17 +998,19 @@ class MySQLGameStore:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_analysis(self, game_id: str, expected_version: int,
-                              analysis: PositionAnalysis) -> None:
-        await asyncio.to_thread(self._commit_analysis, game_id, expected_version, analysis)
+                              analysis: PositionAnalysis, *, remote_token_hash=None, user_id=None) -> None:
+        await asyncio.to_thread(self._commit_analysis, game_id, expected_version, analysis, remote_token_hash, user_id)
 
     def _commit_analysis(self, game_id: str, expected_version: int,
-                         analysis: PositionAnalysis) -> None:
+                         analysis: PositionAnalysis, remote_token_hash=None, user_id=None) -> None:
         try:
             with self.sessions.begin() as session:
+                if remote_token_hash is not None:
+                    self._validate_remote_learning(session, game_id, remote_token_hash, user_id, expected_version)
                 row = session.scalar(select(GameModel).where(GameModel.id == game_id).with_for_update())
                 if row is None:
                     raise ApiError("GAME_NOT_FOUND", "Game not found")
-                if row.version != expected_version or row.status != "PLAYING":
+                if row.version != expected_version or (row.status != "PLAYING" and remote_token_hash is None):
                     raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
                 session.add(AiAnalysisModel(
                     game_id=game_id, game_version=expected_version,
@@ -1115,14 +1140,25 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
-    async def commit_explanation(self, bundle: ExplanationBundle) -> ExplanationBundle:
-        return await asyncio.to_thread(self._commit_explanation, bundle)
+    async def commit_explanation(self, bundle: ExplanationBundle, *, remote_token_hash=None,
+                                  user_id=None, expected_version=None) -> ExplanationBundle:
+        return await asyncio.to_thread(self._commit_explanation, bundle, remote_token_hash, user_id, expected_version)
 
-    def _commit_explanation(self, bundle: ExplanationBundle) -> ExplanationBundle:
+    def _commit_explanation(self, bundle: ExplanationBundle, remote_token_hash=None,
+                            user_id=None, expected_version=None) -> ExplanationBundle:
         try:
             with self.sessions.begin() as session:
+                if remote_token_hash is not None:
+                    # Resolve immutable review context without taking a lock. Remote learning
+                    # transactions all lock User -> Room -> Game -> Review, including generation.
+                    context = session.get(GameReviewModel, bundle.gameReviewId)
+                    if context is None:
+                        raise ApiError("REVIEW_NOT_FOUND", "Review has not been generated")
+                    self._validate_remote_learning(session, context.game_id, remote_token_hash,
+                        user_id, expected_version, context.reviewed_player)
                 parent = session.scalar(select(GameReviewModel).where(
-                    GameReviewModel.id == bundle.gameReviewId).with_for_update())
+                    GameReviewModel.id == bundle.gameReviewId).with_for_update()
+                    .execution_options(populate_existing=True))
                 if parent is None:
                     raise ApiError("REVIEW_NOT_FOUND", "Review has not been generated")
                 existing = self._read_explanation(session, bundle.gameReviewId,
@@ -1221,15 +1257,23 @@ class MySQLGameStore:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_training_items(self, review_id: str,
-                                    items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]:
-        return await asyncio.to_thread(self._commit_training_items, review_id, items, user_id)
+                                    items: list[TrainingItemInternal], user_id: str | None = None, *,
+                                    remote_token_hash=None, expected_version=None) -> list[TrainingItemInternal]:
+        return await asyncio.to_thread(self._commit_training_items, review_id, items, user_id, remote_token_hash, expected_version)
 
     def _commit_training_items(self, review_id: str,
-                               items: list[TrainingItemInternal], user_id: str | None = None) -> list[TrainingItemInternal]:
+                               items: list[TrainingItemInternal], user_id: str | None = None,
+                               remote_token_hash=None, expected_version=None) -> list[TrainingItemInternal]:
         try:
             with self.sessions.begin() as session:
                 self._require_active_owner(session, user_id)
-                return TrainingRepository(session).commit_items(review_id, items, user_id)
+                if remote_token_hash is not None:
+                    parent = session.get(GameReviewModel, review_id)
+                    if parent is None:
+                        raise ApiError('REVIEW_REQUIRED', 'Generate a review first')
+                    self._validate_remote_learning(session, parent.game_id, remote_token_hash,
+                        user_id, expected_version, parent.reviewed_player)
+                return TrainingRepository(session).commit_items(review_id, items, user_id, remote=remote_token_hash is not None)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
@@ -1281,6 +1325,21 @@ class MySQLGameStore:
                 return TrainingRepository(session).get_item(training_id)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
+
+    async def authorize_training(self, training_id, user_id):
+        await asyncio.to_thread(self._authorize_training, training_id, user_id)
+
+    def _authorize_training(self, training_id, user_id):
+        with self.sessions.begin() as session:
+            self._require_active_owner(session, user_id)
+            TrainingRepository(session).authorize(training_id, user_id)
+
+    async def validate_active_user(self, user_id):
+        await asyncio.to_thread(self._validate_active_user, user_id)
+
+    def _validate_active_user(self, user_id):
+        with self.sessions.begin() as session:
+            self._require_active_owner(session, user_id)
 
     async def get_training_attempt(self, client_attempt_id: str,
                                    user_id: str | None = None) -> TrainingAnswerResult | None:

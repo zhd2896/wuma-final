@@ -57,6 +57,7 @@ export interface AnalysisCandidateRow {
 
 export interface AnalysisViewModel {
   readonly board: BoardState;
+  readonly reserve: Readonly<Record<Player, number>>;
   readonly perspective: Player;
   readonly score: number;
   readonly bestScore: number;
@@ -125,6 +126,7 @@ export function mapPositionAnalysis(state: GameState,
   });
   return {
     board,
+    reserve: { A: state.players.A.reserve_count, B: state.players.B.reserve_count },
     perspective: analysis.analyzedPlayer,
     score: analysis.evaluationBefore.score,
     bestScore: analysis.bestScore,

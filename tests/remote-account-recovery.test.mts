@@ -131,7 +131,7 @@ test('finished online review without a local token recovers its account seat bef
   assert.equal(page.data.state, 'success');
   assert.equal(page.data.review.reviewedPlayer, 'B');
   assert.deepEqual(requests.map(options => new URL(options.url).pathname),
-    ['/api/v1/remote/rooms/cloud-room/recover', '/api/v1/remote/rooms/cloud-room/replay', '/api/v1/remote/rooms/cloud-room/review']);
+    ['/api/v1/remote/rooms/cloud-room/recover', '/api/v1/remote/rooms/cloud-room/replay', '/api/v1/remote/rooms/cloud-room/review', '/api/v1/remote/rooms/cloud-room/review/explanation']);
   assert.equal(requests[1].header['X-Room-Token'], 'new-token');
 });
 

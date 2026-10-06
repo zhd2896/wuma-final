@@ -36,9 +36,9 @@ async def get_training(request: Request, training_id: str) -> ApiResponse[Traini
 @router.get("/{training_id}/legal-moves", response_model=ApiResponse[TrainingLegalMoves])
 async def training_legal_moves(request: Request, training_id: str,
                                from_node: NodeId | None = Query(None)) -> ApiResponse[TrainingLegalMoves]:
-    await require_training_owner(request, training_id)
+    user_id = await require_training_owner(request, training_id)
     return ApiResponse(data=await request.app.state.training_service.legal_moves(
-        training_id, from_node))
+        training_id, from_node, user_id))
 
 
 @router.post("/{training_id}/answer", response_model=ApiResponse[TrainingAnswerResult])

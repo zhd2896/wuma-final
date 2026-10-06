@@ -314,9 +314,11 @@ class TrainingItemModel(Base):
         UniqueConstraint("source_move_review_id", "training_type", "generation_version",
                          name="uq_training_source_type_version"),
         Index("ix_training_items_category_created", "source_category", "created_at"),
+        Index("ix_training_items_user_id", "user_id"),
     )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"))
     source_kind: Mapped[str] = mapped_column(String(16), nullable=False, default='REVIEW')
     title: Mapped[str] = mapped_column(String(128), nullable=False, default='复盘最佳走法')
     catalog_version: Mapped[int | None] = mapped_column(Integer)

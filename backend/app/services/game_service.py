@@ -201,9 +201,13 @@ class GameService:
         return frames
 
     async def analyze(self, game_id: str, expected_version: int | None = None) -> AnalyzeResponse:
+        return await self._analyze(game_id, expected_version)
+
+    async def _analyze(self, game_id: str, expected_version: int | None = None, *,
+                       remote_token_hash: str | None = None, user_id: str | None = None) -> AnalyzeResponse:
         # Reading and saving are short independent transactions; the worker runs between them.
         snapshot = await self.store.get_snapshot(game_id)
-        if snapshot.mode == "REMOTE":
+        if snapshot.mode == "REMOTE" and remote_token_hash is None:
             raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
         if expected_version is not None and snapshot.version != expected_version:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
@@ -211,7 +215,10 @@ class GameService:
             snapshot.state, self.settings.analysis_max_depth,
             self.settings.analysis_time_limit_ms, self.settings.analysis_candidate_limit,
         )
-        if snapshot.state.game_status == "PLAYING":
+        if remote_token_hash is not None:
+            await self.store.commit_analysis(game_id, snapshot.version, analysis,
+                remote_token_hash=remote_token_hash, user_id=user_id)
+        elif snapshot.state.game_status == "PLAYING":
             await self.store.commit_analysis(game_id, snapshot.version, analysis)
         return AnalyzeResponse(game_id=game_id, game_version=snapshot.version,
                                **analysis.model_dump())

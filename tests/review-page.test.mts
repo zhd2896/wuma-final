@@ -116,6 +116,10 @@ test('online review verifies its saved seat and only requests room review, inclu
             capture: null, state: { ...createInitialGameState(), game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' } }] } } });
         if (path.endsWith('/review') && options.method === 'GET')
           options.success({ statusCode: 404, data: { code: 'REVIEW_NOT_FOUND' } });
+        else if (path.endsWith('/review/explanation') || path.endsWith('/review/explain'))
+          options.success({ statusCode: 200, data: { code: 0, data: { review, explanation: {
+            gameReviewId: review.id, gameExplanation: { overall_summary: '本方没有有效落子。', fallbackUsed: true }, moveExplanations: [] } } } });
+        else if (path.endsWith('/training')) options.success({ statusCode: 200, data: { code: 0, data: { items: [], total: 0 } } });
         else options.success({ statusCode: 200, data: { code: 0, data: path.endsWith('/review') ? review : {
           game_id: 'online/id', seat, version: 8, ply_count: 0, room_status: 'FINISHED', pending_undo: null,
           state: { ...createInitialGameState(), game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' },
@@ -131,17 +135,21 @@ test('online review verifies its saved seat and only requests room review, inclu
     assert.equal(page.data.review.reviewedPlayer, seat);
     assert.deepEqual(page.data.rows, []);
     assert.match(page.data.terminalText, seat === 'A' ? /你已认输/ : /对方已认输/);
-    assert.equal(page.data.explanationState, 'idle');
+    assert.equal(page.data.explanationState, 'success');
     await page.generateTraining(); page.retryExplanation();
+    for (let i = 0; i < 3; i++) await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(requests.map(r => `${r.method} ${new URL(r.url).pathname}`), [
       'GET /api/v1/remote/rooms/online%2Fid',
       'GET /api/v1/remote/rooms/online%2Fid/replay',
       'GET /api/v1/remote/rooms/online%2Fid/review',
       'POST /api/v1/remote/rooms/online%2Fid/review',
+      'GET /api/v1/remote/rooms/online%2Fid/review/explanation',
+      'POST /api/v1/remote/rooms/online%2Fid/training',
+      'GET /api/v1/remote/rooms/online%2Fid/review/explanation',
     ]);
   }
   const wxml = readFileSync('miniprogram/pages/review/review.wxml', 'utf8');
-  assert.match(wxml, /wx:if="\{\{mode != 'online'\}\}"/);
+  assert.doesNotMatch(wxml, /wx:if="\{\{mode != 'online'\}\}"/);
   assert.match(wxml, /terminalText/);
 });
 

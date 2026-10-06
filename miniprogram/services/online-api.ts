@@ -4,7 +4,7 @@ import { ApiError } from './api-client';
 import type { ApiClient } from './api-client';
 import { requirePlyCount } from './game-api';
 import { requireReplay } from './replay-contract';
-import type { GameReviewDto, GameReplayDto } from './api-contract';
+import type { GameReviewDto, GameReplayDto, ExplainedReviewDto, PositionAnalysisDto, TrainingListDto } from './api-contract';
 
 export interface PendingOnlineUndo {
   readonly id: string;
@@ -44,6 +44,10 @@ export interface OnlineMoveRequest {
 }
 
 export interface OnlineApi {
+  analyze(id: string, token: string, expectedVersion: number): Promise<PositionAnalysisDto>;
+  getReviewExplanation(id: string, token: string): Promise<ExplainedReviewDto>;
+  explainReview(id: string, token: string): Promise<ExplainedReviewDto>;
+  generateTraining(id: string, token: string): Promise<TrainingListDto>;
   recover(id: string): Promise<OnlineRoom>;
   claim(id: string, token: string): Promise<OnlineRoom>;
   getReview(id: string, token: string): Promise<GameReviewDto>;
@@ -98,6 +102,11 @@ export function createOnlineApi(client: ApiClient): OnlineApi {
   const auth = (token: string) => ({ 'X-Room-Token': token,
     'content-type': 'application/json' });
   return {
+    analyze: (id, token, expectedVersion) => client.request('POST', `${base(id)}/analyze`,
+      { expected_version: expectedVersion }, 120000, auth(token)),
+    getReviewExplanation: (id, token) => client.request('GET', `${base(id)}/review/explanation`, undefined, 10000, auth(token)),
+    explainReview: (id, token) => client.request('POST', `${base(id)}/review/explain`, {}, 120000, auth(token)),
+    generateTraining: (id, token) => client.request('POST', `${base(id)}/training`, {}, 120000, auth(token)),
     recover: id => client.request('POST', `${base(id)}/recover`, {}),
     claim: (id, token) => client.request('POST', `${base(id)}/claim`, {}, 10000, auth(token)),
     getReview: (id, token) => client.request('GET', `${base(id)}/review`, undefined, 10000, auth(token)),

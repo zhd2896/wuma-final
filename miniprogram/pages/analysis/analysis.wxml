@@ -10,11 +10,13 @@
       <view class="empty-actions"><button bindtap="startLocalGame">开始本地对局</button><button bindtap="openHistory">查看历史对局</button></view>
     </view>
     <block wx:elif="{{state == 'success' && view}}">
+      <view wx:if="{{seat}}" class="note-card card">你执玩家 {{seat}} · 分析视角：玩家 {{view.perspective}}</view>
       <view wx:if="{{tab == 'evaluation'}}">
         <evaluation-panel score="{{view.score}}" best-score="{{view.bestScore}}" perspective="{{view.perspective}}" />
         <section-title title="评分分项" subtitle="当前行棋方视角" />
         <view class="metric-card card"><view wx:for="{{view.breakdown}}" wx:key="key" class="metric-row"><text>{{item.label}}</text><text>{{item.weightedScore}}</text></view></view>
         <section-title title="当前局面" subtitle="真实棋盘" />
+        <view class="note-card card">A 备用棋 {{view.reserve.A}} · B 备用棋 {{view.reserve.B}}</view>
         <view class="board-preview"><chess-board board="{{previewBoard}}" compact="{{true}}" show-node-labels="{{true}}" /></view>
         <section-title title="关键威胁" subtitle="引擎检测结果" />
         <view class="note-card card" wx:if="{{view.threats.length}}"><view wx:for="{{view.threats}}" wx:key="id" class="note-row"><text>◇</text><view><view>{{item.label}}</view><view class="note-detail" wx:if="{{item.move || item.nodes}}">{{item.move}} {{item.nodes}}</view></view></view></view>

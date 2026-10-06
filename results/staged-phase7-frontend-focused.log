@@ -1,0 +1,59 @@
+(node:1196) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online source restores a bound seat and analyzes actual room version without generic APIs (102.9551ms)
+✔ online account switch discards late analysis and unavailable rooms never analyze (829.9296ms)
+✔ local source analyzes the exact saved state without calling the server (49.2344ms)
+✔ local source falls back to active game and reports empty for no valid record (48.6725ms)
+✔ active local storage failure becomes a retryable page error (0.7752ms)
+✔ server source reads the authoritative version before requesting analysis (53.4788ms)
+✔ server conflict discards stale results and retry reloads the new version (56.1664ms)
+✔ duplicate loading and disposed late response cannot overwrite state (56.1803ms)
+(node:24508) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent page analyzes saved local state offline and authoritative server version (1075.6774ms)
+✔ analysis templates bind real fields and contain no demo labels (2.3086ms)
+(node:16412) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ actual online game exposes playing and finished analysis route with room ID (130.3969ms)
+✔ actual analysis page uses bound room token version and keeps terminal empty analysis (165.7998ms)
+✔ actual online review reads explanation and empty training gives honest notice; own list route retains player (32.9064ms)
+✔ online review ignores explanation and training after hide, account switch or token rotation (72.8463ms)
+(node:26892) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review page reads or creates review, explains it, and keeps structured fields (155.8153ms)
+✔ online review verifies its saved seat and only requests room review, including zero move resignation (78.3792ms)
+✔ online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback (80.6393ms)
+(node:15748) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real review page replays saved after states and distinct before-route, native navigation and terminal count (137.8742ms)
+✔ local B perspective travels through review, explain, generate and training list route (40.3466ms)
+✔ metadata restricts AI view and room account seat restricts REMOTE view including empty resignation (54.6741ms)
+✔ late A view cannot overwrite B, and hidden or unloaded page rejects pending results (29.8327ms)
+✔ malformed replay and forged LOCAL AI metadata fail rather than inventing frames or perspectives (47.3184ms)
+✔ replay APIs require complete captures and allow saved active revisions preceding an undo header (1.9696ms)
+✔ stored capture maps replaced pieces, reserve consumption and natural terminal without extra event (1.2252ms)
+✔ late explanation and generation never overwrite or navigate for old or hidden views (56.1633ms)
+✔ B missing review and explanation are created with B bodies instead of defaulting to A (28.2819ms)
+(node:25500) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page route and actual picker handlers send source game and filter requests (109.6234ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1616.1628

@@ -219,6 +219,24 @@ class RemoteService:
         if user_id is not None and owner != user_id:
             raise ApiError("REMOTE_ACCESS_DENIED", "Claim this seat before reading replay")
 
+    async def learning_context(self, game_id: str, token: str | None, user_id: str | None):
+        await self._authorize_replay(game_id, token, user_id)
+        room = await self.store.get_remote_room(game_id)
+        game = await self.store.get_snapshot(game_id)
+        if room.status not in ('PLAYING', 'FINISHED'):
+            raise ApiError('REMOTE_ROOM_UNAVAILABLE', 'Room is unavailable for learning')
+        return self._seat(room, token, user_id), game.version
+
+    async def analyze(self, game_id: str, token: str | None, expected_version: int,
+                      user_id: str | None = None):
+        _, version = await self.learning_context(game_id, token, user_id)
+        if expected_version != version:
+            raise ApiError('GAME_STATE_CONFLICT', 'Game state changed; retry analysis')
+        result = await self.game_service._analyze(game_id, expected_version,
+            remote_token_hash=token_hash(token or ''), user_id=user_id)
+        await self.store.validate_remote_learning(game_id, token_hash(token or ''), user_id, expected_version)
+        return result
+
     async def get_replay(self, game_id: str, token: str | None, user_id: str | None = None) -> GameReplay:
         await self._authorize_replay(game_id, token, user_id)
         replay = await self.game_service._get_replay(game_id, remote=True)

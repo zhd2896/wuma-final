@@ -39,7 +39,8 @@ async function harness(config:{mode?:string;ai?:string;seat?:string;zero?:boolea
       if(config.handle?.(o,u,answer)) return;
       if(u.pathname.endsWith('/replay')) return answer(f.replay);
       if(u.pathname.endsWith('/explain')) {const p=o.data?.reviewed_player||u.searchParams.get('reviewed_player')||'A'; return answer({review:f.review(p),explanation:{gameReviewId:`r-${p}`,gameExplanation:{overall_summary:`summary ${p}`},moveExplanations:[]}});}
-      if(u.pathname.endsWith('/training')) return answer({items:[],total:0});
+      if(u.pathname.endsWith('/training')) return answer(o.data?.reviewed_player==='B'
+        ? {items:[{id:'own-b-question',player:'B'}],total:1} : {items:[],total:0});
       if(u.pathname.endsWith('/review')) return answer(f.review(config.mode==='REMOTE'?config.seat||'A':u.searchParams.get('reviewed_player')||o.data?.reviewed_player||f.game.human_player||'A'));
       if(config.mode==='REMOTE') return answer({game_id:'g1',seat:config.seat||'A',account_bound:true,version:f.game.version,ply_count:f.game.ply_count,
         state:f.game.state,room_status:'FINISHED',pending_undo:null,token:null});

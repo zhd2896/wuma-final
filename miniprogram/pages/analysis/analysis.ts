@@ -1,6 +1,9 @@
 import { createApiClient } from '../../services/api-client';
 import { createWxDeviceHistoryStore } from '../../services/device-history';
 import { createGameApi } from '../../services/game-api';
+import { createOnlineApi } from '../../services/online-api';
+import { restoreOnlineSeat, readOnlineSeat } from '../../services/online-credentials';
+import { getSavedWechatToken } from '../../services/device-auth';
 import { openPage } from '../../utils/navigation';
 import { IndependentAnalysisController } from './analysis-controller';
 import type { AnalysisSource, IndependentAnalysisSnapshot } from './analysis-controller';
@@ -16,6 +19,7 @@ Page({
     state: 'idle' as IndependentAnalysisSnapshot['state'],
     gameId: '',
     gameVersion: null as number | null,
+    seat: null as 'A' | 'B' | null,
     view: null as AnalysisViewModel | null,
     previewBoard: null as BoardState | null,
     routeText: '',
@@ -23,14 +27,21 @@ Page({
   },
   controller: null as IndependentAnalysisController | null,
   source: { mode: 'local' } as AnalysisSource,
+  hidden: false,
   onLoad(options: { mode?: string; gameId?: string }) {
     this.source = {
-      mode: options.mode === 'remote' ? 'remote' : 'local',
+      mode: options.mode === 'online' ? 'online' : options.mode === 'remote' ? 'remote' : 'local',
       ...(options.gameId ? { gameId: options.gameId } : {}),
     };
     const history = createWxDeviceHistoryStore();
+    const roomApi = createOnlineApi(createApiClient());
+    const storage = { read: (key: string) => wx.getStorageSync(key),
+      write: (key: string, value: unknown) => wx.setStorageSync(key, value), remove: (key: string) => wx.removeStorageSync(key) };
     this.controller = new IndependentAnalysisController({
       api: createGameApi(createApiClient()),
+      restoreOnline: id => restoreOnlineSeat(roomApi, storage, id),
+      analyzeOnline: (id, token, version) => roomApi.analyze(id, token, version),
+      readIdentity: () => getSavedWechatToken(), readOnlineToken: id => readOnlineSeat(storage, id),
       readLocalGame: id => history.get(id),
       readActiveLocalId: () => {
         const id = wx.getStorageSync(activeLocalGameIdKey);
@@ -40,6 +51,8 @@ Page({
     });
     void this.controller.enter(this.source);
   },
+  onHide() { this.hidden = true; this.controller?.suspend(); },
+  onShow() { if (this.hidden) { this.hidden = false; void this.controller?.enter(this.source); } },
   onUnload() {
     this.controller?.dispose();
     this.controller = null;
@@ -49,6 +62,7 @@ Page({
       state: snapshot.state,
       gameId: snapshot.gameId ?? '',
       gameVersion: snapshot.gameVersion,
+      seat: snapshot.seat,
       view: snapshot.view,
       previewBoard: snapshot.view?.board ?? null,
       routeText: snapshot.view?.bestMove ? describeMove(snapshot.view.bestMove.move) : '',
