@@ -15,6 +15,24 @@ export type CaptureResultDto = CaptureResult;
 export type TurnResultDto = TurnResult;
 export type SearchResultDto = IterativeDeepeningSearchResult;
 
+export type ReplayStepDto = {
+  readonly ply: number;
+  readonly version: number;
+  readonly player: Player;
+  readonly state: GameState;
+} & ({ readonly kind: 'MOVE'; readonly game_move_id: number;
+  readonly move: Move; readonly capture: CaptureResult }
+  | { readonly kind: 'RESIGN'; readonly game_move_id: null;
+    readonly move: null; readonly capture: null });
+
+export interface GameReplayDto {
+  readonly game_id: string;
+  readonly version: number;
+  readonly ply_count: number;
+  readonly initial_state: GameState;
+  readonly steps: readonly ReplayStepDto[];
+}
+
 export interface GameDto {
   readonly game_id: string;
   readonly version?: number;

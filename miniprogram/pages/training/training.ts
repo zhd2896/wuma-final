@@ -19,7 +19,7 @@ Page({
     categoryOptions: ['全部类别', '失误', '严重失误'], categoryIndex: 0,
     difficultyOptions: ['全部难度', '简易', '一般', '复杂', '待校准'], difficultyIndex: 0,
     completedOptions: ['全部进度', '未完成', '已完成'], completedIndex: 0,
-    gameId: '', noticeMessage: null as string | null,
+    gameId: '', player: '' as '' | 'A' | 'B', noticeMessage: null as string | null,
     total: 0,
     question: null as TrainingSnapshot['question'],
     answer: null as TrainingSnapshot['answer'],
@@ -32,14 +32,15 @@ Page({
     resultText: '', bestMoveText: '', submittedMoveText: '',
   },
   controller: null as TrainingController | null,
-  onLoad(options: { source?: string; gameId?: string }) {
+  onLoad(options: { source?: string; gameId?: string; player?: string }) {
     this.controller = new TrainingController(createTrainingApi(createApiClient()),
       snapshot => this.render(snapshot));
     this.render(this.controller.snapshot);
     const source = options?.source === 'REVIEW' ? 'REVIEW' : 'CURATED';
-    this.setData({ sourceIndex: source === 'REVIEW' ? 1 : 0, gameId: options?.gameId || '' });
+    const player = source === 'REVIEW' && (options?.player === 'A' || options?.player === 'B') ? options.player : '';
+    this.setData({ sourceIndex: source === 'REVIEW' ? 1 : 0, gameId: source === 'REVIEW' ? options?.gameId || '' : '', player });
     void this.controller.setFilters({ source, ...(source === 'REVIEW' && options?.gameId
-      ? { source_game_id: options.gameId } : {}) });
+      ? { source_game_id: options.gameId } : {}), ...(player ? { player } : {}) });
   },
   onUnload() { this.controller?.dispose(); this.controller = null; },
   render(snapshot: TrainingSnapshot) {
@@ -73,10 +74,10 @@ Page({
     const key = event.currentTarget.dataset.filter as 'sourceIndex' | 'categoryIndex' | 'difficultyIndex' | 'completedIndex';
     const value = Number(event.detail.value);
     this.setData({ [key]: value });
-    if (key === 'sourceIndex') this.setData({ categoryIndex: 0, gameId: '' });
+    if (key === 'sourceIndex') this.setData({ categoryIndex: 0, gameId: '', player: '' });
     this.applyFilters();
   },
-  clearGameFilter() { this.setData({ gameId: '' }); this.applyFilters(); },
+  clearGameFilter() { this.setData({ gameId: '', player: '' }); this.applyFilters(); },
   applyFilters() {
     const source = this.data.sourceIndex === 1 ? 'REVIEW' : 'CURATED';
     const category = [undefined, 'MISTAKE', 'BLUNDER'][this.data.categoryIndex] as TrainingFilters['category'];
@@ -84,7 +85,8 @@ Page({
     const completed = [undefined, false, true][this.data.completedIndex];
     void this.controller?.setFilters({ source, ...(source === 'REVIEW' && category ? { category } : {}),
       ...(difficulty ? { difficulty } : {}), ...(completed !== undefined ? { completed } : {}),
-      ...(source === 'REVIEW' && this.data.gameId ? { source_game_id: this.data.gameId } : {}) });
+      ...(source === 'REVIEW' && this.data.gameId ? { source_game_id: this.data.gameId } : {}),
+      ...(source === 'REVIEW' && this.data.player ? { player: this.data.player } : {}) });
   },
   back() {
     if (this.data.question) this.controller?.backToList();

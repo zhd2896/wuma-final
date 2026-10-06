@@ -115,7 +115,10 @@ test('finished online review without a local token recovers its account seat bef
     request: options => {
       requests.push(options);
       const path = new URL(options.url).pathname;
-      const data = path.endsWith('/recover') ? room({ seat: 'B', room_status: 'FINISHED', state: finished })
+      const data = path.endsWith('/recover') ? room({ seat: 'B', room_status: 'FINISHED', version: 1, state: finished })
+        : path.endsWith('/replay') ? { game_id: 'cloud-room', version: 1, ply_count: 0,
+          initial_state: initial, steps: [{ kind: 'RESIGN', version: 1, ply: 0, player: 'B',
+            game_move_id: null, move: null, capture: null, state: finished }] }
         : { id: 'review-b', gameId: 'cloud-room', reviewedPlayer: 'B', winner: 'A', winnerReason: 'RESIGN',
             bestMoveRate: 0, turningPoints: [], moveReviews: [] };
       options.success({ statusCode: 200, data: { code: 0, data } });
@@ -128,7 +131,7 @@ test('finished online review without a local token recovers its account seat bef
   assert.equal(page.data.state, 'success');
   assert.equal(page.data.review.reviewedPlayer, 'B');
   assert.deepEqual(requests.map(options => new URL(options.url).pathname),
-    ['/api/v1/remote/rooms/cloud-room/recover', '/api/v1/remote/rooms/cloud-room/review']);
+    ['/api/v1/remote/rooms/cloud-room/recover', '/api/v1/remote/rooms/cloud-room/replay', '/api/v1/remote/rooms/cloud-room/review']);
   assert.equal(requests[1].header['X-Room-Token'], 'new-token');
 });
 

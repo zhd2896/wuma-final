@@ -229,6 +229,25 @@ class GameReview(StrictModel):
     createdAt: datetime
 
 
+class ReplayStep(StrictModel):
+    kind: Literal["MOVE", "RESIGN"]
+    ply: int = Field(ge=0)
+    version: int = Field(ge=0)
+    game_move_id: int | None
+    player: Player
+    move: Move | None
+    capture: CaptureResult | None
+    state: GameState
+
+
+class GameReplay(StrictModel):
+    game_id: str
+    version: int = Field(ge=0)
+    ply_count: int = Field(ge=0)
+    initial_state: GameState
+    steps: list[ReplayStep]
+
+
 class ReviewRequest(StrictModel):
     reviewed_player: Player | None = None
 

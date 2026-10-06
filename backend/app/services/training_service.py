@@ -59,7 +59,7 @@ class TrainingService:
                    for source in await self.store.list_training_sources(review.id)}
         items = []
         for move in review.moveReviews:
-            if move.category not in ("MISTAKE", "BLUNDER"):
+            if move.player != review.reviewedPlayer or move.category not in ("MISTAKE", "BLUNDER"):
                 continue
             source = sources.get(move.gameMoveId)
             if (source is None or source.stateSnapshot.game_status != "PLAYING" or
@@ -85,18 +85,19 @@ class TrainingService:
                 generationVersion=GENERATION_VERSION, createdAt=datetime.now(timezone.utc),
             ))
         saved = await self.store.commit_training_items(review.id, items, user_id)
-        public = [await self.question(item, user_id) for item in saved]
+        public = [await self.question(item, user_id) for item in saved
+                  if item.player == review.reviewedPlayer]
         return TrainingList(items=public, total=len(public))
 
     async def list(self, limit: int, offset: int, category: str | None,
                    training_type: str | None,
                    user_id: str | None = None, source: str = 'REVIEW',
                    difficulty: str | None = None, completed: bool | None = None,
-                   source_game_id: str | None = None) -> TrainingList:
+                   source_game_id: str | None = None, player: str | None = None) -> TrainingList:
         if source == 'CURATED':
             await self.ensure_catalog()
         items, total = await self.store.list_training_items(limit, offset, category, training_type,
-            user_id, source, difficulty, completed, source_game_id)
+            user_id, source, difficulty, completed, source_game_id, player)
         return TrainingList(items=[await self.question(item, user_id) for item in items], total=total)
 
     async def get(self, training_id: str, user_id: str | None = None) -> TrainingQuestion:

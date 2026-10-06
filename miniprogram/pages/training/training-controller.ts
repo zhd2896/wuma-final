@@ -58,7 +58,9 @@ export class TrainingController {
     this.generation++;
     this.legalGeneration++;
     this.pending = null;
-    this.publish({ ...initial, filters: { ...filters } });
+    const { source_game_id, player, category, ...common } = filters;
+    this.publish({ ...initial, filters: filters.source === 'CURATED' ? common : { ...common,
+      ...(source_game_id ? { source_game_id } : {}), ...(player ? { player } : {}), ...(category ? { category } : {}) } });
     await this.enter();
   }
 

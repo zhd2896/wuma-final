@@ -7,7 +7,7 @@ import secrets
 
 from backend.app.core.errors import ApiError
 from backend.app.engine_adapter.node_worker import NodeEngineAdapter
-from backend.app.schemas.game import GameReview, LegalMovesResponse, Move
+from backend.app.schemas.game import GameReview, GameReplay, LegalMovesResponse, Move
 from backend.app.services.game_service import GameService
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
                                          MatchRoomRequest, PendingUndoResponse,
@@ -211,6 +211,19 @@ class RemoteService:
             await self.store.commit_remote_resign(
                 game_id, token_hash(token or ""), body, user_id)
             return await self._view(room, token or "", user_id=user_id)
+
+    async def _authorize_replay(self, game_id: str, token: str | None, user_id: str | None) -> None:
+        room = await self.store.get_remote_room(game_id)
+        seat = self._seat(room, token, user_id)
+        owner = room.host_user_id if seat == "A" else room.guest_user_id
+        if user_id is not None and owner != user_id:
+            raise ApiError("REMOTE_ACCESS_DENIED", "Claim this seat before reading replay")
+
+    async def get_replay(self, game_id: str, token: str | None, user_id: str | None = None) -> GameReplay:
+        await self._authorize_replay(game_id, token, user_id)
+        replay = await self.game_service._get_replay(game_id, remote=True)
+        await self._authorize_replay(game_id, token, user_id)
+        return replay
 
     async def get_review(self, game_id: str, token: str | None, user_id: str | None = None) -> GameReview:
         room = await self.store.get_remote_room(game_id)

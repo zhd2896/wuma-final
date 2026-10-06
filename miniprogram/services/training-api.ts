@@ -8,6 +8,7 @@ export interface TrainingFilters {
   readonly difficulty?: 'UNCALIBRATED' | 'EASY' | 'NORMAL' | 'COMPLEX';
   readonly completed?: boolean;
   readonly source_game_id?: string;
+  readonly player?: 'A' | 'B';
 }
 
 export interface TrainingApi {
@@ -15,7 +16,7 @@ export interface TrainingApi {
   get(trainingId: string): Promise<TrainingQuestionDto>;
   legalMoves(trainingId: string, fromNode: NodeId): Promise<{ readonly moves: readonly Move[] }>;
   answer(trainingId: string, move: Move, clientAttemptId: string): Promise<TrainingAnswerDto>;
-  generate(gameId: string): Promise<TrainingListDto>;
+  generate(gameId: string, reviewedPlayer?: 'A' | 'B'): Promise<TrainingListDto>;
 }
 
 export function createTrainingApi(client: ApiClient): TrainingApi {
@@ -31,7 +32,8 @@ export function createTrainingApi(client: ApiClient): TrainingApi {
     answer: (id, move, clientAttemptId) => client.request('POST',
       `${base(id)}/answer`, { from_node: move.from, to_node: move.to,
         client_attempt_id: clientAttemptId }, 30000),
-    generate: gameId => client.request('POST',
-      `/api/v1/game/${encodeURIComponent(gameId)}/training`, {}, 30000),
+    generate: (gameId, reviewedPlayer) => client.request('POST',
+      `/api/v1/game/${encodeURIComponent(gameId)}/training`,
+      reviewedPlayer ? { reviewed_player: reviewedPlayer } : {}, 30000),
   };
 }

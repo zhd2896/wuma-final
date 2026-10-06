@@ -6,16 +6,36 @@
     <block wx:else>
       <view class="match-summary card">
         <view class="match-title">玩家 {{review.reviewedPlayer}} · 棋局复盘</view>
+        <picker wx:if="{{canSelectPerspective}}" range="{{perspectiveOptions}}" value="{{perspectiveIndex}}" bindchange="changePerspective"><view class="perspective-picker">复盘视角：{{perspectiveOptions[perspectiveIndex]}} ▾</view></picker>
         <view class="match-meta"><text>胜方 {{review.winner}}</text><text>{{terminalText}}</text><text>{{rows.length}} 手已分析</text></view>
       </view>
-      <view wx:if="{{reviewBoard}}" id="review-board-panel" class="review-board-panel">
-        <view class="review-preview-title">第 {{selectedTurn}} 手 · 落子前局面</view>
+            <view id="review-board-panel" class="review-board-panel">
+        <view class="review-mode-actions"><button size="mini" bindtap="showReplay">实际局面回放</button><text>{{boardMode == 'route' ? '走前路线对照' : '实际局面回放'}}</text></view>
+        <block wx:if="{{boardMode == 'replay' && replayBoard}}">
+          <view class="review-preview-title">{{replayStepText}}</view>
+          <view class="review-preview-note">当前步骤 {{replayIndex}} / {{replayMaxIndex}} · 有效棋步 {{replayPly}} / {{replayTotalPly}} · 保存版本 {{replayVersion}}</view>
+          <chess-board board="{{replayBoard}}" compact="{{true}}" show-node-labels="{{true}}" />
+          <view class="review-preview-note">行动方 {{replayCurrentPlayer}} · 备用棋 A {{replayReserveA}} 枚 · B {{replayReserveB}} 枚</view>
+          <view class="review-preview-note">{{replayCaptureText}}</view>
+          <view class="review-explanation">{{replayExplanation}}</view>
+          <view wx:if="{{replayNaturalExplanation}}" class="review-natural-move">{{replayNaturalExplanation}}</view>
+        </block>
+        <view class="replay-controls">
+          <button size="mini" disabled="{{replayIndex == 0}}" bindtap="startReplay">首局面</button>
+          <button size="mini" disabled="{{replayIndex == 0}}" bindtap="previousReplay">上一手</button>
+          <button size="mini" disabled="{{replayIndex == replayMaxIndex}}" bindtap="nextReplay">下一手</button>
+          <button size="mini" disabled="{{replayIndex == replayMaxIndex}}" bindtap="endReplay">终局</button>
+        </view>
+        <slider wx:if="{{replayMaxIndex}}" min="0" max="{{replayMaxIndex}}" step="1" value="{{replayIndex}}" show-value="{{true}}" bindchange="jumpReplay" />
+        <block wx:if="{{boardMode == 'route' && reviewBoard}}">
+        <view class="review-preview-title">走前路线对照 · 第 {{selectedTurn}} 手落子前局面</view>
         <view class="review-preview-note">{{selectedRoute == 'actual' ? '实际走法' : '最佳走法'}}：{{routeText}}</view>
         <chess-board board="{{reviewBoard}}" compact="{{true}}" show-node-labels="{{true}}" />
         <view class="review-preview-note">走前备用棋：A {{previewReserveA}} 枚 · B {{previewReserveB}} 枚</view>
-        <view class="review-preview-note">金色标出起点，蓝色标出终点；路线仅供复盘查看。</view>
+        <view class="review-preview-note">金色标出起点，蓝色标出终点；这是走前预览，实际走后局面请切回回放。</view>
+        </block>
       </view>
-      <view wx:elif="{{rows.length}}" class="review-metric card">本次复盘暂未包含走前棋盘，可重新读取复盘，或先查看点位对照图。<button size="mini" bindtap="openRules">查看点位对照</button></view>
+      <view wx:if="{{rows.length && !reviewBoard}}" class="review-metric card">本次复盘暂未包含走前棋盘，可重新读取复盘，或先查看点位对照图。<button size="mini" bindtap="openRules">查看点位对照</button></view>
       <section-title title="整体统计" />
       <view class="review-stats card"><view>GOOD {{review.goodMoves}}</view><view>NORMAL {{review.normalMoves}}</view><view>MISTAKE {{review.mistakes}}</view><view>BLUNDER {{review.blunders}}</view></view>
       <view class="review-metric card">同分最佳走法比例：{{bestMoveRateText}}</view>
@@ -43,7 +63,7 @@
           <button size="mini" data-turn="{{item.turn}}" data-kind="actual" bindtap="selectReviewMove">看实际路线</button>
           <button size="mini" data-turn="{{item.turn}}" data-kind="best" bindtap="selectReviewMove">看最佳路线</button>
         </view>
-        <view>搜索分损失：{{item.scoreLoss}}</view>
+        <view wx:if="{{item.player == review.reviewedPlayer}}">搜索分损失：{{item.scoreLoss}}</view><view wx:else>对手走法 · 没有本人评价</view>
         <view class="review-explanation">{{item.engineExplanation}}</view>
         <view wx:if="{{item.naturalExplanation}}" class="review-natural-move">
           <view>{{item.explanationFallbackUsed ? '规则化解释' : 'AI解释'}}：{{item.naturalExplanation}}</view>

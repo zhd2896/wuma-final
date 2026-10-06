@@ -4,7 +4,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Query, Request
 
-from backend.app.schemas.game import ApiResponse, NodeId
+from backend.app.schemas.game import ApiResponse, NodeId, Player
 from backend.app.schemas.training import (TrainingAnswerRequest, TrainingAnswerResult,
                                           TrainingLegalMoves, TrainingList, TrainingQuestion)
 from backend.app.api.v1.account import require_account, require_training_owner
@@ -20,10 +20,11 @@ async def list_training(request: Request, limit: int = Query(20, ge=1, le=100),
                         source: Literal['REVIEW', 'CURATED'] = Query('REVIEW'),
                         difficulty: Literal['EASY', 'NORMAL', 'COMPLEX', 'UNCALIBRATED'] | None = Query(None),
                         completed: bool | None = Query(None),
-                        source_game_id: str | None = Query(None)) -> ApiResponse[TrainingList]:
+                        source_game_id: str | None = Query(None),
+                        player: Player | None = Query(None)) -> ApiResponse[TrainingList]:
     user_id = await require_account(request)
     return ApiResponse(data=await request.app.state.training_service.list(
-        limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id))
+        limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id, player))
 
 
 @router.get("/{training_id}", response_model=ApiResponse[TrainingQuestion])

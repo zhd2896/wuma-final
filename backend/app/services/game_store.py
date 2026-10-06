@@ -148,7 +148,7 @@ class GameStore(Protocol):
                                   training_type: str | None,
                                   user_id: str | None = None, source: str = 'REVIEW',
                                   difficulty: str | None = None, completed: bool | None = None,
-                                  source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]: ...
+                                  source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]: ...
     async def get_training_item(self, training_id: str) -> TrainingItemInternal: ...
     async def commit_curated_items(self, items: list[TrainingItemInternal]) -> None: ...
     async def training_progress(self, training_id: str, user_id: str | None) -> TrainingProgress: ...
@@ -1032,11 +1032,12 @@ class InMemoryGameStore:
                                   training_type: str | None,
                                   user_id: str | None = None, source: str = 'REVIEW',
                                   difficulty: str | None = None, completed: bool | None = None,
-                                  source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                                  source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         items = [item for item in self._training_items.values()
                  if item.sourceKind == source and
                  (difficulty is None or item.difficultyTag == difficulty) and
                  (source_game_id is None or item.sourceGameId == source_game_id) and
+                 (player is None or item.player == player) and
                  (completed is None or (await self.training_progress(item.id, user_id)).completed == completed) and
                  (category is None or item.sourceCategory == category) and
                  (training_type is None or item.trainingType == training_type) and

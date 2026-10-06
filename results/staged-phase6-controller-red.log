@@ -1,0 +1,52 @@
+(node:30644) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real review page replays saved after states and distinct before-route, native navigation and terminal count (84.3043ms)
+✔ local B perspective travels through review, explain, generate and training list route (25.1427ms)
+✔ metadata restricts AI view and room account seat restricts REMOTE view including empty resignation (36.889ms)
+✔ late A view cannot overwrite B, and hidden or unloaded page rejects pending results (18.4364ms)
+✔ malformed replay and forged LOCAL AI metadata fail rather than inventing frames or perspectives (30.4143ms)
+✔ replay APIs require complete captures and allow saved active revisions preceding an undo header (1.4974ms)
+✔ stored capture maps replaced pieces, reserve consumption and natural terminal without extra event (0.951ms)
+✔ late explanation and generation never overwrite or navigate for old or hidden views (39.8387ms)
+✔ B missing review and explanation are created with B bodies instead of defaulting to A (23.4925ms)
+(node:6228) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page preserves review player through pagination and clears it on source change (74.5097ms)
+✖ controller source change drops obsolete review game and perspective filters (2.5891ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 488.7647
+
+✖ failing tests:
+
+test at tests\training-perspective.test.mts:19:1
+✖ controller source change drops obsolete review game and perspective filters (2.5891ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    {
+  +   category: 'BLUNDER',
+  +   player: 'B',
+      source: 'CURATED',
+  +   source_game_id: 'g1'
+    }
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/training-perspective.test.mts:24:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: { source: 'CURATED', source_game_id: 'g1', player: 'B', category: 'BLUNDER' },
+    expected: { source: 'CURATED' },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

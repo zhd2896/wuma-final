@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query, Request
 from backend.app.schemas.game import (
     AiMoveRequest, AiMoveResponse, ApiResponse, CreateGameRequest, GameOperationRequest,
     GameOperationResponse, GameResponse, GameReview, LegalMovesResponse, MoveRequest,
-    MoveResponse, NodeId, Player, ReviewRequest, LocalImportRequest,
+    MoveResponse, NodeId, Player, ReviewRequest, LocalImportRequest, GameReplay,
 )
 from backend.app.schemas.explanation import ExplainedReview
 from backend.app.schemas.coach import CoachHint, CoachHintRequest
@@ -14,6 +14,12 @@ from backend.app.api.v1.account import require_account, require_game_owner
 
 
 router = APIRouter(prefix="/api/v1/game", tags=["game"])
+
+
+@router.get("/{game_id}/replay", response_model=ApiResponse[GameReplay])
+async def get_replay(request: Request, game_id: str) -> ApiResponse[GameReplay]:
+    await require_game_owner(request, game_id)
+    return ApiResponse(data=await request.app.state.service.get_replay(game_id))
 
 
 @router.post("/{game_id}/training", response_model=ApiResponse[TrainingList])

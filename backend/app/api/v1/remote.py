@@ -4,7 +4,7 @@ from backend.app.api.v1.account import require_account
 
 from fastapi import APIRouter, Header, Query, Request
 
-from backend.app.schemas.game import ApiResponse, GameReview, LegalMovesResponse, NodeId
+from backend.app.schemas.game import ApiResponse, GameReview, GameReplay, LegalMovesResponse, NodeId
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
                                          MatchRoomRequest, RemoteMoveRequest,
                                          RemoteMoveResponse, RemoteOperationRequest,
@@ -12,6 +12,14 @@ from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
 
 
 router = APIRouter(prefix="/api/v1/remote", tags=["remote"])
+
+
+@router.get("/rooms/{game_id}/replay", response_model=ApiResponse[GameReplay])
+async def get_replay(request: Request, game_id: str,
+                     token: str | None = Header(default=None, alias="X-Room-Token")) -> ApiResponse[GameReplay]:
+    user_id = await require_account(request)
+    await request.app.state.remote_service.authorize(game_id, token, user_id)
+    return ApiResponse(data=await request.app.state.remote_service.get_replay(game_id, token, user_id))
 
 
 @router.post("/rooms", response_model=ApiResponse[RemoteRoomResponse])

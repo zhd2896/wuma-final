@@ -1,0 +1,27 @@
+(node:14220) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real review page replays saved after states and distinct before-route, native navigation and terminal count (89.0405ms)
+✔ local B perspective travels through review, explain, generate and training list route (24.926ms)
+✔ metadata restricts AI view and room account seat restricts REMOTE view including empty resignation (38.3377ms)
+✔ late A view cannot overwrite B, and hidden or unloaded page rejects pending results (17.0547ms)
+✔ malformed replay and forged LOCAL AI metadata fail rather than inventing frames or perspectives (31.1325ms)
+✔ replay APIs require complete captures and allow saved active revisions preceding an undo header (1.4515ms)
+✔ stored capture maps replaced pieces, reserve consumption and natural terminal without extra event (0.947ms)
+✔ late explanation and generation never overwrite or navigate for old or hidden views (41.8439ms)
+✔ B missing review and explanation are created with B bodies instead of defaulting to A (19.1797ms)
+(node:29604) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page preserves review player through pagination and clears it on source change (71.6334ms)
+✔ controller source change drops obsolete review game and perspective filters (1.5849ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 496.8813

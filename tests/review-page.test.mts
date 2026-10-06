@@ -16,12 +16,14 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 } });
 
 test('review page reads or creates review, explains it, and keeps structured fields', async () => {
-  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  const { createInitialGameState, executeTurn } = await import('../miniprogram/domain/index.ts');
   const initial = createInitialGameState();
   const stateBefore = { ...initial, board: {
     occupancy: { ...initial.board.occupancy, P19: 'A', P13: null },
   } };
   const before = structuredClone(stateBefore);
+  const turn = executeTurn(stateBefore, { from: 'P19', to: 'P13' });
+  const terminal = { ...turn.state, game_status: 'FINISHED', winner: 'A', winner_reason: 'CAPTURE_ALL' };
   const requests: string[] = [];
   const review = { id: 'r1', gameId: 'g1', reviewedPlayer: 'A', winner: 'A',
     winnerReason: 'CAPTURE_ALL', goodMoves: 1, normalMoves: 0, mistakes: 0, blunders: 0,
@@ -42,7 +44,15 @@ test('review page reads or creates review, explains it, and keeps structured fie
       ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : '',
     request: (options: any) => {
       requests.push(`${options.method} ${new URL(options.url).pathname}`);
-      const explain = new URL(options.url).pathname.endsWith('/explain');
+      const path = new URL(options.url).pathname;
+      if (path === '/api/v1/game/g1') return options.success({ statusCode: 200, data: { code: 0, data: {
+        game_id: 'g1', version: 1, ply_count: 1, mode: 'LOCAL', ai_player: null, human_player: null,
+        ai_level: null, state: terminal } } });
+      if (path.endsWith('/replay')) return options.success({ statusCode: 200, data: { code: 0, data: {
+        game_id: 'g1', version: 1, ply_count: 1, initial_state: stateBefore,
+        steps: [{ kind: 'MOVE', ply: 1, version: 1, game_move_id: 1, player: 'A', move: turn.move,
+          capture: turn.capture, state: terminal }] } } });
+      const explain = path.endsWith('/explain');
       if (options.method === 'GET') options.success({ statusCode: 404,
         data: { code: explain ? 'EXPLANATION_NOT_FOUND' : 'REVIEW_NOT_FOUND',
           message: 'missing', data: null } });
@@ -56,7 +66,7 @@ test('review page reads or creates review, explains it, and keeps structured fie
   const page = { ...definition!, data: { ...definition!.data },
     setData(patch: Record<string, unknown>) { Object.assign(this.data, patch); } };
   await page.load('g1');
-  assert.deepEqual(requests, ['GET /api/v1/game/g1/review', 'POST /api/v1/game/g1/review',
+  assert.deepEqual(requests, ['GET /api/v1/game/g1', 'GET /api/v1/game/g1/replay', 'GET /api/v1/game/g1/review', 'POST /api/v1/game/g1/review',
     'GET /api/v1/game/g1/review/explain', 'POST /api/v1/game/g1/review/explain']);
   assert.equal(page.data.state, 'success');
   assert.equal(page.data.bestMoveRateText, '100.0%');
@@ -84,7 +94,7 @@ test('review page reads or creates review, explains it, and keeps structured fie
 
 
 test('online review verifies its saved seat and only requests room review, including zero move resignation', async () => {
-  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  const { createInitialGameState, executeTurn } = await import('../miniprogram/domain/index.ts');
   for (const seat of ['A', 'B']) {
     const requests: any[] = [];
     const review = { id: 'remote-review', gameId: 'online/id', reviewedPlayer: seat,
@@ -100,6 +110,10 @@ test('online review verifies its saved seat and only requests room review, inclu
         requests.push(options);
         assert.equal(options.header['X-Room-Token'], 'room-token');
         const path = new URL(options.url).pathname;
+        if (path.endsWith('/replay')) return options.success({ statusCode: 200, data: { code: 0, data: {
+          game_id: 'online/id', version: 8, ply_count: 0, initial_state: createInitialGameState(),
+          steps: [{ kind: 'RESIGN', ply: 0, version: 8, game_move_id: null, player: 'A', move: null,
+            capture: null, state: { ...createInitialGameState(), game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' } }] } } });
         if (path.endsWith('/review') && options.method === 'GET')
           options.success({ statusCode: 404, data: { code: 'REVIEW_NOT_FOUND' } });
         else options.success({ statusCode: 200, data: { code: 0, data: path.endsWith('/review') ? review : {
@@ -121,6 +135,7 @@ test('online review verifies its saved seat and only requests room review, inclu
     await page.generateTraining(); page.retryExplanation();
     assert.deepEqual(requests.map(r => `${r.method} ${new URL(r.url).pathname}`), [
       'GET /api/v1/remote/rooms/online%2Fid',
+      'GET /api/v1/remote/rooms/online%2Fid/replay',
       'GET /api/v1/remote/rooms/online%2Fid/review',
       'POST /api/v1/remote/rooms/online%2Fid/review',
     ]);
@@ -131,7 +146,7 @@ test('online review verifies its saved seat and only requests room review, inclu
 });
 
 test('online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback', async () => {
-  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  const { createInitialGameState, executeTurn } = await import('../miniprogram/domain/index.ts');
   for (const failure of ['missing', 'invalid', 'mismatch']) {
     const paths: string[] = [];
     let definition: any;

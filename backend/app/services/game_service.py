@@ -11,7 +11,7 @@ from backend.app.engine_adapter.node_worker import NodeEngineAdapter
 from backend.app.schemas.game import (
     AiMoveRequest, AiMoveResponse, AnalyzeResponse, CreateGameRequest, GameOperationRequest,
     GameOperationResponse, GameResponse, LegalMovesResponse, Move, MoveRequest, MoveResponse,
-    GameState, GameReview, MoveReview, ReviewConfig, LocalImportRequest,
+    GameState, GameReview, MoveReview, ReviewConfig, LocalImportRequest, GameReplay, ReplayStep,
 )
 from backend.app.services.game_store import GameStore, StoredGame, StoredMove
 
@@ -134,16 +134,42 @@ class GameService:
         snapshot, moves = await self.store.read_replay(game_id)
         return await self._validated_replay(snapshot, moves)
 
+    async def get_replay(self, game_id: str) -> GameReplay:
+        return await self._get_replay(game_id)
+
+    async def _get_replay(self, game_id: str, *, remote: bool = False) -> GameReplay:
+        snapshot, moves = await self.store.read_replay(game_id)
+        if snapshot.mode == "REMOTE" and not remote:
+            raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
+        frames = await self._validated_replay(snapshot, moves)
+        steps = [ReplayStep(kind="MOVE", ply=item.turn_number,
+            version=item.created_revision, game_move_id=item.game_move_id,
+            player=item.turn.before_state.current_player, move=item.turn.move,
+            capture=item.turn.capture, state=item.turn.state) for item in moves]
+        if len(frames) == len(moves) + 2:
+            steps.append(ReplayStep(kind="RESIGN", ply=snapshot.ply_count,
+                version=snapshot.version, game_move_id=None,
+                player="B" if snapshot.state.winner == "A" else "A",
+                move=None, capture=None, state=snapshot.state))
+        return GameReplay(game_id=game_id, version=snapshot.version,
+            ply_count=snapshot.ply_count, initial_state=snapshot.initial_state, steps=steps)
+
     async def _validated_replay(self, snapshot: StoredGame,
                                 moves: list[StoredMove]) -> list[GameState]:
         if len(moves) != snapshot.ply_count:
             raise ApiError("REPLAY_INTEGRITY_ERROR", "Active move count does not match game")
         frames = [snapshot.initial_state]
+        revision = 0
         for number, item in enumerate(moves, 1):
-            if item.turn_number != number or item.turn.before_state != frames[-1]:
+            if (item.turn_number != number or item.turn.before_state != frames[-1]
+                    or item.created_revision <= revision
+                    or item.created_revision > snapshot.version):
                 raise ApiError("REPLAY_INTEGRITY_ERROR", "Move history is not contiguous")
             frames.append(item.turn.state)
+            revision = item.created_revision
         if frames[-1] == snapshot.state:
+            if snapshot.state.game_status == "FINISHED" and revision != snapshot.version:
+                raise ApiError("REPLAY_INTEGRITY_ERROR", "Terminal move revision differs from game")
             return frames
         event = await self.store.get_terminal_event(snapshot.game_id)
         resigned_state = None
@@ -160,6 +186,7 @@ class GameService:
             and event is not None
             and event.event_type == "RESIGN"
             and event.revision == snapshot.version
+            and event.revision > revision
             and event.winner == snapshot.state.winner
             and event.actor == ("B" if snapshot.state.winner == "A" else "A")
             and event.state_before.game_status == "PLAYING"

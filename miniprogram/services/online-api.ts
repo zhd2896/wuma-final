@@ -3,7 +3,8 @@ import type { GameState, Move, NodeId, Player, TurnResult } from '../domain/inde
 import { ApiError } from './api-client';
 import type { ApiClient } from './api-client';
 import { requirePlyCount } from './game-api';
-import type { GameReviewDto } from './api-contract';
+import { requireReplay } from './replay-contract';
+import type { GameReviewDto, GameReplayDto } from './api-contract';
 
 export interface PendingOnlineUndo {
   readonly id: string;
@@ -46,6 +47,7 @@ export interface OnlineApi {
   recover(id: string): Promise<OnlineRoom>;
   claim(id: string, token: string): Promise<OnlineRoom>;
   getReview(id: string, token: string): Promise<GameReviewDto>;
+  getReplay(id: string, token: string): Promise<GameReplayDto>;
   createReview(id: string, token: string): Promise<GameReviewDto>;
   create(deviceId: string, publicRoom: boolean): Promise<OnlineRoom>;
   join(deviceId: string, inviteCode: string): Promise<OnlineRoom>;
@@ -99,6 +101,8 @@ export function createOnlineApi(client: ApiClient): OnlineApi {
     recover: id => client.request('POST', `${base(id)}/recover`, {}),
     claim: (id, token) => client.request('POST', `${base(id)}/claim`, {}, 10000, auth(token)),
     getReview: (id, token) => client.request('GET', `${base(id)}/review`, undefined, 10000, auth(token)),
+    getReplay: async (id, token) => requireReplay(await client.request<GameReplayDto>('GET',
+      `${base(id)}/replay`, undefined, 10000, auth(token)), id),
     createReview: (id, token) => client.request('POST', `${base(id)}/review`, {}, 120000, auth(token)),
     create: (deviceId, publicRoom) => client.request('POST', '/api/v1/remote/rooms',
       { device_id: deviceId, public: publicRoom }),

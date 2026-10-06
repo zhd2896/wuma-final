@@ -2,104 +2,144 @@ import { createApiClient, ApiError, messageForApiError } from '../../services/ap
 import { createOnlineApi } from '../../services/online-api';
 import { restoreOnlineSeat } from '../../services/online-credentials';
 import { createGameApi } from '../../services/game-api';
+import { requireReviewContext } from '../../services/replay-contract';
 import { createTrainingApi } from '../../services/training-api';
 import { hasWechatSession } from '../../services/device-auth';
 import { showLogin } from '../../services/auth-navigation';
-import type { GameExplanationDto, GameReviewDto } from '../../services/api-contract';
+import type { GameExplanationDto, GameReviewDto, GameReplayDto } from '../../services/api-contract';
 import type { GameApi } from '../../services/game-api';
+import type { Player } from '../../domain/index';
 import type { BoardState } from '../../types/domain';
 import { mapGameStateToView } from '../game/game-state-mapper';
 import { describeMove, highlightBoardMove } from '../../utils/board-guidance';
+import { replayView } from './review-replay';
 
 type ReviewRow = GameReviewDto['moveReviews'][number] & {
-  actualText: string;
-  bestText: string;
-  actualLocationText: string;
-  bestLocationText: string;
-  naturalExplanation: string;
-  naturalSuggestion: string;
-  explanationFallbackUsed: boolean;
+  actualText: string; bestText: string; actualLocationText: string; bestLocationText: string;
+  naturalExplanation: string; naturalSuggestion: string; explanationFallbackUsed: boolean;
 };
 
 Page({
   data: {
     gameId: '', mode: '', state: 'loading', errorMessage: '', terminalText: '',
-    review: null as GameReviewDto | null,
+    reviewedPlayer: 'A' as Player, perspectiveOptions: ['玩家 A', '玩家 B'], perspectiveIndex: 0,
+    canSelectPerspective: false,
+    review: null as GameReviewDto | null, replay: null as GameReplayDto | null,
     bestMoveRateText: '', turningText: '', rows: [] as ReviewRow[],
     gameExplanation: null as GameExplanationDto | null,
-    reviewBoard: null as BoardState | null,
-    selectedTurn: 0, selectedRoute: 'actual', routeText: '',
-    previewReserveA: 0, previewReserveB: 0,
-    explanationState: 'idle', isGeneratingExplanation: false,
-    isGeneratingTraining: false, trainingError: '',
+    boardMode: 'replay', reviewBoard: null as BoardState | null, replayBoard: null as BoardState | null,
+    replayIndex: 0, replayPly: 0, replayTotalPly: 0, replayMaxIndex: 0, replayCurrentPlayer: 'A' as Player,
+    replayReserveA: 0, replayReserveB: 0, replayVersion: 0, replayStepText: '', replayCaptureText: '',
+    replayExplanation: '', replayNaturalExplanation: '', replayRowTurn: 0,
+    selectedTurn: 0, selectedRoute: 'actual', routeText: '', previewReserveA: 0, previewReserveB: 0,
+    explanationState: 'idle', isGeneratingExplanation: false, isGeneratingTraining: false, trainingError: '',
   },
+  active: true, unloaded: false, generation: 0, explanationGeneration: 0,
   onLoad(options: { gameId?: string; mode?: string }) {
+    this.active = true; this.unloaded = false;
     this.setData({ gameId: options.gameId ?? '', mode: options.mode === 'online' ? 'online' : '' });
     void this.load(options.gameId ?? '');
   },
-  async load(gameId: string) {
-    if (!gameId) {
-      this.setData({ state: 'error', errorMessage: '请从已结束的棋局进入复盘' });
-      return;
-    }
-    this.setData({ state: 'loading', errorMessage: '', explanationState: 'idle',
-      gameExplanation: null, isGeneratingExplanation: false, review: null, rows: [], terminalText: '',
-      reviewBoard: null, selectedTurn: 0, selectedRoute: 'actual', routeText: '' });
+  onHide() { this.active = false; this.generation++; this.explanationGeneration++; },
+  onUnload() { this.unloaded = true; this.onHide(); },
+  onShow() {
+    if (!this.unloaded && !this.active) { this.active = true; void this.load(this.data.gameId, this.data.reviewedPlayer); }
+  },
+  isCurrent(generation: number) { return this.active && !this.unloaded && generation === this.generation; },
+  async load(gameId: string, requestedPlayer?: Player) {
+    if (!this.active || this.unloaded) return;
+    const generation = ++this.generation; this.explanationGeneration++;
+    if (!gameId) { this.setData({ state: 'error', errorMessage: '请从已结束的棋局进入复盘' }); return; }
+    this.setData({ gameId, state: 'loading', errorMessage: '', explanationState: 'idle',
+      gameExplanation: null, isGeneratingExplanation: false, isGeneratingTraining: false, trainingError: '',
+      review: null, replay: null, rows: [], terminalText: '', canSelectPerspective: false,
+      reviewBoard: null, replayBoard: null, selectedTurn: 0, selectedRoute: 'actual', routeText: '', boardMode: 'replay' });
     try {
       const online = this.data.mode === 'online';
-      let seat: 'A' | 'B' | undefined;
-      let api: Pick<GameApi, 'getReview' | 'createReview'>;
+      let player: Player;
+      let api: Pick<GameApi, 'getReview' | 'createReview' | 'getReplay'>;
       let localApi: GameApi | undefined;
+      let version: number, plyCount: number;
+      let finalState;
       if (online) {
         const roomApi = createOnlineApi(createApiClient());
         const { token, room } = await restoreOnlineSeat(roomApi, { read: key => wx.getStorageSync(key),
-          write: (key, value) => wx.setStorageSync(key, value),
-          remove: key => wx.removeStorageSync(key) }, gameId);
-        seat = room.seat;
-        api = { getReview: id => roomApi.getReview(id, token),
-          createReview: id => roomApi.createReview(id, token) };
+          write: (key, value) => wx.setStorageSync(key, value), remove: key => wx.removeStorageSync(key) }, gameId);
+        if (!this.isCurrent(generation)) return;
+        player = room.seat; version = room.version; plyCount = room.ply_count; finalState = room.state;
+        api = { getReview: id => roomApi.getReview(id, token), createReview: id => roomApi.createReview(id, token),
+          getReplay: id => roomApi.getReplay(id, token) };
       } else {
         localApi = createGameApi(createApiClient());
+        const game = requireReviewContext(await localApi.getGame(gameId), gameId);
+        if (!this.isCurrent(generation)) return;
+        player = game.mode === 'AI' ? game.human_player! : requestedPlayer ?? this.data.reviewedPlayer;
+        version = game.version!; plyCount = game.ply_count; finalState = game.state;
+        this.setData({ canSelectPerspective: game.mode === 'LOCAL' });
         api = localApi;
       }
+      this.setData({ reviewedPlayer: player, perspectiveIndex: player === 'A' ? 0 : 1 });
+      const replay = await api.getReplay(gameId);
+      if (!this.isCurrent(generation)) return;
+      const savedFinal = replay.steps.length ? replay.steps[replay.steps.length - 1].state : replay.initial_state;
+      if (replay.version !== version || replay.ply_count !== plyCount ||
+          JSON.stringify(savedFinal) !== JSON.stringify(finalState)) throw new ApiError('INVALID_GAME_RESPONSE', 502);
       let review: GameReviewDto;
-      try { review = await api.getReview(gameId); }
+      try { review = await api.getReview(gameId, player); }
       catch (error) {
+        if (!this.isCurrent(generation)) return;
         if (!(error instanceof ApiError) || error.code !== 'REVIEW_NOT_FOUND') throw error;
-        review = await api.createReview(gameId);
+        review = await api.createReview(gameId, player);
       }
-      if (online && (review.gameId !== gameId || review.reviewedPlayer !== seat))
+      if (!this.isCurrent(generation)) return;
+      if (review.gameId !== gameId || review.reviewedPlayer !== player ||
+          review.winner !== savedFinal.winner || review.winnerReason !== savedFinal.winner_reason)
         throw new ApiError('INVALID_GAME_RESPONSE', 502);
       const terminalText = review.winnerReason === 'RESIGN'
-        ? `${review.winner === review.reviewedPlayer ? '对方已认输' : '你已认输'}（玩家 ${review.winner === 'A' ? 'B' : 'A'} 认输）`
+        ? `${review.winner === player ? '对方已认输' : '你已认输'}（玩家 ${review.winner === 'A' ? 'B' : 'A'} 认输）`
         : `终局 ${review.winnerReason}`;
       const rows = review.moveReviews.map(move => ({ ...move,
-        actualText: `${move.actualMove.from} → ${move.actualMove.to}`,
-        bestText: `${move.bestMove.from} → ${move.bestMove.to}`,
-        actualLocationText: describeMove(move.actualMove),
-        bestLocationText: describeMove(move.bestMove),
+        actualText: `${move.actualMove.from} → ${move.actualMove.to}`, bestText: `${move.bestMove.from} → ${move.bestMove.to}`,
+        actualLocationText: describeMove(move.actualMove), bestLocationText: describeMove(move.bestMove),
         naturalExplanation: '', naturalSuggestion: '', explanationFallbackUsed: false,
       }));
-      this.setData({ state: 'success', review, rows, terminalText,
+      this.setData({ state: 'success', review, replay, rows, terminalText,
         bestMoveRateText: `${(review.bestMoveRate * 100).toFixed(1)}%`,
-        turningText: review.turningPoints.length
-          ? review.turningPoints.map(turn => `第 ${turn} 手`).join('、') : '无明显失误转折点',
-      });
-      const first = rows.find(row => row.stateBefore);
-      if (first) this.showReviewMove(first, 'actual');
-      if (localApi) await this.loadExplanation(localApi, gameId);
+        turningText: review.turningPoints.length ? review.turningPoints.map(turn => `第 ${turn} 手`).join('、') : '无明显失误转折点',
+        ...replayView(replay, review, 0) });
+      const first = rows.find(row => row.player === player && row.stateBefore);
+      if (first) this.showReviewMove(first, 'actual', false);
+      if (localApi) await this.loadExplanation(localApi, gameId, generation);
     } catch (error) {
-      this.setData({ state: 'error', errorMessage: messageForApiError(error) });
+      if (this.isCurrent(generation)) this.setData({ state: 'error', errorMessage: messageForApiError(error), canSelectPerspective: false });
     }
   },
-  showReviewMove(row: ReviewRow, kind: 'actual' | 'best') {
-    if (!row.stateBefore) return;
+  changePerspective(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    if (!this.active || this.unloaded || !this.data.canSelectPerspective) return;
+    if (event.detail.value !== '0' && event.detail.value !== '1') return;
+    const player = event.detail.value === '1' ? 'B' : 'A';
+    if (player !== this.data.reviewedPlayer) void this.load(this.data.gameId, player);
+  },
+  showReplayAt(index: number) {
+    if (!this.active || this.unloaded || !this.data.replay || !this.data.review) return;
+    const view = replayView(this.data.replay, this.data.review, index);
+    const row = this.data.rows.find(r => r.turn === view.replayRowTurn && r.player === this.data.reviewedPlayer);
+    this.setData({ ...view, boardMode: 'replay', replayNaturalExplanation: row?.naturalExplanation ?? '' });
+  },
+  showReplay() { this.showReplayAt(this.data.replayIndex); },
+  previousReplay() { this.showReplayAt(this.data.replayIndex - 1); },
+  nextReplay() { this.showReplayAt(this.data.replayIndex + 1); },
+  startReplay() { this.showReplayAt(0); },
+  endReplay() { this.showReplayAt(this.data.replayMaxIndex); },
+  jumpReplay(event: WechatMiniprogram.CustomEvent<{ value: number }>) { this.showReplayAt(Number(event.detail.value)); },
+  showReviewMove(row: ReviewRow, kind: 'actual' | 'best', select = true) {
+    if (!row.stateBefore || !this.active || this.unloaded) return;
     const move = kind === 'actual' ? row.actualMove : row.bestMove;
     const board = mapGameStateToView(row.stateBefore).board;
     this.setData({ reviewBoard: highlightBoardMove(board, move),
+      ...(select ? { boardMode: 'route' } : {}),
       selectedTurn: row.turn, selectedRoute: kind, routeText: describeMove(move),
-      previewReserveA: row.stateBefore.players.A.reserve_count,
-      previewReserveB: row.stateBefore.players.B.reserve_count });
+      previewReserveA: row.stateBefore.players.A.reserve_count, previewReserveB: row.stateBefore.players.B.reserve_count });
   },
   selectReviewMove(event: WechatMiniprogram.TouchEvent) {
     const turn = Number(event.currentTarget.dataset.turn);
@@ -107,53 +147,55 @@ Page({
     const row = this.data.rows.find(item => item.turn === turn);
     if (!row?.stateBefore) return;
     this.showReviewMove(row, kind);
-    if (typeof wx.pageScrollTo === 'function') {
-      wx.pageScrollTo({ selector: '#review-board-panel', duration: 250 });
-    }
+    if (typeof wx.pageScrollTo === 'function') wx.pageScrollTo({ selector: '#review-board-panel', duration: 250 });
   },
   openRules() { wx.navigateTo({ url: '/guide/pages/rules/rules' }); },
-  async loadExplanation(api: GameApi, gameId: string) {
-    if (this.data.mode === 'online') return;
+  async loadExplanation(api: GameApi, gameId: string, requestGeneration?: number) {
+    const generation = requestGeneration ?? this.generation;
+    if (this.data.mode === 'online' || !this.data.review || !this.isCurrent(generation)) return;
+    const sequence = ++this.explanationGeneration, player = this.data.reviewedPlayer, reviewId = this.data.review.id;
+    const current = () => this.isCurrent(generation) && sequence === this.explanationGeneration;
     this.setData({ explanationState: 'loading', isGeneratingExplanation: true });
     try {
       let explained;
-      try { explained = await api.getReviewExplanation(gameId); }
+      try { explained = await api.getReviewExplanation(gameId, player); }
       catch (error) {
+        if (!current()) return;
         if (!(error instanceof ApiError) || error.code !== 'EXPLANATION_NOT_FOUND') throw error;
-        explained = await api.explainReview(gameId);
+        explained = await api.explainReview(gameId, player);
       }
-      if (explained.explanation.gameReviewId !== this.data.review?.id) {
-        throw new Error('Explanation and review do not match');
-      }
+      if (!current()) return;
+      if (explained.explanation.gameReviewId !== reviewId || explained.review.reviewedPlayer !== player)
+        throw new ApiError('INVALID_GAME_RESPONSE', 502);
       const byTurn = new Map(explained.explanation.moveExplanations.map(item => [item.turn, item]));
       const rows = this.data.rows.map(row => {
-        const text = byTurn.get(row.turn);
-        return { ...row, naturalExplanation: text?.explanation ?? '',
-          naturalSuggestion: text?.suggestion ?? '',
+        const text = row.player === player ? byTurn.get(row.turn) : undefined;
+        return { ...row, naturalExplanation: text?.explanation ?? '', naturalSuggestion: text?.suggestion ?? '',
           explanationFallbackUsed: text?.fallbackUsed ?? false };
       });
       this.setData({ rows, gameExplanation: explained.explanation.gameExplanation,
-        explanationState: 'success', isGeneratingExplanation: false });
+        explanationState: 'success', isGeneratingExplanation: false,
+        replayNaturalExplanation: rows.find(r => r.turn === this.data.replayRowTurn && r.player === player)?.naturalExplanation ?? '' });
     } catch (_error) {
-      this.setData({ explanationState: 'error', isGeneratingExplanation: false });
+      if (current()) this.setData({ explanationState: 'error', isGeneratingExplanation: false });
     }
   },
   retryExplanation() {
-    if (this.data.mode !== 'online' && this.data.gameId && this.data.review) {
+    if (this.data.mode !== 'online' && this.data.gameId && this.data.review)
       void this.loadExplanation(createGameApi(createApiClient()), this.data.gameId);
-    }
   },
-  retry() { void this.load(this.data.gameId); },
+  retry() { void this.load(this.data.gameId, this.data.reviewedPlayer); },
   async generateTraining() {
-    if (this.data.mode === 'online' || !this.data.gameId || !this.data.review || this.data.isGeneratingTraining) return;
+    if (!this.active || this.unloaded || this.data.mode === 'online' || !this.data.gameId || !this.data.review || this.data.isGeneratingTraining) return;
+    const generation = this.generation, gameId = this.data.gameId, player = this.data.reviewedPlayer;
     this.setData({ isGeneratingTraining: true, trainingError: '' });
     try {
-      await createTrainingApi(createApiClient()).generate(this.data.gameId);
-      wx.navigateTo({ url: `/pages/training/training?source=REVIEW&gameId=${encodeURIComponent(this.data.gameId)}` });
+      await createTrainingApi(createApiClient()).generate(gameId, player);
+      if (this.isCurrent(generation)) wx.navigateTo({ url: `/pages/training/training?source=REVIEW&gameId=${encodeURIComponent(gameId)}&player=${player}` });
     } catch (error) {
-      this.setData({ trainingError: messageForApiError(error) });
+      if (this.isCurrent(generation)) this.setData({ trainingError: messageForApiError(error) });
     } finally {
-      this.setData({ isGeneratingTraining: false });
+      if (this.isCurrent(generation)) this.setData({ isGeneratingTraining: false });
     }
   },
   back() {

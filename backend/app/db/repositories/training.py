@@ -150,8 +150,10 @@ class TrainingRepository:
                    training_type: str | None,
                    user_id: str | None = None, source: str = 'REVIEW',
                    difficulty: str | None = None, completed: bool | None = None,
-                   source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                   source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         conditions = [TrainingItemModel.source_kind == source]
+        if player is not None:
+            conditions.append(TrainingItemModel.player == player)
         if category:
             conditions.append(TrainingItemModel.source_category == category)
         if training_type:

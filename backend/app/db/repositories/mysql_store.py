@@ -1237,18 +1237,18 @@ class MySQLGameStore:
                                   training_type: str | None,
                                   user_id: str | None = None, source: str = 'REVIEW',
                                   difficulty: str | None = None, completed: bool | None = None,
-                                  source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                                  source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         return await asyncio.to_thread(self._list_training_items, limit, offset,
-                                       category, training_type, user_id, source, difficulty, completed, source_game_id)
+                                       category, training_type, user_id, source, difficulty, completed, source_game_id, player)
 
     def _list_training_items(self, limit: int, offset: int, category: str | None,
                              training_type: str | None,
                              user_id: str | None, source: str = 'REVIEW',
                              difficulty: str | None = None, completed: bool | None = None,
-                             source_game_id: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                             source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         try:
             with self.sessions() as session:
-                return TrainingRepository(session).list_items(limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id)
+                return TrainingRepository(session).list_items(limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id, player)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 

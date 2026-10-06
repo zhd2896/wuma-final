@@ -1,0 +1,45 @@
+(node:11184) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ cloud room without a local credential restores by authenticated account and saves its own token (73.6034ms)
+✔ first account recovery network failure can retry the cloud game without an established room or token (1.727ms)
+✔ legacy token restoration explicitly claims only the authentic seat and saves its rotated token (1.2317ms)
+✔ an invalid saved token can recover only by account and never falls back to unauthenticated access (1.3064ms)
+✔ cloud REMOTE history opens online resume or its own seat review (37.8513ms)
+✔ finished online review without a local token recovers its account seat before fetching review (47.2626ms)
+✔ cloud finished state supersedes a stale local online row while device-only history remains available (31.9786ms)
+(node:14148) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review page reads or creates review, explains it, and keeps structured fields (117.3248ms)
+✔ online review verifies its saved seat and only requests room review, including zero move resignation (56.3793ms)
+✔ online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback (59.9073ms)
+(node:28488) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real review page replays saved after states and distinct before-route, native navigation and terminal count (99.2979ms)
+✔ local B perspective travels through review, explain, generate and training list route (32.316ms)
+✔ metadata restricts AI view and room account seat restricts REMOTE view including empty resignation (41.5029ms)
+✔ late A view cannot overwrite B, and hidden or unloaded page rejects pending results (21.6011ms)
+✔ malformed replay and forged LOCAL AI metadata fail rather than inventing frames or perspectives (30.9733ms)
+✔ replay APIs require complete captures and allow saved active revisions preceding an undo header (1.54ms)
+✔ stored capture maps replaced pieces, reserve consumption and natural terminal without extra event (0.9906ms)
+✔ late explanation and generation never overwrite or navigate for old or hidden views (37.0442ms)
+✔ B missing review and explanation are created with B bodies instead of defaulting to A (18.8814ms)
+(node:29056) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page preserves review player through pagination and clears it on source change (83.4682ms)
+✔ controller source change drops obsolete review game and perspective filters (2.3323ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 629.2202

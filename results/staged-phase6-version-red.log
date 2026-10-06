@@ -1,0 +1,78 @@
+........FFFF                                                             [100%]
+================================== FAILURES ===================================
+_____________ test_replay_rejects_move_revision_outside_header[0] _____________
+
+client = <starlette.testclient.TestClient object at 0x000001E305E0A720>
+revision = 0
+
+    @pytest.mark.parametrize('revision', [0, 99])
+    def test_replay_rejects_move_revision_outside_header(client, revision):
+        game_id = create_short_game(client)
+        store = client.app.state.store
+        store._moves[game_id][0] = replace(store._moves[game_id][0], created_revision=revision)
+        response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 500 and response.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (200 == 500)
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend\tests\test_replay.py:124: AssertionError
+____________ test_replay_rejects_move_revision_outside_header[99] _____________
+
+client = <starlette.testclient.TestClient object at 0x000001E305D7F860>
+revision = 99
+
+    @pytest.mark.parametrize('revision', [0, 99])
+    def test_replay_rejects_move_revision_outside_header(client, revision):
+        game_id = create_short_game(client)
+        store = client.app.state.store
+        store._moves[game_id][0] = replace(store._moves[game_id][0], created_revision=revision)
+        response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 500 and response.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (200 == 500)
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend\tests\test_replay.py:124: AssertionError
+______ test_replay_rejects_repeated_revision_but_allows_undo_header_gap _______
+
+client = <starlette.testclient.TestClient object at 0x000001E305CE36E0>
+
+    def test_replay_rejects_repeated_revision_but_allows_undo_header_gap(client):
+        game_id = client.post('/api/v1/game', json={'mode': 'LOCAL'}).json()['data']['game_id']
+        base = f'/api/v1/game/{game_id}'
+        assert client.post(base + '/move', json={'from_node': 'P01', 'to_node': 'P02'}).status_code == 200
+        assert client.post(base + '/move', json={'from_node': 'P05', 'to_node': 'P04'}).status_code == 200
+        store = client.app.state.store
+        second = store._moves[game_id][1]
+        store._moves[game_id][1] = replace(second, created_revision=1)
+        denied = client.get(base + '/replay')
+>       assert denied.status_code == 500 and denied.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (200 == 500)
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend\tests\test_replay.py:136: AssertionError
+___________ test_replay_natural_terminal_revision_must_match_header ___________
+
+client = <starlette.testclient.TestClient object at 0x000001E305C73290>
+
+    def test_replay_natural_terminal_revision_must_match_header(client):
+        game_id = create_short_game(client)
+        store = client.app.state.store
+        store._games[game_id] = replace(store._games[game_id], version=2)
+        response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 500 and response.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (200 == 500)
+E        +  where 200 = <Response [200 OK]>.status_code
+
+backend\tests\test_replay.py:149: AssertionError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_replay.py::test_replay_rejects_move_revision_outside_header[0]
+FAILED backend/tests/test_replay.py::test_replay_rejects_move_revision_outside_header[99]
+FAILED backend/tests/test_replay.py::test_replay_rejects_repeated_revision_but_allows_undo_header_gap
+FAILED backend/tests/test_replay.py::test_replay_natural_terminal_revision_must_match_header
+4 failed, 8 passed, 1 warning in 5.43s
