@@ -240,6 +240,20 @@ class CreateGameRequest(StrictModel):
     ai_level: Literal["STANDARD"] | None = None
 
 
+class LocalImportMove(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    from_node: NodeId = Field(alias="from")
+    to_node: NodeId = Field(alias="to")
+
+
+class LocalImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    clientGameId: ClientRequestId
+    firstPlayer: Player
+    moves: list[LocalImportMove] = Field(max_length=2048)
+    resigningPlayer: Player | None
+
+
 class MoveRequest(StrictModel):
     from_node: NodeId
     to_node: NodeId

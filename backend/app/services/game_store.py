@@ -116,6 +116,10 @@ class GameStore(Protocol):
     async def create(self, state: GameState, mode: str = "LOCAL",
                      ai_player: str | None = None, ai_level: str | None = None,
                      user_id: str | None = None) -> str: ...
+    async def lookup_local_import(self, user_id: str, client_id: str, digest: str) -> str | None: ...
+    async def commit_local_import(self, user_id: str, client_id: str, digest: str,
+                                  initial: GameState, turns: list[TurnResult],
+                                  resigning_player: str | None) -> str: ...
     async def get_snapshot(self, game_id: str) -> StoredGame: ...
     async def commit_turn(self, game_id: str, expected_version: int, turn: TurnResult,
                           actor_type: str, search: SearchResult | None = None) -> None: ...
@@ -204,6 +208,7 @@ class InMemoryGameStore:
         self._device_users: dict[str, str] = {}
         self._wechat_users: dict[str, str] = {}
         self._retired_users: set[str] = set()
+        self._local_imports: dict[tuple[str, str], tuple[str, str]] = {}
         self._auth_sessions: dict[str, tuple[str, datetime]] = {}
         self._game_created: dict[str, datetime] = {}
         self._training_owners: dict[str, str | None] = {}
@@ -226,6 +231,10 @@ class InMemoryGameStore:
                 if any({room.host_user_id, room.guest_user_id} == {source, user_id}
                        for room in self._remote_rooms.values()):
                     raise ApiError("REMOTE_ACCOUNT_CONFLICT", "Accounts occupy opposite seats; keep the original account")
+                for (owner, client_id), (game_id, digest) in self._local_imports.items():
+                    other = self._local_imports.get((user_id, client_id))
+                    if owner == source and other is not None and other[0] != game_id:
+                        raise ApiError("LOCAL_IMPORT_ACCOUNT_CONFLICT", "Accounts imported the same client ID into different games")
                 for game_id, room in tuple(self._remote_rooms.items()):
                     self._remote_rooms[game_id] = replace(room,
                         host_user_id=user_id if room.host_user_id == source else room.host_user_id,
@@ -239,6 +248,10 @@ class InMemoryGameStore:
                     if owner == source:
                         self._training_owners[key] = user_id
                 if source != user_id:
+                    for key, imported in tuple(self._local_imports.items()):
+                        if key[0] == source:
+                            self._local_imports[(user_id, key[1])] = imported
+                            del self._local_imports[key]
                     self._retired_users.add(source)
                 del self._device_users[device_hash]
             self._auth_sessions[token_hash] = (user_id, expires_at)
@@ -341,6 +354,53 @@ class InMemoryGameStore:
             self._moves[game_id] = []
             self._locks[game_id] = asyncio.Lock()
             self._analyses[game_id] = []
+            return game_id
+
+    async def lookup_local_import(self, user_id: str, client_id: str, digest: str) -> str | None:
+        async with self._catalog_lock:
+            if user_id in self._retired_users:
+                raise ApiError("AUTH_INVALID", "Account is no longer active")
+            existing = self._local_imports.get((user_id, client_id))
+            if existing and existing[1] != digest:
+                raise ApiError("LOCAL_IMPORT_CONFLICT", "Client game ID already imported with another score")
+            return existing[0] if existing else None
+
+    async def commit_local_import(self, user_id: str, client_id: str, digest: str,
+                                  initial: GameState, turns: list[TurnResult],
+                                  resigning_player: str | None) -> str:
+        async with self._catalog_lock:
+            if user_id in self._retired_users or user_id not in (
+                    set(self._device_users.values()) | set(self._wechat_users.values())):
+                raise ApiError("AUTH_INVALID", "Account is no longer active")
+            existing = self._local_imports.get((user_id, client_id))
+            if existing:
+                if existing[1] != digest:
+                    raise ApiError("LOCAL_IMPORT_CONFLICT", "Client game ID already imported with another score")
+                return existing[0]
+            game_id = uuid4().hex
+            copied_initial = initial.model_copy(deep=True)
+            copied_turns = [turn.model_copy(deep=True) for turn in turns]
+            before = (copied_turns[-1].state if copied_turns else copied_initial).model_copy(deep=True)
+            state = before.model_copy(deep=True)
+            event = None
+            if resigning_player is not None:
+                state = before.model_copy(deep=True, update={"game_status": "FINISHED",
+                    "winner": "B" if resigning_player == "A" else "A", "winner_reason": "RESIGN"})
+                event = StoredTerminalEvent(game_id, "local-import-resign", len(turns) + 1,
+                    "RESIGN", resigning_player, state.winner, before, state)
+            moves = [StoredMove(i, "HUMAN", turn, None, i, i)
+                     for i, turn in enumerate(copied_turns, 1)]
+            game = StoredGame(game_id, copied_initial, state, len(turns) + (event is not None),
+                len(turns), user_id=user_id)
+            # Construct everything before publishing, with no await or separate commits.
+            self._games[game_id] = game
+            self._moves[game_id] = moves
+            self._locks[game_id] = asyncio.Lock()
+            self._analyses[game_id] = []
+            self._game_created[game_id] = datetime.now(timezone.utc)
+            if event is not None:
+                self._terminal_events[game_id] = event
+            self._local_imports[(user_id, client_id)] = (game_id, digest)
             return game_id
 
     async def lock_for(self, game_id: str) -> asyncio.Lock:

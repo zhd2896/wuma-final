@@ -1,5 +1,7 @@
 """Game use cases; the TypeScript worker remains the only rule authority."""
 
+import hashlib
+import json
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -9,7 +11,7 @@ from backend.app.engine_adapter.node_worker import NodeEngineAdapter
 from backend.app.schemas.game import (
     AiMoveRequest, AiMoveResponse, AnalyzeResponse, CreateGameRequest, GameOperationRequest,
     GameOperationResponse, GameResponse, LegalMovesResponse, Move, MoveRequest, MoveResponse,
-    GameState, GameReview, MoveReview, ReviewConfig,
+    GameState, GameReview, MoveReview, ReviewConfig, LocalImportRequest,
 )
 from backend.app.services.game_store import GameStore, StoredGame, StoredMove
 
@@ -31,6 +33,30 @@ class GameService:
                             state=state, mode=request.mode,
                             human_player=self._human(ai_player), ai_player=ai_player,
                             ai_level=ai_level)
+
+    async def import_local(self, request: LocalImportRequest, user_id: str) -> GameResponse:
+        digest = hashlib.sha256(json.dumps(request.model_dump(mode="json", by_alias=True),
+            sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+        existing = await self.store.lookup_local_import(user_id, request.clientGameId, digest)
+        if existing is not None:
+            return await self.get(existing)
+        initial = await self.adapter.initialize(request.firstPlayer)
+        state = initial
+        turns = []
+        for move in request.moves:
+            if state.game_status == "FINISHED":
+                raise ApiError("GAME_ALREADY_FINISHED", "Score contains a move after game end")
+            turn = await self.adapter.execute_turn(state, Move(from_node=move.from_node, to_node=move.to_node))
+            turns.append(turn)
+            state = turn.state
+        if request.resigningPlayer is not None:
+            if state.game_status == "FINISHED":
+                raise ApiError("GAME_ALREADY_FINISHED", "Natural terminal games cannot resign")
+            if request.resigningPlayer != state.current_player:
+                raise ApiError("NOT_PLAYER_TURN", "Only the current actor can resign")
+        game_id = await self.store.commit_local_import(user_id, request.clientGameId, digest,
+            initial, turns, request.resigningPlayer)
+        return await self.get(game_id)
 
     @staticmethod
     def _human(ai_player: str | None) -> str | None:

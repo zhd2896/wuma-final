@@ -20,7 +20,7 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, TrainingItem
                                     GameReviewModel, MoveReviewModel,
                                     ReviewExplanationModel, RemoteRoomModel, UserModel,
                                     GameTerminalEventModel, GameUndoEventModel,
-                                    RemoteUndoRequestModel, AuthSessionModel, utc_now)
+                                    RemoteUndoRequestModel, AuthSessionModel, LocalGameImportModel, utc_now)
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.db.repositories.mysql_store import MySQLGameStore
 from backend.app.main import create_app
@@ -54,6 +54,7 @@ def db():
         session.execute(delete(GameTerminalEventModel))
         session.execute(delete(GameMoveModel))
         session.execute(delete(RemoteRoomModel))
+        session.execute(delete(LocalGameImportModel))
         session.execute(delete(GameModel))
         session.execute(delete(UserModel))
     yield engine
@@ -1165,3 +1166,97 @@ def test_concurrent_first_wechat_logins_create_one_mysql_user(db):
                 UserModel.external_user_id == "wechat:" + hashlib.sha256(b"wx-app:concurrent-user").hexdigest())).all()) == 1
     finally:
         store.close()
+
+def test_mysql_local_import_transaction_retry_case_and_rollback(client,db):
+    from backend.tests.test_local_import import payload
+    from backend.app.db.models import LocalGameImportModel
+    body=payload(resigningPlayer='A')
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        responses=list(pool.map(lambda _:client.post('/api/v1/game/import-local',json=body),range(4)))
+    assert all(r.status_code==200 for r in responses), [r.text for r in responses]
+    game=responses[0].json()['data']; assert {r.json()['data']['game_id'] for r in responses}=={game['game_id']}
+    assert game['version']==3 and game['ply_count']==2
+    upper=client.post('/api/v1/game/import-local',json=payload(clientGameId='LOCAL-score-001'))
+    assert upper.status_code==200 and upper.json()['data']['game_id']!=game['game_id']
+    assert client.post('/api/v1/game/import-local',json=payload()).status_code==409
+    original=MoveRepository.create_move
+    def fail_second(self,*args,**kwargs):
+        original(self,*args,**kwargs)
+        if args[1]==2: raise IntegrityError('injected import insert',None,Exception('rollback'))
+    with patch.object(MoveRepository,'create_move',fail_second):
+        bad=client.post('/api/v1/game/import-local',json=payload(clientGameId='rollback-import'))
+        assert bad.status_code==503, bad.text
+    with Session(db) as s:
+        assert len(s.scalars(select(GameModel)).all())==2
+        assert len(s.scalars(select(LocalGameImportModel)).all())==2
+        assert len(s.scalars(select(GameMoveModel)).all())==4
+        assert len(s.scalars(select(GameTerminalEventModel)).all())==1
+    restarted=MySQLGameStore(DB_URL)
+    assert client.portal.call(restarted.get_snapshot,game['game_id']).version==3
+    restarted.close()
+
+@pytest.mark.parametrize('conflict',[False,True])
+def test_mysql_local_import_merge_conflict_atomic_retired_inflight(client,db,conflict):
+    from backend.tests.test_local_import import payload
+    from backend.tests.test_wechat_auth import FakeWechat,login
+    from backend.app.schemas.game import LocalImportRequest
+    client.app.state.wechat_auth=FakeWechat()
+    target=login(client,'merge-target').json()['data']
+    target_header={'Authorization':'Bearer '+target['token']}
+    if conflict:
+        target_game=client.post('/api/v1/game/import-local',headers=target_header,json=payload()).json()['data']['game_id']
+    source=client.post('/api/v1/auth/device').json()['data']
+    source_header={'Authorization':'Bearer '+source['token']}
+    game=client.post('/api/v1/game/import-local',headers=source_header,json=payload()).json()['data']['game_id']
+    migrated=login(client,'merge-target',device_token=source['token'])
+    if conflict:
+        assert migrated.status_code==409 and migrated.json()['code']=='LOCAL_IMPORT_ACCOUNT_CONFLICT'
+        assert client.get(f'/api/v1/game/{game}',headers=source_header).status_code==200
+        with Session(db) as s:
+            assert s.get(GameModel,game).user_id==source['userId']
+            assert s.get(GameModel,target_game).user_id==target['userId']
+            assert s.get(UserModel,source['userId']).external_user_id is not None
+    else:
+        assert migrated.status_code==200, migrated.text
+        assert client.get(f'/api/v1/game/{game}',headers=source_header).status_code==401
+        assert client.post('/api/v1/game/import-local',headers=target_header,json=payload()).json()['data']['game_id']==game
+        with pytest.raises(ApiError,match='AUTH_INVALID'):
+            client.portal.call(client.app.state.service.import_local,LocalImportRequest.model_validate(payload(clientGameId='retired-import')),source['userId'])
+
+def test_mysql_import_exact_owner_scope_and_finished_replay_training(client,db):
+    from backend.tests.test_local_import import payload
+    from backend.tests.test_training import MOVES
+    body=payload(moves=[{'from':a,'to':b} for a,b in MOVES])
+    finished=client.post('/api/v1/game/import-local',json=body)
+    assert finished.status_code==200,finished.text
+    game=finished.json()['data'];assert game['state']['game_status']=='FINISHED'
+    assert game['version']==game['ply_count']==len(MOVES)
+    assert client.post(f"/api/v1/game/{game['game_id']}/review",json={}).status_code==200
+    training=client.post(f"/api/v1/game/{game['game_id']}/training",json={})
+    assert training.status_code==200 and training.json()['data']['items']
+    other=new_account_headers(client)
+    second=client.post('/api/v1/game/import-local',headers=other,json=body)
+    assert second.status_code==200 and second.json()['data']['game_id']!=game['game_id']
+    assert client.get(f"/api/v1/game/{game['game_id']}",headers=other).status_code==403
+
+
+def test_mysql_import_authenticated_before_merge_but_persisting_after_merge_is_rejected(client,db):
+    import asyncio
+    from threading import Event
+    from backend.tests.test_wechat_auth import FakeWechat,login
+    from backend.tests.test_local_import import payload
+    client.app.state.wechat_auth=FakeWechat()
+    login(client,'inflight-target')
+    source=client.post('/api/v1/auth/device').json()['data']
+    started=Event();proceed=Event();adapter=client.app.state.service.adapter;original=adapter.initialize
+    async def pause(first):
+        state=await original(first);started.set();await asyncio.to_thread(proceed.wait,10);return state
+    with patch.object(adapter,'initialize',pause),ThreadPoolExecutor(max_workers=1) as pool:
+        request=pool.submit(client.post,'/api/v1/game/import-local',json=payload(),headers={'Authorization':'Bearer '+source['token']})
+        assert started.wait(10)
+        merged=login(client,'inflight-target',device_token=source['token']);assert merged.status_code==200
+        proceed.set();response=request.result(timeout=15)
+        assert response.status_code==401 and response.json()['code']=='AUTH_INVALID'
+    with Session(db) as s:
+        assert not s.scalars(select(GameModel)).all()
+        assert not s.scalars(select(LocalGameImportModel)).all()

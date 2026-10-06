@@ -6,7 +6,7 @@ import {
   createLocalGameSession, getLocalBoardView, resignLocalGame,
   tapLocalGameNode, undoLocalGame,
 } from './local-game';
-import type { LocalGameSession } from './local-game';
+import type { LocalScore, LocalGameSession } from './local-game';
 import { mapGameStateToView } from './game-state-mapper';
 import type { GameViewModel } from './game-state-mapper';
 import { createApiClient } from '../../services/api-client';
@@ -16,6 +16,7 @@ import type { RemoteGameSnapshot } from './remote-game';
 import { AiGameController } from './ai-game';
 import type { AiGameSnapshot } from './ai-game';
 import type { Player } from '../../domain/index';
+import { getApiBaseUrl } from '../../config/api';
 import { createWxDeviceHistoryStore } from '../../services/device-history';
 import type { GameIdStorage } from './remote-game';
 import { mapPositionAnalysis } from '../analysis/analysis-view-model';
@@ -108,6 +109,24 @@ Page({
       void this.aiController.enter(this.aiFirstPlayer);
     }
   },
+  onShow() {
+    if (this.data.mode === 'local' && this.data.localGameId) this.enterLocalGame(this.data.localGameId);
+  },
+  localMutationAllowed(): boolean {
+    if (this.data.mode !== 'local' || !this.data.localGameId) return true;
+    try {
+      const entry = createWxDeviceHistoryStore().get(this.data.localGameId);
+      if (!entry) throw new Error('本地棋局不存在');
+      if (entry.localSync) {
+        wx.showToast({ title: entry.localSync.status === 'pending'
+          ? '同步结果待确认，请从历史对局重试' : '棋谱已同步，请从云端继续对弈', icon: 'none' });
+        return false;
+      }
+      return true;
+    } catch {
+      wx.showToast({ title: '本地记录读取失败，暂不能修改棋局', icon: 'none' }); return false;
+    }
+  },
   onUnload() {
     this.remoteController?.dispose(); this.remoteController = null;
     this.aiController?.dispose(); this.aiController = null;
@@ -170,6 +189,7 @@ Page({
       return;
     }
     if (this.data.mode === 'local') {
+      if (!this.localMutationAllowed()) return;
       const session = this.data.localSession as LocalGameSession | null;
       if (session === null) return;
       const result = tapLocalGameNode(session, event.detail.id);
@@ -181,7 +201,7 @@ Page({
       if (result.turn && this.data.localGameId) {
         const turns = this.data.localTurns + 1;
         if (!this.saveHistory(this.data.localGameId, 'local', result.session.gameState,
-          turns, result.session.lastMove, result.session.undoFrame)) return;
+          turns, result.session.lastMove, result.session.undoFrame, result.session.score)) return;
         this.setData({ localTurns: turns });
       }
       this.setData({ localSession: result.session,
@@ -226,11 +246,11 @@ Page({
   saveHistory(id: string, mode: 'local' | 'remote' | 'ai',
               state: LocalGameSession['gameState'], turns: number,
               lastMove: LocalGameSession['lastMove'] = null,
-              localUndoFrame: LocalGameSession['undoFrame'] = null): boolean {
+              localUndoFrame: LocalGameSession['undoFrame'] = null, localScore?: LocalScore): boolean {
     try {
       createWxDeviceHistoryStore().record({
         id, mode, state, turns, lastMove,
-        ...(mode === 'local' ? { localUndoFrame } : {}),
+        ...(mode === 'local' ? { localUndoFrame, localScore } : {}),
       });
       return true;
     } catch {
@@ -245,7 +265,13 @@ Page({
         const entry = createWxDeviceHistoryStore().get(savedId);
         if (entry?.mode === 'local' && entry.localState &&
             (requestedId || entry.status === 'PLAYING')) {
+          if (entry.localSync?.status === 'linked') {
+            if (entry.localSync.apiRoot !== getApiBaseUrl()) throw new Error('请恢复棋谱同步时的服务地址');
+            this.onLoad({ mode: 'remote', gameId: entry.localSync.cloudGameId });
+            return;
+          }
           const session: LocalGameSession = {
+            score: entry.localScore,
             gameState: entry.localState, selectedNode: null, legalDestinations: [],
             lastMove: entry.lastMove ?? null,
             undoFrame: entry.localUndoFrame ?? null,
@@ -277,8 +303,16 @@ Page({
   },
   restartLocalGame() {
     const session = createLocalGameSession();
-    const id = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    if (!this.saveHistory(id, 'local', session.gameState, 0)) {
+    const baseId = `local-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    let id = baseId;
+    try {
+      const existingIds = new Set(createWxDeviceHistoryStore().list().map(row => row.id));
+      let suffix = 0;
+      while (existingIds.has(id)) id = `${baseId}-${++suffix}`;
+    } catch {
+      wx.showToast({ title: '本地记录读取失败，暂不能新建棋局', icon: 'none' }); return;
+    }
+    if (!this.saveHistory(id, 'local', session.gameState, 0, null, null, session.score)) {
       this.setData({ mode: 'local', localErrorMessage: '本地棋局保存失败，请重试新局' });
       return;
     }
@@ -306,7 +340,7 @@ Page({
   },
   retryAiGame() { void this.aiController?.retry(this.aiFirstPlayer); },
   undo() {
-    if (this.data.operationBusy) return;
+    if (this.data.operationBusy || !this.localMutationAllowed()) return;
     if (this.data.mode === 'ai') {
       const snapshot = this.data.aiState as AiGameSnapshot | null;
       if (!snapshot || snapshot.gameState?.game_status !== 'PLAYING') {
@@ -340,7 +374,7 @@ Page({
   },
   cancelUndo() { this.setData({ showUndoConfirm: false }); },
   async confirmUndo() {
-    if (this.data.operationBusy) return;
+    if (this.data.operationBusy || !this.localMutationAllowed()) return;
     if (this.data.mode === 'ai' || this.data.mode === 'remote') {
       this.setData({ showUndoConfirm: false, operationBusy: true });
       const success = this.data.mode === 'ai'
@@ -359,7 +393,7 @@ Page({
     const undone = undoLocalGame(session);
     const turns = Math.max(0, this.data.localTurns - 1);
     if (!this.saveHistory(this.data.localGameId, 'local', undone.gameState,
-      turns, undone.lastMove, undone.undoFrame)) {
+      turns, undone.lastMove, undone.undoFrame, undone.score)) {
       this.setData({ operationBusy: false });
       return;
     }
@@ -400,7 +434,7 @@ Page({
     if (gameId) openPage(`/pages/review/review?gameId=${encodeURIComponent(gameId)}`);
   },
   resign() {
-    if (this.data.operationBusy) return;
+    if (this.data.operationBusy || !this.localMutationAllowed()) return;
     if (this.data.mode === 'local') {
       const session = this.data.localSession as LocalGameSession | null;
       if (!session || session.gameState.game_status !== 'PLAYING') {
@@ -422,7 +456,7 @@ Page({
   },
   cancelResign() { this.setData({ showResign: false }); },
   async confirmResign() {
-    if (this.data.operationBusy) return;
+    if (this.data.operationBusy || !this.localMutationAllowed()) return;
     if (this.data.mode === 'ai' || this.data.mode === 'remote') {
       this.setData({ showResign: false, operationBusy: true });
       const success = this.data.mode === 'ai'
@@ -440,7 +474,7 @@ Page({
     this.setData({ operationBusy: true });
     const resigned = resignLocalGame(session);
     if (!this.saveHistory(this.data.localGameId, 'local', resigned.gameState,
-      this.data.localTurns, resigned.lastMove, resigned.undoFrame)) {
+      this.data.localTurns, resigned.lastMove, resigned.undoFrame, resigned.score)) {
       this.setData({ operationBusy: false });
       return;
     }

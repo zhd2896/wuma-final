@@ -28,6 +28,8 @@ export class ApiError extends Error {
 }
 
 const publicMessages: Readonly<Record<string, string>> = {
+  LOCAL_IMPORT_CONFLICT: '此棋谱编号已同步过其他内容，请保留原记录',
+  LOCAL_IMPORT_ACCOUNT_CONFLICT: '两账号中已有同编号棋谱指向不同棋局，无法合并，请保留原账号',
   GAME_NOT_FOUND: '棋局不存在，请重新开始',
   GAME_STATE_CONFLICT: '棋局状态已更新',
   NOT_AI_TURN: '当前轮到玩家落子',

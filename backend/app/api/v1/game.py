@@ -5,7 +5,7 @@ from fastapi import APIRouter, Query, Request
 from backend.app.schemas.game import (
     AiMoveRequest, AiMoveResponse, ApiResponse, CreateGameRequest, GameOperationRequest,
     GameOperationResponse, GameResponse, GameReview, LegalMovesResponse, MoveRequest,
-    MoveResponse, NodeId, Player, ReviewRequest,
+    MoveResponse, NodeId, Player, ReviewRequest, LocalImportRequest,
 )
 from backend.app.schemas.explanation import ExplainedReview
 from backend.app.schemas.coach import CoachHint, CoachHintRequest
@@ -36,6 +36,15 @@ async def coach_hint(request: Request, game_id: str,
 async def create_game(request: Request, body: CreateGameRequest) -> ApiResponse[GameResponse]:
     user_id = await require_account(request)
     return ApiResponse(data=await request.app.state.service.create(body, user_id))
+
+
+@router.post("/import-local", response_model=ApiResponse[GameResponse])
+async def import_local(request: Request, body: LocalImportRequest) -> ApiResponse[GameResponse]:
+    user_id = await require_account(request)
+    if user_id is None:
+        from backend.app.core.errors import ApiError
+        raise ApiError("AUTH_REQUIRED", "Local score import requires an account")
+    return ApiResponse(data=await request.app.state.service.import_local(body, user_id))
 
 
 @router.get("/{game_id}", response_model=ApiResponse[GameResponse])

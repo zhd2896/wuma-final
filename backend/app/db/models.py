@@ -34,6 +34,18 @@ class AuthSessionModel(Base):
     created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
 
 
+class LocalGameImportModel(Base):
+    __tablename__ = "local_game_imports"
+    __table_args__ = (UniqueConstraint("user_id", "client_key", name="uq_local_import_owner_key"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    client_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    client_game_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+
+
 class GameModel(Base):
     __tablename__ = "games"
     __table_args__ = (Index("ix_games_user_id", "user_id"),

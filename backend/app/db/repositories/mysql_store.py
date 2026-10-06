@@ -14,7 +14,7 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, GameModel, G
                                     GameReviewModel, GameTerminalEventModel,
                                     GameUndoEventModel, MoveReviewModel,
                                     RemoteUndoRequestModel, RemoteRoomModel, ReviewExplanationModel, UserModel,
-                                    TrainingRecordModel, AuthSessionModel, utc_now)
+                                    TrainingRecordModel, AuthSessionModel, LocalGameImportModel, utc_now)
 from backend.app.db.repositories.game import GameRepository
 from backend.app.db.repositories.remote import RemoteRepository
 from backend.app.db.repositories.move import MoveRepository
@@ -68,10 +68,17 @@ class MySQLGameStore:
             try:
                 with self.sessions.begin() as session:
                     external = "wechat:" + hashlib.sha256(identity.encode()).hexdigest()
-                    target = session.scalar(select(UserModel).where(
-                        UserModel.external_user_id == external).with_for_update())
-                    source = session.scalar(select(UserModel).where(
-                        UserModel.external_user_id == "device:" + device_hash).with_for_update()) if device_hash else None
+                    # Discover IDs, then lock all accounts in the same primary-key order as imports.
+                    target_id = session.scalar(select(UserModel.id).where(UserModel.external_user_id == external))
+                    source_id = session.scalar(select(UserModel.id).where(
+                        UserModel.external_user_id == "device:" + device_hash)) if device_hash else None
+                    ids = sorted({id for id in (target_id, source_id) if id is not None})
+                    locked = {row.id: row for row in session.scalars(select(UserModel).where(
+                        UserModel.id.in_(ids)).order_by(UserModel.id).with_for_update()).all()}
+                    target = locked.get(target_id)
+                    source = locked.get(source_id)
+                    if source is not None and source.external_user_id != "device:" + device_hash:
+                        source = None
                     if target is None:
                         target = source or UserModel(id=uuid4().hex, nickname="微信棋手")
                         target.external_user_id = external
@@ -79,6 +86,15 @@ class MySQLGameStore:
                         session.add(target)
                         session.flush()
                     if source is not None and source.id != target.id:
+                        imports = session.scalars(select(LocalGameImportModel).where(
+                            LocalGameImportModel.user_id.in_([source.id, target.id])).with_for_update()).all()
+                        target_keys = {row.client_key: row.game_id for row in imports if row.user_id == target.id}
+                        for imported in imports:
+                            if imported.user_id == source.id and imported.client_key in target_keys and target_keys[imported.client_key] != imported.game_id:
+                                raise ApiError("LOCAL_IMPORT_ACCOUNT_CONFLICT", "Accounts imported the same client ID into different games")
+                        for imported in imports:
+                            if imported.user_id == source.id:
+                                imported.user_id = target.id
                         rooms = session.scalars(select(RemoteRoomModel).where(or_(
                             RemoteRoomModel.host_user_id == source.id,
                             RemoteRoomModel.guest_user_id == source.id)).with_for_update()).all()
@@ -268,6 +284,67 @@ class MySQLGameStore:
         owner = session.scalar(select(UserModel).where(UserModel.id == user_id).with_for_update())
         if owner is None or owner.external_user_id is None:
             raise ApiError("AUTH_INVALID", "Account was migrated; login again")
+
+    async def lookup_local_import(self, user_id: str, client_id: str, digest: str) -> str | None:
+        return await asyncio.to_thread(self._lookup_local_import, user_id, client_id, digest)
+
+    def _lookup_local_import(self, user_id: str, client_id: str, digest: str) -> str | None:
+        try:
+            with self.sessions.begin() as session:
+                self._require_active_owner(session, user_id)
+                key = hashlib.sha256(client_id.encode()).hexdigest()
+                existing = session.scalar(select(LocalGameImportModel).where(
+                    LocalGameImportModel.user_id == user_id, LocalGameImportModel.client_key == key))
+                if existing is not None:
+                    if existing.client_game_id != client_id or existing.payload_digest != digest:
+                        raise ApiError("LOCAL_IMPORT_CONFLICT", "Client game ID already imported with another score")
+                    return existing.game_id
+                return None
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
+
+    async def commit_local_import(self, user_id: str, client_id: str, digest: str,
+                                  initial: GameState, turns: list[TurnResult],
+                                  resigning_player: str | None) -> str:
+        return await asyncio.to_thread(self._commit_local_import, user_id, client_id,
+            digest, initial, turns, resigning_player)
+
+    def _commit_local_import(self, user_id, client_id, digest, initial, turns, resigning_player):
+        try:
+            with self.sessions.begin() as session:
+                self._require_active_owner(session, user_id)
+                key = hashlib.sha256(client_id.encode()).hexdigest()
+                existing = session.scalar(select(LocalGameImportModel).where(
+                    LocalGameImportModel.user_id == user_id, LocalGameImportModel.client_key == key).with_for_update())
+                if existing is not None:
+                    if existing.client_game_id != client_id or existing.payload_digest != digest:
+                        raise ApiError("LOCAL_IMPORT_CONFLICT", "Client game ID already imported with another score")
+                    return existing.game_id
+                games = GameRepository(session)
+                game_id = games.create_game(initial, "LOCAL", None, None, user_id)
+                session.flush()
+                row = games.get_game(game_id)
+                for i, turn in enumerate(turns, 1):
+                    MoveRepository(session).create_move(game_id, i, i, turn, "HUMAN", None)
+                before = turns[-1].state if turns else initial
+                state = before
+                revision = len(turns)
+                if resigning_player is not None:
+                    state = before.model_copy(deep=True, update={"game_status": "FINISHED",
+                        "winner": "B" if resigning_player == "A" else "A", "winner_reason": "RESIGN"})
+                    revision += 1
+                    session.add(GameTerminalEventModel(game_id=game_id, client_request_id="local-import-resign",
+                        revision=revision, event_type="RESIGN", actor=resigning_player,
+                        winner=state.winner, state_before=before.model_dump(mode="json"),
+                        state_after=state.model_dump(mode="json"), created_at=utc_now()))
+                self._set_locked_game_state(row, state, revision, len(turns))
+                session.add(LocalGameImportModel(id=uuid4().hex, user_id=user_id,
+                    client_key=key, client_game_id=client_id, payload_digest=digest,
+                    game_id=game_id, created_at=utc_now()))
+                session.flush()
+                return game_id
+        except SQLAlchemyError as exc:
+            raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def create(self, state: GameState, mode: str = "LOCAL",
                      ai_player: str | None = None, ai_level: str | None = None,
