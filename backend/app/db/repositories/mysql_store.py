@@ -82,7 +82,6 @@ class MySQLGameStore:
                     if target is None:
                         target = source or UserModel(id=uuid4().hex, nickname="微信棋手")
                         target.external_user_id = external
-                        target.nickname = "微信棋手"
                         session.add(target)
                         session.flush()
                     if source is not None and source.id != target.id:
@@ -193,14 +192,26 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
+    async def update_profile(self, user_id: str, nickname: str, avatar: str) -> None:
+        await asyncio.to_thread(self._update_profile, user_id, nickname, avatar)
+
+    def _update_profile(self, user_id: str, nickname: str, avatar: str) -> None:
+        try:
+            with self.sessions.begin() as session:
+                self._require_active_owner(session, user_id)
+                owner = session.get(UserModel, user_id)
+                owner.nickname, owner.avatar = nickname, avatar
+        except SQLAlchemyError as exc:
+            raise ApiError('DATABASE_UNAVAILABLE', 'Database operation failed') from exc
+
     async def personal_profile(self, user_id: str) -> dict:
         return await asyncio.to_thread(self._personal_profile, user_id)
 
     def _personal_profile(self, user_id: str) -> dict:
         try:
             with self.sessions() as session:
-                nickname = session.scalar(select(UserModel.nickname).where(UserModel.id == user_id))
-                if nickname is None:
+                owner = session.get(UserModel, user_id)
+                if owner is None or owner.external_user_id is None:
                     raise ApiError("AUTH_INVALID", "Account is unavailable")
                 games = session.scalar(select(func.count()).select_from(GameModel).where(
                     self._personal_ownership(user_id))) or 0
@@ -259,7 +270,7 @@ class MySQLGameStore:
                 remote_losses = sum(status == "FINISHED" and winner in ("A", "B") and winner != ("A" if host == user_id else "B")
                                     for status, winner, host, guest in remote)
                 return {"remoteGames": len(remote), "remoteWins": remote_wins, "remoteLosses": remote_losses,
-                        "id": user_id, "nickname": nickname, "games": games,
+                        "id": user_id, "nickname": owner.nickname, "avatar": owner.avatar, "games": games,
                         "finishedGames": finished, "wins": wins, "losses": losses,
                         "reviewedGames": reviewed, "training": training, "trainingAttempts": training_attempts,
                         "correct": correct, "skillProfile": skill}
@@ -286,6 +297,28 @@ class MySQLGameStore:
         owner = session.scalar(select(UserModel).where(UserModel.id == user_id).with_for_update())
         if owner is None or owner.external_user_id is None:
             raise ApiError("AUTH_INVALID", "Account was migrated; login again")
+
+    def _require_ordinary_owner(self, session, game_id: str, user_id: str | None) -> None:
+        if user_id is None:
+            return  # explicit unauthenticated engine/test use
+        self._require_active_owner(session, user_id)
+        game = session.scalar(select(GameModel).where(GameModel.id == game_id).with_for_update())
+        if game is None:
+            raise ApiError('GAME_NOT_FOUND', 'Game not found')
+        if game.mode == 'REMOTE':
+            raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
+        if game.user_id != user_id:
+            raise ApiError('AUTH_FORBIDDEN', 'Game belongs to another account')
+
+    async def validate_ordinary_actor(self, game_id: str, user_id: str | None) -> None:
+        await asyncio.to_thread(self._validate_ordinary_actor, game_id, user_id)
+
+    def _validate_ordinary_actor(self, game_id: str, user_id: str | None) -> None:
+        try:
+            with self.sessions.begin() as session:
+                self._require_ordinary_owner(session, game_id, user_id)
+        except SQLAlchemyError as exc:
+            raise ApiError('DATABASE_UNAVAILABLE', 'Database operation failed') from exc
 
     async def lookup_local_import(self, user_id: str, client_id: str, digest: str) -> str | None:
         return await asyncio.to_thread(self._lookup_local_import, user_id, client_id, digest)
@@ -373,13 +406,14 @@ class MySQLGameStore:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_turn(self, game_id: str, expected_version: int, turn: TurnResult,
-                          actor_type: str, search: SearchResult | None = None) -> None:
-        await asyncio.to_thread(self._commit_turn, game_id, expected_version, turn, actor_type, search)
+                          actor_type: str, search: SearchResult | None = None, user_id: str | None = None) -> None:
+        await asyncio.to_thread(self._commit_turn, game_id, expected_version, turn, actor_type, search, user_id)
 
     def _commit_turn(self, game_id: str, expected_version: int, turn: TurnResult,
-                     actor_type: str, search: SearchResult | None) -> None:
+                     actor_type: str, search: SearchResult | None, user_id: str | None = None) -> None:
         try:
             with self.sessions.begin() as session:
+                self._require_ordinary_owner(session, game_id, user_id)
                 games = GameRepository(session)
                 row = games.get_game(game_id, lock=True)
                 if row.version != expected_version or GameState.model_validate(row.current_state) != turn.before_state:
@@ -430,8 +464,8 @@ class MySQLGameStore:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_undo(self, game_id: str,
-                          request: GameOperationRequest) -> GameOperationResponse:
-        return await asyncio.to_thread(self._commit_undo, game_id, request)
+                          request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
+        return await asyncio.to_thread(self._commit_undo, game_id, request, user_id)
 
     @staticmethod
     def _operation_conflict() -> ApiError:
@@ -466,9 +500,10 @@ class MySQLGameStore:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the operation")
 
     def _commit_undo(self, game_id: str,
-                     request: GameOperationRequest) -> GameOperationResponse:
+                     request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
         try:
             with self.sessions.begin() as session:
+                self._require_ordinary_owner(session, game_id, user_id)
                 games = GameRepository(session)
                 row = games.get_game(game_id, lock=True)
                 if row.mode == "REMOTE":
@@ -529,13 +564,14 @@ class MySQLGameStore:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_resign(self, game_id: str,
-                            request: GameOperationRequest) -> GameOperationResponse:
-        return await asyncio.to_thread(self._commit_resign, game_id, request)
+                            request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
+        return await asyncio.to_thread(self._commit_resign, game_id, request, user_id)
 
     def _commit_resign(self, game_id: str,
-                       request: GameOperationRequest) -> GameOperationResponse:
+                       request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
         try:
             with self.sessions.begin() as session:
+                self._require_ordinary_owner(session, game_id, user_id)
                 row = GameRepository(session).get_game(game_id, lock=True)
                 if row.mode == "REMOTE":
                     raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
@@ -1007,6 +1043,8 @@ class MySQLGameStore:
             with self.sessions.begin() as session:
                 if remote_token_hash is not None:
                     self._validate_remote_learning(session, game_id, remote_token_hash, user_id, expected_version)
+                else:
+                    self._require_ordinary_owner(session, game_id, user_id)
                 row = session.scalar(select(GameModel).where(GameModel.id == game_id).with_for_update())
                 if row is None:
                     raise ApiError("GAME_NOT_FOUND", "Game not found")
@@ -1077,6 +1115,8 @@ class MySQLGameStore:
                     remote = RemoteRepository(session)
                     if remote.seat(remote.get(review.gameId, lock=True), remote_token_hash) != review.reviewedPlayer:
                         raise ApiError("REMOTE_ACCESS_DENIED", "Review belongs to another seat")
+                else:
+                    self._require_ordinary_owner(session, review.gameId, user_id)
                 row = session.scalar(select(GameModel).where(
                     GameModel.id == review.gameId).with_for_update())
                 if row is None:
@@ -1156,6 +1196,11 @@ class MySQLGameStore:
                         raise ApiError("REVIEW_NOT_FOUND", "Review has not been generated")
                     self._validate_remote_learning(session, context.game_id, remote_token_hash,
                         user_id, expected_version, context.reviewed_player)
+                elif user_id is not None:
+                    context = session.get(GameReviewModel, bundle.gameReviewId)
+                    if context is None:
+                        raise ApiError('REVIEW_NOT_FOUND', 'Review has not been generated')
+                    self._require_ordinary_owner(session, context.game_id, user_id)
                 parent = session.scalar(select(GameReviewModel).where(
                     GameReviewModel.id == bundle.gameReviewId).with_for_update()
                     .execution_options(populate_existing=True))
@@ -1213,12 +1258,13 @@ class MySQLGameStore:
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
-    async def commit_coach_hint(self, hint: CoachHint) -> CoachHint:
-        return await asyncio.to_thread(self._commit_coach_hint, hint)
+    async def commit_coach_hint(self, hint: CoachHint, user_id: str | None = None) -> CoachHint:
+        return await asyncio.to_thread(self._commit_coach_hint, hint, user_id)
 
-    def _commit_coach_hint(self, hint: CoachHint) -> CoachHint:
+    def _commit_coach_hint(self, hint: CoachHint, user_id: str | None = None) -> CoachHint:
         try:
             with self.sessions.begin() as session:
+                self._require_ordinary_owner(session, hint.gameId, user_id)
                 row = session.scalar(select(GameModel).where(
                     GameModel.id == hint.gameId).with_for_update())
                 if row is None:

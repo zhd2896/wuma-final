@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../config/api';
+import { ApiConfigurationError, normalizeApiRoot, SERVICE_UNOPENED } from '../config/api-root';
 import { showLogin } from './auth-navigation';
 import type { ApiResponse } from './api-contract';
 import { getSavedWechatToken, clearWechatSession, WechatLoginError } from './device-auth';
@@ -74,6 +75,7 @@ const publicMessages: Readonly<Record<string, string>> = {
 };
 
 export function messageForApiError(error: unknown): string {
+  if (error instanceof ApiConfigurationError) return SERVICE_UNOPENED;
   if (error instanceof WechatLoginError) return error.message;
   return error instanceof ApiError
     ? publicMessages[error.code] ?? '服务暂时不可用，请稍后重试'
@@ -99,7 +101,12 @@ export function createApiClient({ baseUrl, request = wxRequest, deviceTokenProvi
   baseUrl?: string; request?: RequestAdapter;
   deviceTokenProvider?: () => Promise<string>;
 } = {}): ApiClient {
-  const root = (baseUrl ?? getApiBaseUrl()).replace(/\/$/, '');
+  let root: string;
+  try { root = baseUrl === undefined ? getApiBaseUrl() : normalizeApiRoot(baseUrl, false); }
+  catch (error) {
+    if (request === wxRequest) { try { showLogin(); } catch { /* keep the safe configuration error */ } }
+    throw error;
+  }
   return {
     async request<T>(method: 'GET' | 'POST', path: string, data?: unknown, timeout = 10000,
                header?: Record<string, string>): Promise<T> {

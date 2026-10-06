@@ -1,11 +1,8 @@
 /** Build-time API addresses. Set test/production only when those deployments exist. */
 export type ApiEnvironment = 'development' | 'test' | 'production';
-
-export const API_BASE_URLS: Readonly<Record<ApiEnvironment, string>> = {
-  development: 'http://127.0.0.1:8000',
-  test: '',
-  production: '',
-};
+import { API_BASE_URLS } from './api-roots';
+import { normalizeApiRoot, ApiConfigurationError } from './api-root';
+export { API_BASE_URLS } from './api-roots';
 
 export function getApiEnvironment(): ApiEnvironment {
   const version = wx.getAccountInfoSync().miniProgram.envVersion;
@@ -13,7 +10,6 @@ export function getApiEnvironment(): ApiEnvironment {
 }
 
 export function getApiBaseUrl(environment: ApiEnvironment = getApiEnvironment()): string {
-  const baseUrl = API_BASE_URLS[environment];
-  if (!baseUrl) throw new Error(`API base URL is not configured for ${environment}`);
-  return baseUrl.replace(/\/$/, '');
+  if (!Object.prototype.hasOwnProperty.call(API_BASE_URLS, environment)) throw new ApiConfigurationError();
+  return normalizeApiRoot(API_BASE_URLS[environment], environment !== 'development');
 }

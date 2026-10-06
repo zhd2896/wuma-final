@@ -1,0 +1,73 @@
+✖ release preflight rejects unset deployments, invalid roots and placeholders without leaking credentials (1911.1111ms)
+(node:17060) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/login/login.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ unopened trial never logs in or requests and real login page shows safe text (37.0397ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 0
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2124.8937
+
+✖ failing tests:
+
+test at tests\release-preflight.test.mts:5:1
+✖ release preflight rejects unset deployments, invalid roots and placeholders without leaking credentials (1911.1111ms)
+  AssertionError [ERR_ASSERTION]: node:internal/modules/cjs/loader:1503
+    throw err;
+    ^
+
+  Error: Cannot find module 'E:\C盘Doucment\ChatGPT\wuma最终版\scripts\check-release.mjs'
+      at Module._resolveFilename (node:internal/modules/cjs/loader:1500:15)
+      at wrapResolveFilename (node:internal/modules/cjs/loader:1071:27)
+      at defaultResolveImplForCJSLoading (node:internal/modules/cjs/loader:1095:10)
+      at resolveForCJSWithHooks (node:internal/modules/cjs/loader:1116:12)
+      at Module._load (node:internal/modules/cjs/loader:1285:25)
+      at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+      at Module.executeUserEntryPoint [as runMain] (node:internal/modules/run_main:154:5)
+      at node:internal/main/run_main_module:33:47 {
+    code: 'MODULE_NOT_FOUND',
+    requireStack: []
+  }
+
+  Node.js v24.16.0
+
+
+  1 !== 0
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/release-preflight.test.mts:17:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.start (node:internal/test_runner/test:1177:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 1,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\release-runtime.test.mts:9:1
+✖ unopened trial never logs in or requests and real login page shows safe text (37.0397ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+
+  + '服务暂时不可用，请稍后重试'
+  - '服务暂未开放，请稍后再试'
+        ^
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/release-runtime.test.mts:17:34)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '服务暂时不可用，请稍后重试',
+    expected: '服务暂未开放，请稍后再试',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

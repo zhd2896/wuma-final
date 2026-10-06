@@ -1,8 +1,15 @@
 <view class="page profile-page"><view class="topbar"><text class="topbar-back" bindtap="back">‹</text>我的棋力<text class="topbar-tag">个人中心</text></view>
-  <view class="page-inner"><view class="profile-hero ink-card"><image class="profile-art" src="../../assets/ink-landscape.jpg" mode="aspectFill" /><view class="profile-top"><view class="profile-avatar">棋</view><view class="profile-name"><view>{{name}}</view><text>微信账号</text></view><view wx:if="{{state == 'success'}}" class="level-seal">{{skillProfile.seal}}</view></view><view wx:if="{{state == 'success'}}" class="skill-overall">{{skillProfile.level}}<text wx:if="{{skillProfile.overall !== null}}"> · 综合 {{skillProfile.overall}} 分</text><text wx:else> · 六项样本全部达标后评估</text></view><view class="profile-motto">以棋会友 · 于对弈中精进</view></view>
+  <view class="page-inner"><view class="profile-hero ink-card"><image class="profile-art" src="../../assets/ink-landscape.jpg" mode="aspectFill" /><view class="profile-top"><view class="profile-avatar">{{avatarText}}</view><view class="profile-name"><view>{{name}}</view><text>微信账号</text></view><view wx:if="{{state == 'success'}}" class="level-seal">{{skillProfile.seal}}</view></view><view wx:if="{{state == 'success'}}" class="skill-overall">{{skillProfile.level}}<text wx:if="{{skillProfile.overall !== null}}"> · 综合 {{skillProfile.overall}} 分</text><text wx:else> · 六项样本全部达标后评估</text></view><view class="profile-motto">以棋会友 · 于对弈中精进</view></view>
   <loading-state wx:if="{{state == 'loading'}}" message="正在读取个人数据..." />
   <error-state wx:elif="{{state == 'error'}}" message="{{errorMessage}}" bind:retry="retry" />
   <block wx:else>
+    <button wx:if="{{!editing}}" bindtap="editProfile">编辑个人资料</button>
+    <view wx:else class="card profile-editor">
+      <view>昵称（1至24个字符）</view><input value="{{draftNickname}}" bindinput="nicknameInput" maxlength="48" disabled="{{saving}}" />
+      <view>选择棋子头像</view><view class="avatar-options"><button wx:for="{{avatars}}" wx:key="id" class="{{draftAvatar == item.id ? 'avatar-selected' : ''}}" data-avatar="{{item.id}}" bindtap="selectAvatar" disabled="{{saving}}">{{item.text}}</button></view>
+      <view wx:if="{{saveError}}" class="profile-save-error">{{saveError}}</view>
+      <button bindtap="saveProfile" loading="{{saving}}" disabled="{{saving}}">{{saveError ? '重试保存' : '保存'}}</button><button bindtap="cancelEdit">取消</button>
+    </view>
     <view class="stat-card card"><view><text>云端对局</text><view>{{cloudGames}}</view></view><view><text>本机对局</text><view>{{localGames}}</view></view><view><text>训练完成</text><view>{{training}}</view></view></view>
     <section-title title="个人统计" subtitle="根据真实对局与答题记录" /><view class="analysis-card card"><view class="profile-metric">已结束云端对局：{{finishedGames}}</view><view class="profile-metric">AI 胜场 / 负场：{{wins}} / {{losses}}</view><view class="profile-metric">联机对局：{{remoteGames}}</view><view class="profile-metric">联机胜场 / 负场：{{remoteWins}} / {{remoteLosses}}</view><view class="profile-metric">已复盘对局：{{reviewedGames}}</view><view class="profile-metric">训练答题次数：{{trainingAttempts}}</view><view class="profile-metric">训练正确率：{{accuracy}}</view></view>
     <section-title title="能力分析" subtitle="单项达标即可评分，综合需六项达标" />

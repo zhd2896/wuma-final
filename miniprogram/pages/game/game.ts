@@ -73,7 +73,7 @@ Page({
     aiAName: '玩家 A', aiBName: 'AI · B', aiLevelLabel: '',
     remoteCaptureText: '', aiCaptureText: '',
     aiAnalysisView: null as AnalysisViewModel | null,
-    mode: 'ai', showHint: false, thinking: false,
+    mode: 'ai', thinking: false,
     showUndoConfirm: false, showResign: false, showSettings: false,
     operationBusy: false, resigned: false,
     settings: { ...DEFAULT_GAME_SETTINGS } as GameSettings },
@@ -88,7 +88,7 @@ Page({
     if (options.mode === 'local') this.enterLocalGame(options.gameId);
     else if (options.mode === 'remote') {
       this.setData({ mode: 'remote', board: emptyBoard, remoteReady: false,
-        showHint: false, thinking: false, showResign: false, showSettings: false });
+        thinking: false, showResign: false, showSettings: false });
       this.remoteController = new RemoteGameController(
         createGameApi(createApiClient()), storageForRoute(gameIdStorage, options.gameId),
         snapshot => this.renderRemote(snapshot),
@@ -100,7 +100,7 @@ Page({
       this.aiFirstPlayer = options.first === 'ai' ? 'B'
         : options.first === 'human' ? 'A' : settings.aiFirstPlayer;
       this.setData({ mode: 'ai', board: emptyBoard, aiReady: false,
-        showHint: false, thinking: false, showResign: false, showSettings: false });
+        thinking: false, showResign: false, showSettings: false });
       this.aiController = new AiGameController(
         createGameApi(createApiClient()), storageForRoute(aiGameIdStorage, options.gameId),
         snapshot => this.renderAi(snapshot),
@@ -225,7 +225,7 @@ Page({
     const id = event.detail.id;
     const piece = board.pieces.find(item => item.nodeId === id);
     if (piece) this.setData({ board: { ...board, selectedId: id } });
-    else wx.showToast({ title: '演示模式：尚未接入棋规', icon: 'none' });
+    else wx.showToast({ title: '棋局模式无效，请返回重新进入', icon: 'none' });
   },
   onAction(event: WechatMiniprogram.TouchEvent) {
     const action = event.currentTarget.dataset.action as string;
@@ -285,7 +285,7 @@ Page({
             localSession: session, localWinnerMessage: mapGameStateToView(session.gameState).winnerMessage,
             board: getLocalBoardView(session, this.data.settings.showLegalTargets),
             localErrorMessage: '',
-            showHint: false, thinking: false, showUndoConfirm: false,
+            thinking: false, showUndoConfirm: false,
             showResign: false, showSettings: false, operationBusy: false, resigned: false });
           return;
         }
@@ -327,7 +327,7 @@ Page({
       localSession: session, localWinnerMessage: mapGameStateToView(session.gameState).winnerMessage,
       board: getLocalBoardView(session, this.data.settings.showLegalTargets),
       localErrorMessage: '',
-      showHint: false, thinking: false, showUndoConfirm: false,
+      thinking: false, showUndoConfirm: false,
       showResign: false, showSettings: false, operationBusy: false, resigned: false,
     });
   },
@@ -414,10 +414,10 @@ Page({
       return;
     }
     if (this.data.mode === 'local' || this.data.mode === 'remote') {
-      wx.showToast({ title: '当前对局暂不提供提示', icon: 'none' });
+      this.openAnalysis();
       return;
     }
-    this.setData({ showHint: !this.data.showHint });
+    wx.showToast({ title: '棋局模式无效，请返回重新进入', icon: 'none' });
   },
   openAnalysis() {
     if (this.data.mode === 'ai') {

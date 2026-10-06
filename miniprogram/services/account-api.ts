@@ -2,6 +2,8 @@ import type { AiLevel } from './api-contract';
 import type { WinnerReason } from '../domain/index';
 import type { ApiClient } from './api-client';
 import { ApiError } from './api-client';
+import { isProfileAvatar, validNickname } from './profile-fields';
+import type { ProfileAvatar } from './profile-fields';
 
 export type SkillMetricKey = 'performance' | 'best_move' | 'decision' | 'stability' | 'mistake_control' | 'training';
 export interface SkillSampleDto {
@@ -40,6 +42,7 @@ export interface PersonalGameDto {
 export interface PersonalProfileDto {
   readonly id: string;
   readonly nickname: string;
+  readonly avatar: ProfileAvatar;
   readonly games: number;
   readonly finishedGames: number;
   readonly wins: number;
@@ -62,7 +65,7 @@ const isScore = (value: unknown) => value === null || (isCount(value) && value <
 /** Reject incomplete API evidence instead of silently rendering fabricated defaults. */
 function parseProfile(value: unknown): PersonalProfileDto {
   const invalid = () => { throw new ApiError('INVALID_PROFILE_RESPONSE', 200); };
-  if (!isRecord(value) || typeof value.id !== 'string' || typeof value.nickname !== 'string' ||
+  if (!isRecord(value) || typeof value.id !== 'string' || !validNickname(value.nickname) || !isProfileAvatar(value.avatar) ||
       !['games', 'finishedGames', 'wins', 'losses', 'remoteGames', 'remoteWins', 'remoteLosses',
         'reviewedGames', 'training', 'trainingAttempts', 'correct'].every(key => isCount(value[key]))) invalid();
   const profile = value as Record<string, unknown>;
@@ -99,6 +102,8 @@ function parseProfile(value: unknown): PersonalProfileDto {
 export function createAccountApi(client: ApiClient) {
   return {
     profile: async () => parseProfile(await client.request<unknown>('GET', '/api/v1/me/profile')),
+    updateProfile: async (nickname: string, avatar: ProfileAvatar) =>
+      parseProfile(await client.request<unknown>('POST', '/api/v1/me/profile', { nickname, avatar })),
     games: (limit = 20, cursor?: string, status?: 'FINISHED') => client.request<{
       readonly items: PersonalGameDto[]; readonly nextCursor: string | null;
     }>('GET', `/api/v1/me/games?limit=${limit}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}` +

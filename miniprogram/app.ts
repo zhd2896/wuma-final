@@ -1,9 +1,10 @@
 import { hasWechatSession } from './services/device-auth';
+import { getApiBaseUrl } from './config/api';
 import { isPublicRoute, routeWithQuery, showLogin } from './services/auth-navigation';
 
 App({
-  globalData: { demoMode: true },
   onShow(options) {
+    try { getApiBaseUrl(); } catch { showLogin(); return; }
     if (hasWechatSession()) return;
     const pages = getCurrentPages();
     const current = pages[pages.length - 1];

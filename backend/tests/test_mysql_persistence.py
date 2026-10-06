@@ -937,10 +937,11 @@ def test_review_persists_atomic_ordered_rows_and_reuses_same_config(client, db):
         assert session.scalar(select(GameReviewModel).where(GameReviewModel.game_id == game_id)) is None
     original_commit = client.app.state.store.commit_review
 
-    async def invalid_second_fk(review, expected_version):
+    async def invalid_second_fk(review, expected_version, user_id=None, remote_token_hash=None):
         bad_move = review.moveReviews[1].model_copy(update={"gameMoveId": 999999999})
         invalid = review.model_copy(update={"moveReviews": [review.moveReviews[0], bad_move]})
-        return await original_commit(invalid, expected_version)
+        return await original_commit(invalid, expected_version,
+                                     user_id=user_id, remote_token_hash=remote_token_hash)
 
     with patch.object(client.app.state.store, "commit_review", side_effect=invalid_second_fk):
         rolled_back = client.post(f"/api/v1/game/{game_id}/review", json={})

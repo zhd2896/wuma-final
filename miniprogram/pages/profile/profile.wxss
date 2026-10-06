@@ -8,3 +8,9 @@
 .skill-disclaimer{font-size:20rpx;color:#7b7c74;line-height:1.6;margin-top:20rpx}
 
 .logout-button{margin:30rpx 0;background:transparent;color:#8f5145;font-size:25rpx;border:1rpx solid #d9c7b5;border-radius:14rpx}.logout-button::after{border:0}
+.profile-editor { padding: 24rpx; margin-bottom: 24rpx; }
+.profile-editor input { border-bottom: 1rpx solid #9e8b70; padding: 16rpx; margin-bottom: 20rpx; }
+.avatar-options { display: flex; gap: 16rpx; margin: 16rpx 0; }
+.avatar-options button { border-radius: 50%; width: 80rpx; height: 80rpx; line-height: 80rpx; padding: 0; }
+.avatar-selected { color: #9c3028; border: 3rpx solid #9c3028; }
+.profile-save-error { color: #9c3028; margin: 12rpx 0; }

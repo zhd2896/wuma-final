@@ -20,6 +20,7 @@ class UserModel(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     external_user_id: Mapped[str | None] = mapped_column(String(128), unique=True)
     nickname: Mapped[str | None] = mapped_column(String(255))
+    avatar: Mapped[str] = mapped_column(String(32), nullable=False, default='piece_v1_shi', server_default='piece_v1_shi')
     created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, onupdate=utc_now, nullable=False)
 

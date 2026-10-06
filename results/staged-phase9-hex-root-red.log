@@ -1,0 +1,27 @@
+✖ release preflight rejects unset deployments, invalid roots and placeholders without leaking credentials (2643.212ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 2836.4875
+
+✖ failing tests:
+
+test at tests\release-preflight.test.mts:5:1
+✖ release preflight rejects unset deployments, invalid roots and placeholders without leaking credentials (2643.212ms)
+  AssertionError [ERR_ASSERTION]: https://0x7f.0x0.0x0.0x1
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/release-preflight.test.mts:12:61)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1306:25)
+      at Test.start (node:internal/test_runner/test:1177:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:385:17) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 0,
+    expected: 0,
+    operator: 'notStrictEqual',
+    diff: 'simple'
+  }

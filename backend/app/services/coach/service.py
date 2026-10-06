@@ -25,7 +25,7 @@ class CoachService:
         self.provider = provider
         self.timeout_seconds = timeout_seconds
 
-    async def hint(self, game_id: str, level: int, expected_version: int) -> CoachHint:
+    async def hint(self, game_id: str, level: int, expected_version: int, user_id: str | None = None) -> CoachHint:
         if level not in (1, 2, 3):
             raise ApiError("INVALID_HINT_LEVEL", "Hint level must be 1, 2 or 3")
         snapshot = await self.store.get_snapshot(game_id)
@@ -43,6 +43,7 @@ class CoachService:
         if saved is not None:
             if (await self.store.get_snapshot(game_id)).version != expected_version:
                 raise ApiError("GAME_STATE_CONFLICT", "Game state changed; request a new hint")
+            await self.store.validate_ordinary_actor(game_id, user_id)
             return saved
         analysis = await self.games.adapter.analyze_position(
             snapshot.state, self.games.settings.analysis_max_depth,
@@ -51,7 +52,7 @@ class CoachService:
         )
         if analysis.analyzedPlayer != player or analysis.scorePerspective != player:
             raise ApiError("ENGINE_FAILURE", "Analysis perspective differs from current player")
-        await self.store.commit_analysis(game_id, expected_version, analysis)
+        await self.store.commit_analysis(game_id, expected_version, analysis, user_id=user_id)
         evidence = CoachHintPolicy.build(analysis, level)
         provider_name, model, fallback_used = "fallback", None, True
         message = fallback_hint(evidence)
@@ -76,4 +77,4 @@ class CoachService:
             bestMove=evidence.bestMove, fallbackUsed=fallback_used,
             provider=provider_name, model=model, generatedAt=datetime.now(timezone.utc),
         )
-        return await self.store.commit_coach_hint(hint)
+        return await self.store.commit_coach_hint(hint, user_id=user_id)

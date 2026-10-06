@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from '../config/api';
+import { normalizeApiRoot } from '../config/api-root';
 
 const LEGACY_KEY = 'wuma:device-account-token:v1';
 const SESSION_KEY = 'wuma:wechat-session:v1';
@@ -31,7 +32,7 @@ export function logoutWechat(baseUrl = getApiBaseUrl()): void {
 }
 
 export function clearWechatSession(baseUrl: string, rejectedToken: string): void {
-  const root = baseUrl.replace(/\/$/, '');
+  const root = normalizeApiRoot(baseUrl, false);
   const key = `${SESSION_KEY}:${root}`;
   const saved = wx.getStorageSync(key) as Partial<WechatSession> | null;
   if (saved?.token === rejectedToken) wx.removeStorageSync(key);
@@ -39,7 +40,7 @@ export function clearWechatSession(baseUrl: string, rejectedToken: string): void
 
 // Keep the exported name for existing API clients; credentials now belong to WeChat users.
 export function getDeviceToken(baseUrl = getApiBaseUrl()): Promise<string> {
-  const root = baseUrl.replace(/\/$/, '');
+  const root = normalizeApiRoot(baseUrl, false);
   const inflight = pending.get(root);
   if (inflight) return inflight;
   const saved = readSession(root);
@@ -70,7 +71,11 @@ export function getDeviceToken(baseUrl = getApiBaseUrl()): Promise<string> {
               !Number.isFinite(Date.parse(expiresAt))) {
             reject(new WechatLoginError(envelope?.code === 'WECHAT_NOT_CONFIGURED'
               ? '微信登录服务尚未配置，请联系管理员'
-              : '微信登录暂时不可用，请稍后重试'));
+              : envelope?.code === 'REMOTE_ACCOUNT_CONFLICT'
+                ? '两个账号占同一棋局的不同席位，无法合并，请保留原记录和原账号'
+                : envelope?.code === 'LOCAL_IMPORT_ACCOUNT_CONFLICT'
+                  ? '两账号中同编号棋谱指向不同棋局，无法合并，请保留原记录和原账号'
+                  : '微信登录暂时不可用，请稍后重试'));
             return;
           }
           try { wx.setStorageSync(`${SESSION_KEY}:${root}`, { token, expiresAt }); }

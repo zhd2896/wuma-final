@@ -1,0 +1,6 @@
+staged_phase9_finish_full_20261006_test: verified dedicated UUID/port, migration head0019 and NOT NULL avatar.
+Traceback (most recent call last):
+  File "E:\C��Doucment\ChatGPT\wuma���հ�\results\staged-phase9-finish-postfinal.py", line 16, in <module>
+    assert connection.scalar(text('SELECT version_num FROM alembic_version')) == '0019_user_profiles'
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError

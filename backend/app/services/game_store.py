@@ -112,6 +112,8 @@ class GameStore(Protocol):
                              cursor: tuple[datetime, str] | None,
                              status: str | None = None) -> tuple[list[dict], bool]: ...
     async def personal_profile(self, user_id: str) -> dict: ...
+    async def update_profile(self, user_id: str, nickname: str, avatar: str) -> None: ...
+    async def validate_ordinary_actor(self, game_id: str, user_id: str | None) -> None: ...
 
     async def create(self, state: GameState, mode: str = "LOCAL",
                      ai_player: str | None = None, ai_level: str | None = None,
@@ -122,14 +124,14 @@ class GameStore(Protocol):
                                   resigning_player: str | None) -> str: ...
     async def get_snapshot(self, game_id: str) -> StoredGame: ...
     async def commit_turn(self, game_id: str, expected_version: int, turn: TurnResult,
-                          actor_type: str, search: SearchResult | None = None) -> None: ...
+                          actor_type: str, search: SearchResult | None = None, user_id: str | None = None) -> None: ...
     async def list_moves(self, game_id: str) -> list[StoredMove]: ...
     async def read_replay(self, game_id: str) -> tuple[StoredGame, list[StoredMove]]: ...
     async def get_terminal_event(self, game_id: str) -> StoredTerminalEvent | None: ...
     async def commit_undo(self, game_id: str,
-                          request: GameOperationRequest) -> GameOperationResponse: ...
+                          request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse: ...
     async def commit_resign(self, game_id: str,
-                            request: GameOperationRequest) -> GameOperationResponse: ...
+                            request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse: ...
     async def lock_for(self, game_id: str) -> asyncio.Lock: ...
     async def commit_analysis(self, game_id: str, expected_version: int,
                               analysis: PositionAnalysis, *, remote_token_hash: str | None = None,
@@ -146,7 +148,7 @@ class GameStore(Protocol):
                                   user_id: str | None = None, expected_version: int | None = None) -> ExplanationBundle: ...
     async def get_coach_hint(self, game_id: str, game_version: int, player: str,
                              level: int, prompt_version: str) -> CoachHint | None: ...
-    async def commit_coach_hint(self, hint: CoachHint) -> CoachHint: ...
+    async def commit_coach_hint(self, hint: CoachHint, user_id: str | None = None) -> CoachHint: ...
     async def list_training_sources(self, review_id: str) -> list[TrainingSource]: ...
     async def commit_training_items(self, review_id: str,
                                     items: list[TrainingItemInternal], user_id: str | None = None, *,
@@ -217,10 +219,27 @@ class InMemoryGameStore:
         self._device_users: dict[str, str] = {}
         self._wechat_users: dict[str, str] = {}
         self._retired_users: set[str] = set()
+        self._profiles: dict[str, tuple[str, str]] = {}
         self._local_imports: dict[tuple[str, str], tuple[str, str]] = {}
         self._auth_sessions: dict[str, tuple[str, datetime]] = {}
         self._game_created: dict[str, datetime] = {}
         self._training_owners: dict[str, str | None] = {}
+
+    def _require_ordinary_owner(self, game_id: str, user_id: str | None) -> None:
+        if user_id is None:
+            return  # explicit unauthenticated engine/test use
+        if user_id in self._retired_users or user_id not in self._profiles:
+            raise ApiError('AUTH_INVALID', 'Account was migrated; login again')
+        game = self._games.get(game_id)
+        if game is None:
+            raise ApiError('GAME_NOT_FOUND', 'Game not found')
+        if game.mode == 'REMOTE':
+            raise ApiError('REMOTE_ACTION_REQUIRED', 'Use the remote room endpoint')
+        if game.user_id != user_id:
+            raise ApiError('AUTH_FORBIDDEN', 'Game belongs to another account')
+
+    async def validate_ordinary_actor(self, game_id: str, user_id: str | None) -> None:
+        self._require_ordinary_owner(game_id, user_id)
 
     async def ping(self) -> None:
         return None
@@ -229,6 +248,7 @@ class InMemoryGameStore:
         async with self._catalog_lock:
             user_id = uuid4().hex
             self._device_users[token_hash] = user_id
+            self._profiles[user_id] = ('本机棋手', 'piece_v1_shi')
             return user_id
 
     async def login_wechat(self, identity: str, token_hash: str, expires_at: datetime,
@@ -236,6 +256,8 @@ class InMemoryGameStore:
         async with self._catalog_lock:
             source = self._device_users.get(device_hash) if device_hash else None
             user_id = self._wechat_users.get(identity) or source or uuid4().hex
+            if user_id not in self._profiles:
+                self._profiles[user_id] = ('微信棋手', 'piece_v1_shi')
             if source and source != user_id:
                 if any({room.host_user_id, room.guest_user_id} == {source, user_id}
                        for room in self._remote_rooms.values()):
@@ -309,7 +331,15 @@ class InMemoryGameStore:
                 "reviewAvailable": any(key[0] == game.game_id and (game.mode != "REMOTE" or key[1] == self._personal_seat(game.game_id, user_id)) for key in self._reviews),
                 "cursorDate": date.isoformat()}
 
+    async def update_profile(self, user_id: str, nickname: str, avatar: str) -> None:
+        async with self._catalog_lock:
+            if user_id in self._retired_users or user_id not in self._profiles:
+                raise ApiError('AUTH_INVALID', 'Account is unavailable')
+            self._profiles[user_id] = (nickname, avatar)
+
     async def personal_profile(self, user_id: str) -> dict:
+        if user_id in self._retired_users or user_id not in self._profiles:
+            raise ApiError('AUTH_INVALID', 'Account is unavailable')
         games = [game for game in self._games.values()
                  if self._owns_personal(game, user_id)]
         records = [record for key, record in self._training_records.items()
@@ -342,7 +372,7 @@ class InMemoryGameStore:
         return {"remoteGames": len(remote),
                 "remoteWins": sum(game.state.winner == self._personal_seat(game.game_id, user_id) for game in remote_finished),
                 "remoteLosses": sum(game.state.winner in ("A", "B") and game.state.winner != self._personal_seat(game.game_id, user_id) for game in remote_finished),
-                "id": user_id, "nickname": "微信棋手" if user_id in self._wechat_users.values() else "本机棋手", "games": len(games),
+                "id": user_id, "nickname": self._profiles[user_id][0], "avatar": self._profiles[user_id][1], "games": len(games),
                 "finishedGames": sum(game.state.game_status == "FINISHED" for game in games),
                 "wins": wins, "losses": losses,
                 "reviewedGames": len({key[0] for key in self._reviews
@@ -443,8 +473,9 @@ class InMemoryGameStore:
             state_after=event.state_after.model_copy(deep=True))
 
     async def commit_turn(self, game_id: str, expected_version: int, turn: TurnResult,
-                          actor_type: str, search: SearchResult | None = None) -> None:
+                          actor_type: str, search: SearchResult | None = None, user_id: str | None = None) -> None:
         game = await self.get_snapshot(game_id)
+        self._require_ordinary_owner(game_id, user_id)
         if game.version != expected_version or game.state != turn.before_state:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the move")
         self._moves[game_id].append(StoredMove(
@@ -504,10 +535,11 @@ class InMemoryGameStore:
             raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry the operation")
 
     async def commit_undo(self, game_id: str,
-                          request: GameOperationRequest) -> GameOperationResponse:
+                          request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
         lock = await self.lock_for(game_id)
         async with lock:
             game = await self.get_snapshot(game_id)
+            self._require_ordinary_owner(game_id, user_id)
             if game.mode == "REMOTE":
                 raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
             existing = self._existing_operation(game, request, "UNDO")
@@ -549,10 +581,11 @@ class InMemoryGameStore:
                 reverted_turns=len(reverted))
 
     async def commit_resign(self, game_id: str,
-                            request: GameOperationRequest) -> GameOperationResponse:
+                            request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
         lock = await self.lock_for(game_id)
         async with lock:
             game = await self.get_snapshot(game_id)
+            self._require_ordinary_owner(game_id, user_id)
             if game.mode == "REMOTE":
                 raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
             existing = self._existing_operation(game, request, "RESIGN")
@@ -955,6 +988,8 @@ class InMemoryGameStore:
             game = await self.get_snapshot(game_id)
             if remote_token_hash is not None:
                 await self.validate_remote_learning(game_id, remote_token_hash, user_id, expected_version)
+            else:
+                self._require_ordinary_owner(game_id, user_id)
             if game.version != expected_version or (game.state.game_status != "PLAYING" and remote_token_hash is None):
                 raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
             self._analyses.setdefault(game_id, []).append((expected_version, analysis))
@@ -973,6 +1008,8 @@ class InMemoryGameStore:
                 if self._remote_seat(room, remote_token_hash) != review.reviewedPlayer:
                     raise ApiError("REMOTE_ACCESS_DENIED", "Review belongs to another seat")
             game = await self.get_snapshot(review.gameId)
+            if remote_token_hash is None:
+                self._require_ordinary_owner(review.gameId, user_id)
             if game.version != expected_version or game.state.game_status != "FINISHED":
                 raise ApiError("GAME_STATE_CONFLICT", "Game state changed during review")
             key = (review.gameId, review.reviewedPlayer, review.reviewConfigVersion)
@@ -1003,6 +1040,11 @@ class InMemoryGameStore:
                 review = next(item for item in self._reviews.values() if item.id == bundle.gameReviewId)
                 await self.validate_remote_learning(review.gameId, remote_token_hash, user_id,
                     expected_version, review.reviewedPlayer)
+            elif user_id is not None:
+                review = next((item for item in self._reviews.values() if item.id == bundle.gameReviewId), None)
+                if review is None:
+                    raise ApiError('REVIEW_NOT_FOUND', 'Review has not been generated')
+                self._require_ordinary_owner(review.gameId, user_id)
             key = (bundle.gameReviewId, bundle.promptVersion)
             if key not in self._explanations:
                 self._explanations[key] = bundle
@@ -1012,10 +1054,11 @@ class InMemoryGameStore:
                              level: int, prompt_version: str) -> CoachHint | None:
         return self._coach_hints.get((game_id, game_version, player, level, prompt_version))
 
-    async def commit_coach_hint(self, hint: CoachHint) -> CoachHint:
+    async def commit_coach_hint(self, hint: CoachHint, user_id: str | None = None) -> CoachHint:
         lock = await self.lock_for(hint.gameId)
         async with lock:
             game = await self.get_snapshot(hint.gameId)
+            self._require_ordinary_owner(hint.gameId, user_id)
             if (game.version != hint.gameVersion or game.state.game_status != "PLAYING" or
                 game.state.current_player != hint.analyzedPlayer):
                 raise ApiError("GAME_STATE_CONFLICT", "Game state changed during coaching")

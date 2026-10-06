@@ -1,0 +1,308 @@
+FFFFFFFFFFFF                                                             [100%]
+================================== FAILURES ===================================
+_____________ test_profile_save_relogin_and_merge_priority[False] _____________
+
+existing = False
+
+    @pytest.mark.parametrize('existing', [False, True])
+    def test_profile_save_relogin_and_merge_priority(existing):
+        app = create_app(store=InMemoryGameStore())
+        with TestClient(app) as client:
+            app.state.wechat_auth = FakeWechat()
+            if existing:
+                target = login(client).json()['data']
+                client.headers['Authorization'] = 'Bearer ' + target['token']
+                assert client.post('/api/v1/me/profile', json={'nickname': 'Ŀ������', 'avatar': 'piece_v1_ma'}).status_code == 200
+            old = client.post('/api/v1/auth/device').json()['data']
+            client.headers['Authorization'] = 'Bearer ' + old['token']
+            response = client.post('/api/v1/me/profile', json={'nickname': '  \u68cb\U0001f600\u624b  ', 'avatar': 'piece_v1_pao'})
+>           assert response.status_code == 200, response.text
+E           AssertionError: {"code":"HTTP_ERROR","message":"Method Not Allowed","data":null}
+E           assert 405 == 200
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+
+backend\tests\test_profile_edit.py:21: AssertionError
+_____________ test_profile_save_relogin_and_merge_priority[True] ______________
+
+existing = True
+
+    @pytest.mark.parametrize('existing', [False, True])
+    def test_profile_save_relogin_and_merge_priority(existing):
+        app = create_app(store=InMemoryGameStore())
+        with TestClient(app) as client:
+            app.state.wechat_auth = FakeWechat()
+            if existing:
+                target = login(client).json()['data']
+                client.headers['Authorization'] = 'Bearer ' + target['token']
+>               assert client.post('/api/v1/me/profile', json={'nickname': 'Ŀ������', 'avatar': 'piece_v1_ma'}).status_code == 200
+E               AssertionError: assert 405 == 200
+E                +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E                +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': 'Ŀ������', 'avatar': 'piece_v1_ma'})
+E                +      where post = <starlette.testclient.TestClient object at 0x00000167D80B90A0>.post
+
+backend\tests\test_profile_edit.py:17: AssertionError
+__________________ test_profile_rejects_invalid_input[body0] __________________
+
+body = {'nickname': '', 'avatar': 'piece_v1_shi'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '', 'avatar': 'piece_v1_shi'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D81512E0>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body1] __________________
+
+body = {'nickname': '   ', 'avatar': 'piece_v1_shi'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '   ', 'avatar': 'piece_v1_shi'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D82133E0>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body2] __________________
+
+body = {'nickname': '��������������������������������������������������', 'avatar': 'piece_v1_shi'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '��������������������������������������������������', 'avatar': 'piece_v1_shi'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D81D9D00>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body3] __________________
+
+body = {'nickname': '��\n��', 'avatar': 'piece_v1_shi'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '��\n��', 'avatar': 'piece_v1_shi'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D8292420>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body4] __________________
+
+body = {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '��\x00��', 'avatar': 'piece_v1_shi'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D81DBE30>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body5] __________________
+
+body = {'nickname': 4, 'avatar': 'piece_v1_shi'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': 4, 'avatar': 'piece_v1_shi'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D8263E60>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body6] __________________
+
+body = {'nickname': '����', 'avatar': 'https://example.com/avatar'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '����', 'avatar': 'https://example.com/avatar'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D8250CE0>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body7] __________________
+
+body = {'nickname': '����', 'avatar': 'piece_v2_shi'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '����', 'avatar': 'piece_v2_shi'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D8388710>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+__________________ test_profile_rejects_invalid_input[body8] __________________
+
+body = {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'}
+
+    @pytest.mark.parametrize('body', [
+        {'nickname': '', 'avatar': 'piece_v1_shi'},
+        {'nickname': ' ' * 3, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��' * 25, 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\n��', 'avatar': 'piece_v1_shi'},
+        {'nickname': '��\x00��', 'avatar': 'piece_v1_shi'},
+        {'nickname': 4, 'avatar': 'piece_v1_shi'},
+        {'nickname': '����', 'avatar': 'https://example.com/avatar'},
+        {'nickname': '����', 'avatar': 'piece_v2_shi'},
+        {'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'},
+    ])
+    def test_profile_rejects_invalid_input(body):
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.post('/api/v1/me/profile', json=body).status_code == 422
+E           AssertionError: assert 405 == 422
+E            +  where 405 = <Response [405 Method Not Allowed]>.status_code
+E            +    where <Response [405 Method Not Allowed]> = post('/api/v1/me/profile', json={'nickname': '����', 'avatar': 'piece_v1_shi', 'userId': 'other'})
+E            +      where post = <starlette.testclient.TestClient object at 0x00000167D83B83B0>.post
+
+backend\tests\test_profile_edit.py:48: AssertionError
+___________________ test_profile_unicode_limit_and_defaults ___________________
+
+    def test_profile_unicode_limit_and_defaults():
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            token = client.post('/api/v1/auth/device').json()['data']['token']
+            client.headers['Authorization'] = 'Bearer ' + token
+>           assert client.get('/api/v1/me/profile').json()['data']['avatar'] == 'piece_v1_shi'
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'avatar'
+
+backend\tests\test_profile_edit.py:55: KeyError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_profile_edit.py::test_profile_save_relogin_and_merge_priority[False]
+FAILED backend/tests/test_profile_edit.py::test_profile_save_relogin_and_merge_priority[True]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body0]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body1]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body2]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body3]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body4]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body5]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body6]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body7]
+FAILED backend/tests/test_profile_edit.py::test_profile_rejects_invalid_input[body8]
+FAILED backend/tests/test_profile_edit.py::test_profile_unicode_limit_and_defaults
+12 failed, 1 warning in 5.74s

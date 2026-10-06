@@ -19,6 +19,19 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 const { getDeviceToken, clearWechatSession } = await import('../miniprogram/services/device-auth.ts');
 const { createApiClient } = await import('../miniprogram/services/api-client.ts');
 
+test('account merge conflicts keep legacy records and credentials and permit explicit retry', async () => {
+  for (const code of ['REMOTE_ACCOUNT_CONFLICT', 'LOCAL_IMPORT_ACCOUNT_CONFLICT']) {
+    const root = `https://${code.toLowerCase().replaceAll('_', '-')}.test`;
+    const env = environment(root); env.storage.set(env.oldKey, 'a'.repeat(64));
+    (globalThis as any).wx.request = (o: any) => o.success({ statusCode: 409, data: { code } });
+    await assert.rejects(getDeviceToken(root), /无法合并.*保留原记录/);
+    assert.equal(env.storage.get(env.oldKey), 'a'.repeat(64)); assert.equal(env.storage.has(env.key), false);
+    (globalThis as any).wx.request = (o: any) => o.success({ statusCode: 200, data: { code: 0, data: {
+      token: 'b'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } } });
+    assert.equal(await getDeviceToken(root), 'b'.repeat(64)); assert.equal(env.storage.has(env.oldKey), false);
+  }
+});
+
 function environment(root: string) {
   const storage = new Map<string, any>();
   const calls: any[] = [];

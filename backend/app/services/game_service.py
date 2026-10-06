@@ -85,7 +85,7 @@ class GameService:
                 moves = [move for move in moves if move.from_node == from_node]
             return LegalMovesResponse(moves=moves)
 
-    async def move(self, game_id: str, request: MoveRequest) -> MoveResponse:
+    async def move(self, game_id: str, request: MoveRequest, user_id: str | None = None) -> MoveResponse:
         lock = await self.store.lock_for(game_id)
         async with lock:
             snapshot = await self.store.get_snapshot(game_id)
@@ -97,10 +97,10 @@ class GameService:
                 raise ApiError("NOT_HUMAN_TURN", "It is the AI turn")
             turn = await self.adapter.execute_turn(snapshot.state, Move(from_node=request.from_node,
                                                                          to_node=request.to_node))
-            await self.store.commit_turn(game_id, snapshot.version, turn, "HUMAN")
+            await self.store.commit_turn(game_id, snapshot.version, turn, "HUMAN", user_id=user_id)
             return MoveResponse(turn=turn)
 
-    async def ai_move(self, game_id: str, request: AiMoveRequest) -> AiMoveResponse:
+    async def ai_move(self, game_id: str, request: AiMoveRequest, user_id: str | None = None) -> AiMoveResponse:
         lock = await self.store.lock_for(game_id)
         async with lock:
             snapshot = await self.store.get_snapshot(game_id)
@@ -112,22 +112,22 @@ class GameService:
                 raise ApiError("NOT_AI_TURN", "It is the human turn")
             depth, budget = ai_search_budget(snapshot.ai_level, self.settings)
             search, turn = await self.adapter.ai_move(snapshot.state, depth, budget)
-            await self.store.commit_turn(game_id, snapshot.version, turn, "AI", search)
+            await self.store.commit_turn(game_id, snapshot.version, turn, "AI", search, user_id=user_id)
             return AiMoveResponse(search=search, turn=turn)
 
     async def undo(self, game_id: str,
-                   request: GameOperationRequest) -> GameOperationResponse:
+                   request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
         snapshot = await self.store.get_snapshot(game_id)
         if snapshot.mode == "REMOTE":
             raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
-        return await self.store.commit_undo(game_id, request)
+        return await self.store.commit_undo(game_id, request, user_id=user_id)
 
     async def resign(self, game_id: str,
-                     request: GameOperationRequest) -> GameOperationResponse:
+                     request: GameOperationRequest, user_id: str | None = None) -> GameOperationResponse:
         snapshot = await self.store.get_snapshot(game_id)
         if snapshot.mode == "REMOTE":
             raise ApiError("REMOTE_ACTION_REQUIRED", "Use the remote room endpoint")
-        return await self.store.commit_resign(game_id, request)
+        return await self.store.commit_resign(game_id, request, user_id=user_id)
 
     async def replay_game(self, game_id: str) -> list[GameState]:
         """Read historical snapshots without reinterpreting moves under future rules."""
@@ -200,8 +200,8 @@ class GameService:
         frames.append(snapshot.state)
         return frames
 
-    async def analyze(self, game_id: str, expected_version: int | None = None) -> AnalyzeResponse:
-        return await self._analyze(game_id, expected_version)
+    async def analyze(self, game_id: str, expected_version: int | None = None, user_id: str | None = None) -> AnalyzeResponse:
+        return await self._analyze(game_id, expected_version, user_id=user_id)
 
     async def _analyze(self, game_id: str, expected_version: int | None = None, *,
                        remote_token_hash: str | None = None, user_id: str | None = None) -> AnalyzeResponse:
@@ -219,7 +219,9 @@ class GameService:
             await self.store.commit_analysis(game_id, snapshot.version, analysis,
                 remote_token_hash=remote_token_hash, user_id=user_id)
         elif snapshot.state.game_status == "PLAYING":
-            await self.store.commit_analysis(game_id, snapshot.version, analysis)
+            await self.store.commit_analysis(game_id, snapshot.version, analysis, user_id=user_id)
+        if remote_token_hash is None:
+            await self.store.validate_ordinary_actor(game_id, user_id)
         return AnalyzeResponse(game_id=game_id, game_version=snapshot.version,
                                **analysis.model_dump())
 
@@ -264,12 +266,12 @@ class GameService:
         return review.model_copy(update={"moveReviews": rows})
 
     async def create_review(self, game_id: str,
-                            reviewed_player: str | None = None) -> GameReview:
-        return await self._create_review(game_id, reviewed_player)
+                            reviewed_player: str | None = None, user_id: str | None = None) -> GameReview:
+        return await self._create_review(game_id, reviewed_player, user_id=user_id)
 
     async def _create_review(self, game_id: str, reviewed_player: str | None, *,
                              remote: bool = False, remote_user_id: str | None = None,
-                             remote_token_hash: str | None = None) -> GameReview:
+                             remote_token_hash: str | None = None, user_id: str | None = None) -> GameReview:
         config = ReviewConfig()
         snapshot, moves = await self.store.read_replay(game_id)
         player = self._reviewed_player(snapshot, reviewed_player, remote=remote)
@@ -278,6 +280,8 @@ class GameService:
         await self._validated_replay(snapshot, moves)
         existing = await self.store.get_review(game_id, player, config.version)
         if existing is not None:
+            if not remote:
+                await self.store.validate_ordinary_actor(game_id, user_id)
             return self._review_with_snapshots(existing, moves)
         reviewed = []
         for item in moves:
@@ -308,5 +312,5 @@ class GameService:
             saved = await self.store.commit_review(review, snapshot.version,
                 user_id=remote_user_id, remote_token_hash=remote_token_hash)
         else:
-            saved = await self.store.commit_review(review, snapshot.version)
+            saved = await self.store.commit_review(review, snapshot.version, user_id=user_id)
         return self._review_with_snapshots(saved, moves)

@@ -16,7 +16,7 @@ export function skill(partial = false) {
     disclaimer: '仅作为弈智五马内的能力参考。' };
 }
 export function profile(skillProfile = skill()) {
-  return { id: 'user1', nickname: '微信棋手', games: 2, finishedGames: 1,
+  return { id: 'user1', nickname: '微信棋手', avatar: 'piece_v1_shi', games: 2, finishedGames: 1,
     wins: 1, losses: 0, remoteGames: 0, remoteWins: 0, remoteLosses: 0,
     reviewedGames: 1, training: 2, trainingAttempts: 4, correct: 3, skillProfile };
 }

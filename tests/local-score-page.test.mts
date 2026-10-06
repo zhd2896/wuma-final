@@ -44,7 +44,7 @@ test('real history Page exposes catchtap sync and opens linked finished rows wit
 await import('../miniprogram/pages/history/history.ts');
 const historyDefinition=definition;
 const {skill}=await import('./fixtures/player-skill.mts');
-const profile=(id:string)=>({id,nickname:'棋手',games:0,finishedGames:0,wins:0,losses:0,remoteGames:0,remoteWins:0,remoteLosses:0,reviewedGames:0,training:0,trainingAttempts:0,correct:0,skillProfile:skill()});
+const profile=(id:string)=>({id,nickname:'棋手',avatar:'piece_v1_shi',games:0,finishedGames:0,wins:0,losses:0,remoteGames:0,remoteWins:0,remoteLosses:0,reviewedGames:0,training:0,trainingAttempts:0,correct:0,skillProfile:skill()});
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('history real API flow renders pending/syncing, resumes exact body after timeout, and cloud wins dedup',async()=>{

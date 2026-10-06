@@ -47,7 +47,6 @@
         <view wx:else class="status-sub">点选己方棋子，再点击亮起的合法位置</view>
       </block>
     </view></view>
-    <view wx:if="{{showHint && mode != 'ai'}}" class="hint-area"><ai-panel message="演示提示：先观察中央交汇点 P13，再比较两侧路线。" /></view>
     <view wx:if="{{mode == 'ai' && aiState.isCoachLoading}}" class="analysis-status">正在准备提示...</view>
     <view wx:if="{{mode == 'ai' && aiState.coachErrorMessage}}" class="analysis-status analysis-error">{{aiState.coachErrorMessage}}</view>
     <view wx:if="{{mode == 'ai' && aiState.coachHint}}" class="analysis-card coach-card">

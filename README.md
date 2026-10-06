@@ -19,6 +19,8 @@
 
 ## 环境准备
 
+个人页支持主动修改昵称和选择版本化士/馬/炮头像，保存在当前账号中，重登与换设备可读取；微信登录不会读取微信昵称头像或覆盖自定义资料。数据库需迁移至 `0019_user_profiles`。发布尚未进行，开发地址保持本机，体验版/正式版地址仍空；`npm run check:release -- trial` / `release` 的配置失败是待部署提示，不是业务测试失败。配置格式检查不证明微信后台配置、HTTPS 服务在线或真机验收已完成。
+
 - Node.js **24+**、npm（后端 Node worker 需要 Node 24 的 TypeScript 运行能力）。
 - Python **3.12+**、MySQL **8**（随仓库提供的 Compose 文件使用 MySQL 8.4）。
 - 微信开发者工具；可选装 Docker Desktop 和 Docker Compose 来启动开发数据库。
@@ -77,7 +79,7 @@ if ($LASTEXITCODE -ne 0) { throw '数据库迁移失败，请先处理错误；�
 .\backend\.venv\Scripts\python.exe -m uvicorn backend.app.main:app --host 127.0.0.1 --port 8000
 ```
 
-Uvicorn 命令会持续运行，保留此终端。若改用已有 MySQL，先在此终端设置匹配的 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`；若设置了 `DATABASE_URL`，请确认它指向**开发库**。当前迁移唯一最终版本为 `0014_merge_auth_operations`，合并对局操作迁移与既有 `0011_wechat_auth_sessions` 分支；已在任一分支的库只补齐另一分支的迁移，不重建已有会话或棋局。2026-10-05 本机业务库恢复和数据保留验证见 [兼容修复记录](docs/database-migration-compatibility-repair-2026-10-05.md)。
+Uvicorn 命令会持续运行，保留此终端。若改用已有 MySQL，先在此终端设置匹配的 `DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`；若设置了 `DATABASE_URL`，请确认它指向**开发库**。当前迁移唯一最终版本为 `0019_user_profiles`。历史合并节点 `0014_merge_auth_operations` 保留对局操作与微信会话两条分支，后续迁移依次增加联机账号归属、训练题源、本地棋谱同步、私有训练归属和个人资料；已有库执行 `upgrade head` 补齐迁移，不重建已有会话或棋局。2026-10-05 本机业务库恢复和数据保留验证见 [兼容修复记录](docs/database-migration-compatibility-repair-2026-10-05.md)。
 
 在另一 PowerShell 窗口确认引擎和数据库都可用：
 
@@ -94,12 +96,12 @@ Invoke-RestMethod -Method Post http://127.0.0.1:8000/api/v1/game `
 
 1. 导入**仓库根目录**，即含 `project.config.json` 的目录；其中已指定 `miniprogramRoot: "miniprogram/"` 和 TypeScript 编译插件。
 2. 在开发者工具中使用可用的测试/自有 AppID。仓库配置带有现成 AppID；无使用权限时，在工具内切换自己的 AppID。
-3. 确认开发环境的 API 地址为 `miniprogram/config/api.ts` 中的 `http://127.0.0.1:8000`，然后点击“编译”。本地调试若遇请求域名校验，检查开发者工具的“不校验合法域名”设置；仓库项目配置的 `urlCheck` 为 `false`。
-4. 从首页进入“AI 对弈”或“远程双人”检查接口链路；“双人对战”可只用前端运行。远程双人可创建私人房间并分享 8 位房间码，另一台设备加入后各执一方；也可使用“匹配对手”。联机终局目前从历史查看终局棋盘；AI 对弈终局可进入真实复盘并生成训练题。
+3. 确认开发环境的 API 地址为 `miniprogram/config/api-roots.ts` 中的 `http://127.0.0.1:8000`，然后点击“编译”。本地调试若遇请求域名校验，检查开发者工具的“不校验合法域名”设置；仓库项目配置的 `urlCheck` 为 `false`。
+4. 从首页进入“AI 对弈”或“远程双人”检查接口链路；“双人对战”可只用前端运行。远程双人可创建私人房间并分享 8 位房间码，另一台设备加入后各执一方；也可使用“匹配对手”。联机终局可从历史进入本人复盘、时间轴回放与私有训练；AI 终局同样可进入真实复盘。
 
-`127.0.0.1` 只适用于**运行后端的同一台电脑上的开发者工具模拟器**。真机、体验版和正式版需要可访问的 HTTPS API、微信小程序后台的合法 request 域名配置，并修改 `miniprogram/config/api.ts` 中相应地址。`trial` 使用 `test` 地址，`release` 使用 `production` 地址；两者当前都是空字符串，未配置就会报 `API base URL is not configured`。若后端和模拟器不在同一台电脑，也要把 `development` 地址改成模拟器可访问的地址。
+`127.0.0.1` 只适用于**运行后端的同一台电脑上的开发者工具模拟器**。真机、体验版和正式版需要可访问的 HTTPS API、微信小程序后台的合法 request 域名配置，并修改 `miniprogram/config/api-roots.ts` 中相应地址。`trial` 使用 `test` 地址，`release` 使用 `production` 地址；两者当前都是空字符串，空或非法配置会回到登录页显示“服务暂未开放，请稍后再试”，不会发微信登录或网络请求。发布检查与公开地址构建命令见 [微信发布指南](docs/wechat-release-guide.md)。若后端和模拟器不在同一台电脑，也要把 `development` 地址改成模拟器可访问的地址。
 
-远程双人席位凭证由服务端签发，只保存在建房/加入时使用的设备上；本机历史可恢复该设备持有的席位。清除小程序本机数据后无法仅凭房间码认领旧席位。两台真机验收前必须先配置两台设备都可访问的 HTTPS API，并将测试后端连接到已迁移的独立 `*_test` MySQL 库；本机 `127.0.0.1` 地址无法完成真机联机验收。阶段结果见 [远程双人验收记录](docs/remote-multiplayer-acceptance.md)。
+远程双人席位绑定微信账号；同账号在另一设备重新登录可恢复本人席位与云端历史。仅有房间码不能认领他人席位。REMOTE 以房间 host/guest 记录参与者，普通 Game.user_id 允许为空。两台真机验收前必须先配置两台设备都可访问的 HTTPS API，并将测试后端连接到已迁移的独立 `*_test` MySQL 库；本机 `127.0.0.1` 地址无法完成真机联机验收。阶段结果见 [远程双人验收记录](docs/remote-multiplayer-acceptance.md)。
 
 ## 可选的 LLM 解说与教练提示
 

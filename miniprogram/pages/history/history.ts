@@ -47,7 +47,7 @@ function rowForDevice(entry: DeviceHistoryEntry): HistoryRow {
       ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
       : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
     date: dateText(entry.updatedAt), updatedAt: entry.updatedAt, turns: entry.turns,
-    action: finished ? (entry.mode === 'online' || linked ? '查看复盘' : '查看终局') : '继续对弈' };
+    action: finished ? (entry.mode === 'online' || entry.mode === 'ai' || linked ? '查看复盘' : '查看终局') : '继续对弈' };
 }
 function rowForCloud(entry: PersonalGameDto): HistoryRow {
   const finished = entry.status === 'FINISHED';

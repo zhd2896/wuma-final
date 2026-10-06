@@ -1,15 +1,32 @@
 """Required and strictly typed personal statistics and skill transport contract."""
 from typing import Annotated, Literal
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
+import unicodedata
 from backend.app.schemas.game import StrictModel
 
 Count = Annotated[int, Field(ge=0)]
 Score = Annotated[int, Field(ge=0, le=100)]
 MetricKey = Literal['performance', 'best_move', 'decision', 'stability', 'mistake_control', 'training']
+Avatar = Literal['piece_v1_shi', 'piece_v1_ma', 'piece_v1_pao']
 
 
 class AccountDto(StrictModel):
     model_config = ConfigDict(extra='forbid', strict=True)
+
+
+class ProfileUpdate(AccountDto):
+    nickname: str
+    avatar: Avatar
+
+    @field_validator('nickname')
+    @classmethod
+    def valid_nickname(cls, value: str) -> str:
+        if any(unicodedata.category(char) in ('Cc', 'Cf', 'Cs') for char in value):
+            raise ValueError('Nickname contains control characters')
+        value = value.strip()
+        if not 1 <= len(value) <= 24:
+            raise ValueError('Nickname must contain 1 to 24 characters')
+        return value
 
 
 class SkillSampleDto(AccountDto):
@@ -51,6 +68,7 @@ class SkillProfileDto(AccountDto):
 class PersonalProfileDto(AccountDto):
     id: str
     nickname: str
+    avatar: Avatar
     games: Count
     finishedGames: Count
     wins: Count

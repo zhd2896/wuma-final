@@ -1,6 +1,8 @@
 import { getDeviceToken, hasWechatSession } from '../../services/device-auth';
 import { messageForApiError } from '../../services/api-client';
 import { safeReturnRoute } from '../../services/auth-navigation';
+import { getApiBaseUrl } from '../../config/api';
+import { SERVICE_UNOPENED } from '../../config/api-root';
 
 Page({
   data: { isLoading: false, errorMessage: '', nextRoute: '/pages/index/index' },
@@ -8,6 +10,7 @@ Page({
   onLoad(options: { next?: string }) {
     this.disposed = false;
     this.setData({ nextRoute: safeReturnRoute(options.next) });
+    try { getApiBaseUrl(); } catch { this.setData({ errorMessage: SERVICE_UNOPENED }); return; }
     if (hasWechatSession()) wx.reLaunch({ url: this.data.nextRoute });
   },
   onUnload() { this.disposed = true; },
