@@ -5,7 +5,8 @@ const LOGIN_NAVIGATION_TIMEOUT_MS = 3000;
 const allowedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online'];
 
 export function isPublicRoute(value: string): boolean {
-  return value.replace(/^\//, '').split('?')[0] === 'guide/pages/rules/rules';
+  return ['guide/pages/rules/rules', 'guide/pages/tutorial/tutorial']
+    .includes(value.replace(/^\//, '').split('?')[0]);
 }
 
 export function safeReturnRoute(value?: string): string {
@@ -21,7 +22,7 @@ export function safeReturnRoute(value?: string): string {
 
 function allowedReturnPath(value: string): boolean {
   const path = value.split('?')[0];
-  return path === '/guide/pages/rules/rules' ||
+  return (isPublicRoute(path) && path.startsWith('/')) ||
     allowedPages.some(name => path === `/pages/${name}/${name}`);
 }
 

@@ -4,4 +4,5 @@ Page({
   data: { features: homeService.getFeatures() },
   openHistory() { openPage('/pages/history/history'); },
   openRules() { openPage('/guide/pages/rules/rules'); },
+  openTutorial() { openPage('/guide/pages/tutorial/tutorial'); },
 });

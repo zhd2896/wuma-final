@@ -98,6 +98,30 @@ test('actual page uses next default on new/restart, keeps saved current label, a
     assert.equal(resumed.data.aiState.aiLevel, 'BEGINNER');
     assert.equal(resumed.data.aiBName, '入门 AI · B');
     resumed.onUnload();
+    const tutorial = make();
+    tutorial.onLoad({ mode: 'ai', level: 'BEGINNER', first: 'human', new: '1' });
+    await flush();
+    assert.equal(requests.length, 4, 'tutorial must create rather than resume an existing game');
+    assert.equal(requests[3].ai_level, 'BEGINNER');
+    assert.equal(requests[3].first_player, 'A');
+    assert.equal(tutorial.data.aiState.gameId, 'g4');
+    assert.equal(tutorial.data.settings.defaultAiLevel, 'ADVANCED', 'tutorial does not change default preferences');
+    assert.equal(storage.get('wuma:game-settings:v1').settings.defaultAiLevel, 'ADVANCED');
+    tutorial.onUnload();
+    const originalRequest = (globalThis as any).wx.request;
+    (globalThis as any).wx.request = (o: any) => o.method === 'POST' && new URL(o.url).pathname === '/api/v1/game'
+      ? o.fail({ errMsg: 'offline' }) : originalRequest(o);
+    const failed = make();
+    failed.onLoad({ mode: 'ai', level: 'BEGINNER', first: 'human', new: '1' });
+    await flush();
+    assert.ok(failed.data.aiState.errorMessage);
+    assert.equal(storage.get('activeAiGameId'), 'g4', 'failed creation keeps old game recoverable');
+    (globalThis as any).wx.request = originalRequest;
+    failed.retryAiGame();
+    await flush();
+    assert.equal(requests[4].ai_level, 'BEGINNER', 'retry retains tutorial level after failed creation');
+    assert.equal(failed.data.aiState.gameId, 'g5');
+    failed.onUnload();
 });
 test('independent coach and replay context accept all saved AI levels', async () => {
     const { IndependentCoachController } = await import('../miniprogram/pages/coach/coach-controller.ts');

@@ -8,6 +8,11 @@
     <view class="hero-note">一局入境 · 于方寸间见谋略</view>
   </view>
   <view class="home-content">
+    <view id="tutorial-entry" class="rules-link" bindtap="openTutorial">
+      <view class="rules-seal">练</view>
+      <view class="rules-copy"><view class="rules-title">新手实操</view><view class="rules-sub">走棋 → 夹吃 → 挑吃 → 入门 AI</view></view>
+      <text class="rules-arrow">开始练习 ›</text>
+    </view>
     <view id="rules-entry" class="rules-link" bindtap="openRules">
       <view class="rules-seal">学</view>
       <view class="rules-copy"><view class="rules-title">玩法讲解</view><view class="rules-sub">看图学会走棋、夹吃与挑吃</view></view>

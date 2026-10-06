@@ -1,4 +1,4 @@
-import { AI_LEVEL_LABELS, type AiLevel } from '../../services/api-contract';
+import { AI_LEVEL_LABELS, isAiLevel, type AiLevel } from '../../services/api-contract';
 import { gameService } from '../../services/index';
 import type { BoardState } from '../../types/domain';
 import { boardLines, boardNodes } from '../../mock/game';
@@ -64,6 +64,16 @@ function storageForRoute(base: GameIdStorage, requestedId?: string): GameIdStora
   };
 }
 
+/** A new game takes over the active slot only after successful server creation. */
+function storageForNewGame(base: GameIdStorage): GameIdStorage {
+  let created = false;
+  return {
+    read: () => created ? base.read() : null,
+    write: id => { base.write(id); created = true; },
+    clear: () => { if (created) base.clear(); },
+  };
+}
+
 Page({
   data: { board: gameService.getBoard(), localSession: null as LocalGameSession | null,
     localGameId: '', localTurns: 0, localErrorMessage: '', localWinnerMessage: '',
@@ -80,7 +90,7 @@ Page({
   remoteController: null as RemoteGameController | null,
   aiController: null as AiGameController | null,
   aiFirstPlayer: 'A' as Player,
-  onLoad(options: { mode?: string; first?: string; gameId?: string }) {
+  onLoad(options: { mode?: string; first?: string; gameId?: string; level?: string; new?: string }) {
     let settings = { ...DEFAULT_GAME_SETTINGS };
     try { settings = createWxGameSettingsStore().read(); }
     catch { wx.showToast({ title: '设置读取失败，已使用默认设置', icon: 'none' }); }
@@ -97,14 +107,20 @@ Page({
       this.renderRemote(this.remoteController.snapshot);
       void this.remoteController.enter();
     } else {
+      const newGame = options.new === '1' && !options.gameId;
+      let initialAiLevel = newGame && isAiLevel(options.level) ? options.level : null;
       this.aiFirstPlayer = options.first === 'ai' ? 'B'
         : options.first === 'human' ? 'A' : settings.aiFirstPlayer;
       this.setData({ mode: 'ai', board: emptyBoard, aiReady: false,
         thinking: false, showResign: false, showSettings: false });
       this.aiController = new AiGameController(
-        createGameApi(createApiClient()), storageForRoute(aiGameIdStorage, options.gameId),
-        snapshot => this.renderAi(snapshot),
-        { createOnMissing: !options.gameId, getAiLevel: () => this.data.settings.defaultAiLevel },
+        createGameApi(createApiClient()), newGame ? storageForNewGame(aiGameIdStorage)
+          : storageForRoute(aiGameIdStorage, options.gameId),
+        snapshot => {
+          this.renderAi(snapshot);
+          if (snapshot.gameId) initialAiLevel = null;
+        },
+        { createOnMissing: !options.gameId, getAiLevel: () => initialAiLevel ?? this.data.settings.defaultAiLevel },
       );
       this.renderAi(this.aiController.snapshot);
       void this.aiController.enter(this.aiFirstPlayer);

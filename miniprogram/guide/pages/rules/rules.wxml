@@ -7,6 +7,7 @@
   <view class="rules-intro">
     <view class="rules-heading">先学玩法，再入棋局</view>
     <view class="rules-tip">向下滑动阅读，点击图示可放大查看</view>
+    <button class="gold-btn" bindtap="openTutorial">亲手试一试：走棋、夹吃、挑吃</button>
   </view>
   <view class="number-guide">
     <view class="rules-heading">棋盘点位对照 · P01—P29</view>

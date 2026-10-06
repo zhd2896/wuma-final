@@ -15,6 +15,7 @@ Page({
   },
   onUnload() { this.disposed = true; },
   openRules() { wx.navigateTo({ url: '/guide/pages/rules/rules' }); },
+  openTutorial() { wx.navigateTo({ url: '/guide/pages/tutorial/tutorial' }); },
   async login() {
     if (this.data.isLoading) return;
     this.setData({ isLoading: true, errorMessage: '' });

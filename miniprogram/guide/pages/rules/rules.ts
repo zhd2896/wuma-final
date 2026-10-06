@@ -6,6 +6,7 @@ const nodeImage = '/guide/assets/wuma-node-reference.png';
 
 Page({
   data: { imageFailed: false },
+  openTutorial() { wx.navigateTo({ url: '/guide/pages/tutorial/tutorial' }); },
   previewing: false,
   back() {
     wx.navigateBack({

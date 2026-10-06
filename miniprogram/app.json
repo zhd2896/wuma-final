@@ -15,7 +15,8 @@
     {
       "root": "guide",
       "pages": [
-        "pages/rules/rules"
+        "pages/rules/rules",
+        "pages/tutorial/tutorial"
       ]
     }
   ],
