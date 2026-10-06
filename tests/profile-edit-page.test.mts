@@ -36,6 +36,9 @@ test('real profile editor preserves failed drafts, saves, cancels and ignores re
   assert.notEqual(page.data.name, '旧异步');
   page.onHide(); assert.equal(page.data.editing, false);
   for (const lifecycle of ['onHide', 'onUnload', 'logout']) {
+    // A returning/new profile page reloads before editing; hidden account data is cleared.
+    const reloaded = page.load(); await new Promise(r => setImmediate(r));
+    reply(pending.shift(), { ...profile(skill()), nickname: '新😀昵称', avatar: 'piece_v1_ma' }); await reloaded;
     page.data.saving = false; page.editProfile(); const pendingSave = page.saveProfile();
     await new Promise(r => setImmediate(r)); const oldReply = pending.shift();
     page[lifecycle](); const currentName = page.data.name;

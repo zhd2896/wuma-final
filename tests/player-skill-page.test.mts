@@ -88,3 +88,40 @@ test('missing fields and missing review gates produce explicit contract errors',
     assert.match(page.data.errorMessage, /个人棋力数据异常/);
   }
 });
+
+test('chart modes switch the same profile without requests and retain only a display preference', async()=>{
+  const {page,requests}=await harness(false,profile());await page.load();
+  const original=JSON.stringify(page.data.skillProfile);
+  const persisted:any[]=[];
+  (globalThis as any).wx.setStorageSync=(key:string,value:any)=>persisted.push({key,value});
+  assert.equal(page.data.chartMode,'radar');
+  for(const mode of ['bar','line','radar'])page.changeChart({currentTarget:{dataset:{mode}}});
+  assert.equal(page.data.chartMode,'radar');
+  assert.equal(JSON.stringify(page.data.skillProfile),original);
+  assert.equal(requests.length,1,'switching adds no requests beyond initial profile load');
+  assert.equal(persisted.length,3);
+  assert.deepEqual(persisted[1],{key:'wuma:skill-chart-mode:v1',value:'line'});
+  page.changeChart({currentTarget:{dataset:{mode:'pie'}}});
+  assert.equal(persisted.length,3);
+  (globalThis as any).wx.setStorageSync=()=>{throw Error('full');};
+  page.changeChart({currentTarget:{dataset:{mode:'bar'}}});
+  assert.equal(page.data.chartMode,'bar','failed preference save does not block in-session switch');
+  const wxml=readFileSync('miniprogram/pages/profile/profile.wxml','utf8');
+  assert.match(wxml,/<skill-chart/);assert.match(wxml,/metrics="\{\{skillProfile.metrics\}\}"/);
+});
+
+test('chart preference restores safely; hiding and logout clear scored data',async()=>{
+  const {page}=await harness(false,profile());
+  const base=(globalThis as any).wx.getStorageSync;
+  (globalThis as any).wx.getStorageSync=(key:string)=>key==='wuma:skill-chart-mode:v1'?'line':base(key);
+  page.onLoad();assert.equal(page.data.chartMode,'line');await page.load();
+  page.onHide();assert.equal(page.data.skillProfile,null);assert.deepEqual(page.data.abilities,[]);
+  (globalThis as any).wx.getStorageSync=(key:string)=>key==='wuma:skill-chart-mode:v1'?'invalid':base(key);
+  page.onLoad();assert.equal(page.data.chartMode,'radar');
+  (globalThis as any).wx.getStorageSync=()=>{throw Error('storage');};
+  page.onLoad();assert.equal(page.data.chartMode,'radar');
+  (globalThis as any).wx.getStorageSync=base;
+  (globalThis as any).wx.removeStorageSync=()=>{};
+  (globalThis as any).wx.reLaunch=()=>{};
+  await page.load();page.logout();assert.equal(page.data.skillProfile,null);
+});

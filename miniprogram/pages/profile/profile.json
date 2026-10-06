@@ -1,1 +1,1 @@
-{"usingComponents":{"bottom-nav":"../../components/bottom-nav/bottom-nav","loading-state":"../../components/loading-state/loading-state","error-state":"../../components/error-state/error-state","section-title":"../../components/section-title/section-title"}}
+{"usingComponents":{"bottom-nav":"../../components/bottom-nav/bottom-nav","loading-state":"../../components/loading-state/loading-state","error-state":"../../components/error-state/error-state","section-title":"../../components/section-title/section-title","skill-chart":"../../components/skill-chart/skill-chart"}}

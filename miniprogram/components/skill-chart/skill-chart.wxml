@@ -1,0 +1,19 @@
+<view class="skill-chart">
+  <view class="chart-caption">{{chart.caption}}</view>
+  <view wx:if="{{chart.mode == 'bar'}}" class="bar-chart">
+    <view class="bar-scale"><text>0 分</text><text>50</text><text>100 分</text></view>
+    <view wx:for="{{chart.metrics}}" wx:key="key" class="bar-row">
+      <view class="bar-heading"><text>{{item.label}}</text><text class="bar-value">{{item.valueText}}</text></view>
+      <view class="bar-track"><view wx:if="{{item.hasValue}}" class="bar-fill" style="width:{{item.value}}%;"></view></view>
+    </view>
+  </view>
+  <view wx:else class="chart-square {{chart.mode}}">
+    <view wx:for="{{chart.grid}}" wx:key="id" class="chart-line grid-line" style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.width}}%;transform:rotate({{item.angle}}deg);"></view>
+    <view wx:for="{{chart.axes}}" wx:key="id" class="chart-line axis-line" style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.width}}%;transform:rotate({{item.angle}}deg);"></view>
+    <view wx:for="{{chart.links}}" wx:key="id" class="chart-line data-line" style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.width}}%;transform:rotate({{item.angle}}deg);"></view>
+    <view wx:for="{{chart.points}}" wx:key="key" class="chart-point" style="left:{{item.x}}%;top:{{item.y}}%;"></view>
+    <text wx:for="{{chart.scales}}" wx:key="key" class="chart-scale" style="left:{{item.x}}%;top:{{item.y}}%;">{{item.label}}</text>
+    <view wx:for="{{chart.labels}}" wx:key="key" class="chart-label" style="left:{{item.x}}%;top:{{item.y}}%;"><text>{{item.label}}</text><text class="chart-value">{{item.valueText}}</text></view>
+  </view>
+  <view wx:if="{{chart.notice}}" class="chart-notice">{{chart.notice}}</view>
+</view>

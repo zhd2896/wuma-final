@@ -14,3 +14,4 @@
 .avatar-options button { border-radius: 50%; width: 80rpx; height: 80rpx; line-height: 80rpx; padding: 0; }
 .avatar-selected { color: #9c3028; border: 3rpx solid #9c3028; }
 .profile-save-error { color: #9c3028; margin: 12rpx 0; }
+.chart-mode-tabs{display:flex;gap:12rpx;margin-bottom:20rpx}.chart-mode-button{flex:1;min-width:0;padding:0 8rpx;margin:0;font-size:25rpx;line-height:72rpx;color:#715e44;background:#f4ead8;border:1rpx solid #decaab;border-radius:12rpx}.chart-mode-button::after{border:0}.chart-mode-active{background:#a9342a;color:#fff9ed;border-color:#a9342a}.chart-evidence-title{font-size:25rpx;font-weight:700;color:#53615b;margin-top:26rpx;padding-top:20rpx;border-top:1rpx solid #e9dac4}

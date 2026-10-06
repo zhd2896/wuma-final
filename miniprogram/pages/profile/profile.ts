@@ -6,6 +6,9 @@ import type { SkillProfileDto } from '../../services/account-api';
 import { createApiClient, messageForApiError } from '../../services/api-client';
 import { createWxDeviceHistoryStore } from '../../services/device-history';
 import { openPage, backHome } from '../../utils/navigation';
+import { isSkillChartMode, SKILL_CHART_MODES } from '../../components/skill-chart/chart-model';
+import type { SkillChartMode } from '../../components/skill-chart/chart-model';
+const chartPreferenceKey = 'wuma:skill-chart-mode:v1';
 const emptyProfile = {
   name: '', avatar: '', avatarText: '', cloudGames: 0, localGames: 0, finishedGames: 0, training: 0, trainingAttempts: 0,
   wins: 0, losses: 0, reviewedGames: 0, remoteGames: 0, remoteWins: 0, remoteLosses: 0,
@@ -16,11 +19,20 @@ const emptyProfile = {
 Page({
   data: {
     state: 'loading', errorMessage: '', ...emptyProfile,
+    chartMode: 'radar' as SkillChartMode, chartModes: SKILL_CHART_MODES,
     editing: false, saving: false, saveError: '', draftNickname: '', draftAvatar: '', avatars: PROFILE_AVATARS,
   },
   requestGeneration: 0,
+  onLoad() {
+    let chartMode: SkillChartMode = 'radar';
+    try {
+      const saved = wx.getStorageSync(chartPreferenceKey);
+      if (isSkillChartMode(saved)) chartMode = saved;
+    } catch { /* Display preference never blocks personal data loading. */ }
+    this.setData({ chartMode });
+  },
   onShow() { void this.load(); },
-  onHide() { this.requestGeneration++; this.setData({ editing: false, saving: false }); },
+  onHide() { this.requestGeneration++; this.setData({ state: 'loading', editing: false, saving: false, ...emptyProfile }); },
   onUnload() { this.requestGeneration++; },
   context() {
     try { const root = getApiBaseUrl(); return `${root}:${getSavedWechatToken(root) ?? ''}`; }
@@ -61,6 +73,12 @@ Page({
       if (generation !== this.requestGeneration || context !== this.context()) return;
       this.setData({ state: 'error', errorMessage: messageForApiError(error) });
     }
+  },
+  changeChart(event: WechatMiniprogram.TouchEvent) {
+    const mode = event.currentTarget.dataset.mode;
+    if (this.data.state !== 'success' || !isSkillChartMode(mode) || mode === this.data.chartMode) return;
+    this.setData({ chartMode: mode });
+    try { wx.setStorageSync(chartPreferenceKey, mode); } catch { /* Keep the current selection for this visit. */ }
   },
   editProfile() {
     if (this.data.state !== 'success') return;

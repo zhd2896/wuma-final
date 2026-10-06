@@ -14,9 +14,11 @@
     <section-title title="个人统计" subtitle="根据真实对局与答题记录" /><view class="analysis-card card"><view class="profile-metric">已结束云端对局：{{finishedGames}}</view><view class="profile-metric">AI 胜场 / 负场：{{wins}} / {{losses}}</view><view class="profile-metric">联机对局：{{remoteGames}}</view><view class="profile-metric">联机胜场 / 负场：{{remoteWins}} / {{remoteLosses}}</view><view class="profile-metric">已复盘对局：{{reviewedGames}}</view><view class="profile-metric">训练答题次数：{{trainingAttempts}}</view><view class="profile-metric">训练正确率：{{accuracy}}</view></view>
     <section-title title="能力分析" subtitle="单项达标即可评分，综合需六项达标" />
     <view class="analysis-card card">
+      <view class="chart-mode-tabs"><button wx:for="{{chartModes}}" wx:key="id" class="chart-mode-button {{chartMode == item.id ? 'chart-mode-active' : ''}}" data-mode="{{item.id}}" bindtap="changeChart">{{item.label}}</button></view>
+      <skill-chart metrics="{{skillProfile.metrics}}" mode="{{chartMode}}" />
+      <view class="chart-evidence-title">评分依据与样本</view>
       <view wx:for="{{abilities}}" wx:key="key" class="skill-metric">
         <view class="ability-row"><text>{{item.label}}</text><text class="ability-value">{{item.valueText}}</text></view>
-        <view wx:if="{{item.hasValue}}" class="ability-track"><view style="width: {{item.progress}}%;" /></view>
         <view class="skill-samples">{{item.sampleText}}</view><view class="skill-description">{{item.description}}</view>
       </view>
       <view class="skill-disclaimer">{{skillProfile.disclaimer}}</view>
