@@ -1,0 +1,16 @@
+PASS login requires visible button click
+PASS real WeChat button login and personal API
+PASS anonymous game migration and old credential revocation
+PASS post-login target opens real AI game
+PASS profile and visible logout clears local session
+PASS real re-login retains account and migrated history
+PASS valid cached session skips duplicate WeChat login
+PASS expired local session redirects to login
+LOGIN_UI_CORE_PASS_WITH_GUIDE_FAILURE
+ISOLATION verified database=wechat_devtool_20261005_test; project=E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration
+PASS local move/undo/reload/resign id=local-1791211407869-eq2myizool4
+PASS settings switch/store/reload
+PASS real AI API undo/resign id=53d7827e7096429a9d4d90490c5b9b8b
+PASS SIMULATED online A/B request/reconnect/accept id=6a94868c01ce48428382c0e9e9e2b5b3; two-device acceptance NOT performed
+RESULT game-operations devtool=PASS (live MySQL and two-device acceptance remain separate gates)
+FAIL actual acceptance: guest AI entry remains unaccepted in a separate real UI run

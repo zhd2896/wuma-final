@@ -1,0 +1,10 @@
+.rules-page{background:#f5efe3;padding-bottom:calc(32rpx + env(safe-area-inset-bottom))}
+.rules-intro{padding:28rpx 28rpx 24rpx}
+.rules-heading{font-size:30rpx;font-weight:700;color:#17242b}
+.rules-tip{margin-top:10rpx;color:#7d7161;font-size:23rpx;line-height:1.6}
+.rules-diagram{display:block;width:100%;height:auto}
+.number-board image{display:block;width:100%;height:auto}
+.rules-image-error{margin:24rpx;padding:24rpx;border-radius:16rpx;background:#ffe8e2;color:#8a322a;font-size:25rpx}
+.rules-footer{padding:28rpx;text-align:center}
+.rules-footer text{display:block;color:#7d7161;font-size:23rpx;margin-bottom:20rpx}
+.number-guide{margin:0 24rpx 28rpx;padding:24rpx;border:1rpx solid #d8bd88;border-radius:18rpx;background:#fff9ed}.number-board{margin-top:24rpx}.number-key{margin-top:20rpx;font-size:23rpx;color:#594b3a;line-height:1.7}.number-key text{display:block}

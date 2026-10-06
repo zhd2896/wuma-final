@@ -1,0 +1,28 @@
+(node:18668) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online source restores a bound seat and analyzes actual room version without generic APIs (85.6895ms)
+✔ online account switch discards late analysis and unavailable rooms never analyze (605.4098ms)
+✔ local source analyzes the exact saved state without calling the server (47.5087ms)
+✔ local source falls back to active game and reports empty for no valid record (42.9768ms)
+✔ active local storage failure becomes a retryable page error (0.4241ms)
+✔ server source reads the authoritative version before requesting analysis (51.1164ms)
+✔ server conflict discards stale results and retry reloads the new version (47.0078ms)
+✔ duplicate loading and disposed late response cannot overwrite state (46.667ms)
+(node:6516) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ actual online game exposes playing and finished analysis route with room ID (103.2939ms)
+✔ actual analysis page uses bound room token version and keeps terminal empty analysis (143.7698ms)
+✔ actual online review reads explanation and empty training gives honest notice; own list route retains player (27.3536ms)
+✔ online review ignores explanation and training after hide, account switch or token rotation (60.5205ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1263.5038

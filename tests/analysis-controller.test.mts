@@ -34,6 +34,52 @@ function localEntry(id = 'local-1') {
     lastMove: null };
 }
 
+test('online source restores a bound seat and analyzes actual room version without generic APIs', async () => {
+  const entry = localEntry();
+  const analysis = analyzePosition(entry.localState, { maxDepth: 1, timeLimitMs: 1000, now: () => 0 });
+  const calls: unknown[] = [];
+  const controller = new IndependentAnalysisController({
+    api: { getGame: async () => { throw new Error('generic API forbidden'); },
+      analyzeGame: async () => { throw new Error('generic API forbidden'); } },
+    restoreOnline: async id => ({ token: 'own-token', room: {
+      game_id: id, seat: 'B', version: 7, room_status: 'PLAYING', state: entry.localState } }),
+    analyzeOnline: async (id, token, version) => { calls.push([id, token, version]);
+      return { ...analysis, game_id: id, game_version: version }; },
+    readIdentity: () => 'account-1',
+    readLocalGame: () => { throw new Error('online cannot read local'); }, readActiveLocalId: () => null,
+    onChange: () => {},
+  });
+  await controller.enter({ mode: 'online', gameId: 'room-1' });
+  assert.equal(controller.snapshot.state, 'success');
+  assert.equal(controller.snapshot.seat, 'B');
+  assert.deepEqual(calls, [['room-1', 'own-token', 7]]);
+});
+
+test('online account switch discards late analysis and unavailable rooms never analyze', async () => {
+  const entry = localEntry(); let identity = 'a'; const reply = deferred<any>();
+  const controller = new IndependentAnalysisController({
+    api: { getGame: async () => { throw new Error('generic'); }, analyzeGame: async () => { throw new Error('generic'); } },
+    restoreOnline: async id => ({ token: 'token', room: { game_id: id, seat: 'A', version: 0,
+      room_status: 'PLAYING', state: entry.localState } }), analyzeOnline: () => reply.promise,
+    readIdentity: () => identity, readLocalGame: () => null, readActiveLocalId: () => null, onChange: () => {},
+  });
+  const pending = controller.enter({ mode: 'online', gameId: 'room' });
+  await Promise.resolve(); identity = 'b';
+  reply.resolve({ ...analyzePosition(entry.localState), game_id: 'room', game_version: 0 }); await pending;
+  assert.notEqual(controller.snapshot.state, 'success');
+  for (const status of ['WAITING', 'CANCELLED', 'EXPIRED']) {
+    let calls = 0;
+    const waiting = new IndependentAnalysisController({
+      api: { getGame: async () => { throw new Error('generic'); }, analyzeGame: async () => { throw new Error('generic'); } },
+      restoreOnline: async id => ({ token: 'token', room: { game_id: id, seat: 'A', version: 0,
+        room_status: status, state: entry.localState } }), analyzeOnline: async () => { calls++; throw new Error('unavailable'); },
+      readLocalGame: () => null, readActiveLocalId: () => null, onChange: () => {},
+    });
+    await waiting.enter({ mode: 'online', gameId: 'room' });
+    assert.equal(waiting.snapshot.state, 'error'); assert.equal(calls, 0);
+  }
+});
+
 test('local source analyzes the exact saved state without calling the server', async () => {
   const entry = localEntry();
   let localCalls = 0;

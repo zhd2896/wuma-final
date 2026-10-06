@@ -1,0 +1,48 @@
+(node:14100) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy preferences keep all choices and gain STANDARD; all levels persist (2.6059ms)
+✔ native picker string index emits selected difficulty and ignores invalid indexes (8.5097ms)
+✖ actual page uses next default on new/restart, keeps saved current label, and restores difficulty (141.2412ms)
+✖ independent coach and replay context accept all saved AI levels (7.1135ms)
+✔ history displays real cloud/device levels and leaves unknown older metadata unlabeled (42.1762ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 3
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 444.275
+
+✖ failing tests:
+
+test at tests\ai-levels.test.mts:26:1
+✖ actual page uses next default on new/restart, keeps saved current label, and restores difficulty (141.2412ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  undefined !== '入门'
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/ai-levels.test.mts:41:100)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: '入门',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\ai-levels.test.mts:49:1
+✖ independent coach and replay context accept all saved AI levels (7.1135ms)
+  Error [ApiError]: INVALID_GAME_RESPONSE
+      at invalid (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/services/replay-contract.ts:10:35)
+      at requireReviewContext (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/services/replay-contract.ts:33:108)
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/ai-levels.test.mts:54:18)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    code: 'INVALID_GAME_RESPONSE',
+    statusCode: 502
+  }

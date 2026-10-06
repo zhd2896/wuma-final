@@ -18,10 +18,12 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('history page shows real local records and routes each status to a usable destination', async () => {
   const storage = new Map<string, unknown>();
+  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const destinations: string[] = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: (key: string) => storage.get(key) ?? '',
     setStorageSync: (key: string, value: unknown) => { storage.set(key, structuredClone(value)); },
     removeStorageSync: (key: string) => { storage.delete(key); },
@@ -46,8 +48,8 @@ test('history page shows real local records and routes each status to a usable d
   history.record({ id: 'local-finished', mode: 'local', state: finished, turns: 8 });
   page.onShow();
   assert.equal(page.data.state, 'success');
-  assert.equal(page.data.records.length, 2);
-  assert.equal(page.data.records.find((item: any) => item.id === 'server-ai'), undefined);
+  assert.equal(page.data.records.length, 3);
+  assert.equal(page.data.records.find((item: any) => item.id === 'server-ai').title, 'AI 对弈');
   page.openRecord({ currentTarget: { dataset: { id: 'local-1' } } });
   assert.deepEqual(destinations, [
     '/pages/game/game?mode=local&gameId=local-1',
@@ -55,10 +57,10 @@ test('history page shows real local records and routes each status to a usable d
   const finishedOnly = makePage();
   finishedOnly.onLoad({ filter: 'finished' });
   assert.deepEqual(finishedOnly.data.records.map((item: any) => item.id),
-    ['local-finished']);
+    ['local-finished', 'server-ai']);
   const reviewableOnly = makePage();
   reviewableOnly.onLoad({ filter: 'reviewable' });
-  assert.deepEqual(reviewableOnly.data.records.map((item: any) => item.id), []);
+  assert.deepEqual(reviewableOnly.data.records.map((item: any) => item.id), ['server-ai']);
   assert.equal(reviewableOnly.data.emptyTitle, '还没有可复盘的棋局');
   history.remove('server-ai');
   reviewableOnly.onShow();
@@ -72,22 +74,24 @@ test('history page shows real local records and routes each status to a usable d
 
   storage.set('activeAiGameId', 'legacy-ai');
   (globalThis as any).wx.getAccountInfoSync = () => ({ miniProgram: { envVersion: 'develop' } });
+  (globalThis as any).wx.login = (options: any) => options.success({ code: 'history-code' });
   const fetched: string[] = [];
   const token = 'a'.repeat(64);
   (globalThis as any).wx.request = (options: any) => {
     fetched.push(new URL(options.url).pathname);
     const path = new URL(options.url).pathname;
     options.success({ statusCode: 200, data: { code: 0, message: 'success',
-      data: path === '/api/v1/auth/device' ? { userId: 'u1', token } : {
+      data: path === '/api/v1/auth/wechat' ? { userId: 'u1', token, expiresAt: '2099-01-01T00:00:00Z' } : {
         items: [{ gameId: 'current-ai', mode: 'AI', status: 'FINISHED', winner: 'A',
           startedAt: '2026-09-28T08:00:00+00:00', finishedAt: '2026-09-28T09:00:00+00:00',
           turns: 0, winnerReason: 'RESIGN', reviewAvailable: true }], nextCursor: null,
       } } });
   };
+  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token, expiresAt: '2099-01-01T00:00:00Z' });
   const legacy = makePage();
   legacy.onLoad({});
   for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(fetched, ['/api/v1/auth/device', '/api/v1/me/games']);
+  assert.deepEqual(fetched, ['/api/v1/me/games']);
   assert.equal(legacy.data.records.find((item: any) => item.id === 'legacy-ai'), undefined);
   assert.equal(legacy.data.records.find((item: any) => item.id === 'current-ai')?.turns, 0);
   assert.match(legacy.data.records.find((item: any) => item.id === 'current-ai')?.result, /玩家 B 认输/);

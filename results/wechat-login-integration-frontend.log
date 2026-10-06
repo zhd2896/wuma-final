@@ -1,0 +1,679 @@
+
+> yizhi-wuma-ui@0.1.0 test
+> node --test tests/*.test.mts
+
+(node:24568) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AI undo replaces all derived state with authoritative server result (5.8905ms)
+✔ AI resign uses server terminal state and operation mutex blocks a second operation (1.3765ms)
+✔ AI uncertain undo refreshes and reuses request id on retry (1.3385ms)
+✔ AI version conflict refreshes authority and a retry uses refreshed version (2.5466ms)
+✔ AI uses authoritative ply_count instead of a high revision number (1.7761ms)
+✔ AI rejects a missing ply_count without replacing the current snapshot (1.5357ms)
+✔ AI rejects an invalid operation ply_count without replacing the board (0.9664ms)
+(node:22036) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing AI page displays server game, thinking, AI move and AI-first restart (257.861ms)
+✔ AI page restores terminal resignation using the human seat for both winners (165.9768ms)
+(node:6320) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ inaccessible stored game from an older device account is replaced (3.9957ms)
+✔ coach reveals levels progressively, never moves, and clears after human move (348.7676ms)
+✔ pending coach locks board and restart until its result arrives (1.3923ms)
+✔ manual analysis uses current state and clears after the next real turn (85.1059ms)
+✔ pending analysis blocks board actions and restart and ignores late result after unload (102.8833ms)
+✔ stale analysis response resynchronizes the game before another analysis (1.7083ms)
+✔ human first automatically completes two human and AI rounds from server turns (7.7705ms)
+✔ AI first starts automatically and prevents duplicate AI requests (18.2981ms)
+✔ AI identity is restored from server and AI turn resumes once after reopen (1.3014ms)
+✔ restoring an already completed AI turn does not submit another AI move (0.846ms)
+✔ AI network timeout GETs before retry and never invents a move (5.8242ms)
+✔ failed GET after lost Human response locks stale board until successful resync (2.6851ms)
+✔ human move response loss also GETs server before another move (1.3167ms)
+✔ disposed AI page ignores late search result (4.2717ms)
+✔ human CAPTURE_ALL terminal displays server winner and never starts AI (1.7199ms)
+✔ human TEMPLE_TRAP terminal displays server winner and never starts AI (0.9508ms)
+✔ human LONE_PIECE_IMMOBILIZED terminal displays server winner and never starts AI (0.9244ms)
+✔ AI terminal result updates capture, reserve and blocks further human input (0.8509ms)
+(node:3760) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ TT search computes a full Zobrist hash only for the root (3737.6758ms)
+✔ two different real legal move sequences reach the same searchable position (1.8793ms)
+✔ TT scores and every exact root candidate match all three baselines at depths 1–3 (1976.1166ms)
+✔ search-local TT gets a real hit from the commuting move sequences (1772.2348ms)
+ℹ {"fixture":"commuting A moves P01→P02 and P06→P07, B P05→P04","depth":3,"score":0,"bestMove":{"from":"P01","to":"P03"},"withoutNodes":526,"withoutCutoffs":141,"withoutTimeMs":921,"withNodes":526,"withCutoffs":141,"probes":525,"hits":119,"ttCutoffs":101,"stores":412,"size":399,"withTimeMs":850}
+✔ immediate win, defensive reply and faster mate keep their choices (237.2856ms)
+✔ depth four slow loss keeps exact candidate scores and input immutability (15495.6085ms)
+ℹ {"fixture":"P03 lone B, seven A blockers","depth":4,"minimaxScore":-999996,"plainScore":-999996,"orderedScore":-999996,"ttScore":-999996,"bestMove":{"from":"P03","to":"P02"},"withoutNodes":3100,"withoutCutoffs":86,"withoutTimeMs":3472,"withNodes":1615,"withCutoffs":86,"probes":1614,"ttHits":400,"ttCutoffs":400,"stores":1196,"size":1182,"withTimeMs":1864}
+✔ all three finished winner reasons retain signed mate scores (0.5544ms)
+✔ each search starts with an empty TT and different perspectives do not share scores (104.2816ms)
+✔ RULE_AMBIGUITY is still thrown and cannot become a cached score (0.779ms)
+(node:29984) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ depth zero evaluates the root without expanding moves (45.0174ms)
+✔ depths one and two preserve every exact candidate score for both root perspectives (741.7622ms)
+✔ depth three matches Minimax and really prunes without changing natural move order (656.0635ms)
+✔ immediate capture win remains preferred (20.7767ms)
+✔ depth two avoids the move that lets the opponent win next turn (36.7286ms)
+✔ fast wins outrank slower wins with the same mate scoring as Minimax (448.4758ms)
+✔ slow defeat matches Minimax and records real nodes, cutoffs and elapsed time (11265.6287ms)
+ℹ {"fixture":"P03 lone B, seven A blockers","depth":4,"minimaxNodes":8528,"alphaBetaNodes":3580,"cutoffs":86,"minimaxTimeMs":8277.39,"alphaBetaTimeMs":2987}
+✔ all three real winner reasons stop immediately at the same mate score (0.5078ms)
+✔ equal scores choose the first legal move on every run (172.7805ms)
+✔ both players can search without modifying the supplied GameState (75.0793ms)
+✔ nonterminal no-move ambiguity and invalid depth match Minimax (1.2736ms)
+✔ both searches report ambiguity when a real turn reaches a nonterminal no-move child (103.0134ms)
+(node:4120) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ local source analyzes the exact saved state without calling the server (170.7222ms)
+✔ local source falls back to active game and reports empty for no valid record (91.9411ms)
+✔ active local storage failure becomes a retryable page error (0.7463ms)
+✔ server source reads the authoritative version before requesting analysis (105.2508ms)
+✔ server conflict discards stale results and retry reloads the new version (86.6199ms)
+✔ duplicate loading and disposed late response cannot overwrite state (87.0867ms)
+(node:7108) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent page analyzes saved local state offline and authoritative server version (1292.9614ms)
+✔ analysis templates bind real fields and contain no demo labels (1.5261ms)
+(node:22540) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ maps a real position into board, score rows, occupied key pieces and candidates (184.666ms)
+✔ terminal analysis has no invented recommendation or candidates (0.6237ms)
+(node:29464) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ a current-player piece can move to an adjacent empty node on a BoardLine (3.9507ms)
+✔ a piece may cross several empty line nodes in either direction (0.7541ms)
+✔ V3 permits P29 to P03 through empty P27 (1.5407ms)
+✔ an empty or opponent-owned origin is illegal (0.3006ms)
+✔ an occupied destination cannot be overwritten by a basic move (0.276ms)
+✔ graph connectivity and turns do not make an off-line move legal (0.2766ms)
+✔ both friendly and enemy pieces block longer moves on the same line (0.269ms)
+✔ blocking P27 rejects P29 to P03 despite the empty P26 temple turn (0.3151ms)
+✔ blocking P27 rejects P29 to P03 despite the empty P28 temple turn (0.2951ms)
+✔ when two declared lines share endpoints, a clear one suffices (0.4706ms)
+✔ generated destinations include long moves but stop at blockers (0.7641ms)
+✔ generated moves are legal for the current player and do not change the turn (0.848ms)
+✔ applying a basic move copies board occupancy without changing reserves or turn (0.3963ms)
+✔ applying an illegal basic move rejects it without mutating the input (1.2785ms)
+(node:29456) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ position suite replays eight legal live states with evidence for required categories (158.4151ms)
+✔ fixed-depth harness excludes warm-ups and verifies real algorithm scores (565.0777ms)
+✔ targeted fixed-depth run measures only selected existing algorithms (178.7666ms)
+✔ search CLI records Phase 26 algorithm selection and baseline identity (1388.5563ms)
+✔ time-budget rows report completed depth separately from configured budget (67.0474ms)
+✔ warm-up ambiguity still produces measured error rows (1.7409ms)
+✔ seeded self-play is reproducible and swaps sides in pairs (265.4541ms)
+✔ max plies and rule ambiguity never become draws or losses (1.4614ms)
+✔ 100, 500, and 1000 requested games distribute as paired total games (0.7503ms)
+✔ raw CSV preserves columns and summaries recompute from decoded raw rows (548.8463ms)
+✔ metadata and artifacts are created with traceable deterministic config hash (602.9632ms)
+✔ self-play writer refuses to replace an existing run ID (167.2619ms)
+(node:29900) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ point reference covers the canonical 29 points with consistent orientation and temple boundary (4.7523ms)
+✔ guidance arrows end at the actual point without moving pieces or mutating the position (2.0483ms)
+(node:26476) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ CLAMP identifies attacker ends and enemy center for Player A (6.2442ms)
+✔ CLAMP also works when Player B is the attacker (0.429ms)
+✔ CARRY identifies attacker center and two enemy ends for Player A (0.4178ms)
+✔ the same A-B-A shape is CARRY for Player B (0.3191ms)
+✔ nonconsecutive triples are never CLAMP or CARRY (0.4969ms)
+✔ a tail at either end invalidates the entire H1 CLAMP line (0.4671ms)
+✔ an extra piece invalidates CARRY regardless of owner (0.476ms)
+✔ V3 CLAMP checks every other node through distant P23 (0.5372ms)
+✔ every declared line with three or more nodes is scanned (1.8129ms)
+✔ middle and final consecutive windows are scanned too (0.8254ms)
+✔ a move into the window creates a new CLAMP (0.9967ms)
+✔ a preexisting CLAMP is not triggered again by an unrelated move (0.5308ms)
+✔ moving a tail away creates a pattern without moving a segment piece (0.5129ms)
+✔ one move can create CLAMP on H3 and V3 in stable line order (0.713ms)
+✔ two different lines capturing the same node remain separate patterns (0.3752ms)
+✔ detection never changes either board, reserve or current player (0.6728ms)
+(node:19312) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ two on-board enemy pieces prohibit CARRY even when enemy reserve exists (5.4934ms)
+✔ one on-board enemy piece prohibits CLAMP (0.6398ms)
+✔ a legal CLAMP replaces one enemy node and uses one reserve (0.7348ms)
+✔ Player B can resolve CLAMP as the explicit attacker (0.5752ms)
+✔ a legal CARRY replaces both enemy nodes in one resolution (0.551ms)
+✔ insufficient reserve cancels all CARRY replacements (0.4095ms)
+✔ three unique captures with reserve two cancel entirely while preserving the normal move (0.9604ms)
+✔ two CLAMP patterns sharing P12 consume only one reserve (0.5041ms)
+✔ two CARRY patterns resolve all four unique enemy nodes together (0.5005ms)
+✔ CLAMP and CARRY can share a resolution with globally deduplicated nodes (0.5601ms)
+✔ a forbidden CARRY does not discard a simultaneous legal CLAMP (0.4981ms)
+✔ no new patterns leaves after-move state unchanged with no failure (0.2557ms)
+✔ replacement can form another pattern but resolution never recurses (0.4819ms)
+✔ resolver rejects a captured node that is not occupied by the opponent (1.225ms)
+✔ resolution does not mutate the input state or CapturePattern descriptions (0.5383ms)
+(node:29332) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ loads the active authoritative AI game and explicit id takes priority (3.565ms)
+✔ reports empty, rejects non-AI games, and marks finished or AI-turn games unavailable (0.9897ms)
+✔ rejects a mismatched game id, invalid players, or non-integer authoritative version (0.5477ms)
+✔ requests three real levels in order for the authoritative version without duplicates (3.7092ms)
+✔ rejects mismatched hint identity without unlocking the next level (0.9895ms)
+✔ conflict reloads the authoritative game, clears hints, and requires level one again (0.8657ms)
+✔ duplicate loading and disposal prevent late hints from publishing (0.5307ms)
+✔ visibility refresh cancels an in-flight hint and loads the newest version (0.4907ms)
+(node:25832) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ independent coach loads the active AI game and reveals three real hint levels (145.6194ms)
+✔ coach page and card bind real state without demo explanation or fixed move (3.8198ms)
+(node:7156) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ records actual games once, keeps creation time, and sorts recent moves first (7.5713ms)
+✔ restores the real local position after a new store instance opens it (3.0754ms)
+✔ restores a local game finished by resignation (0.5423ms)
+✔ rejects a damaged history index instead of displaying invented empty history (0.8132ms)
+✔ stores the terminal result of an actual legal game without inventing a winner (6.0748ms)
+✔ local undo frames survive storage with defensive copies and old records default to no frame (1.4201ms)
+✔ damaged local undo frames are rejected instead of poisoning a resumed game (0.759ms)
+✔ undo frames must describe a playable pre-move position (0.4702ms)
+(node:3868) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legal nodes are exactly P01 through P29 (3.4607ms)
+✔ declared BoardLines exactly match the authoritative IDs and node order (0.482ms)
+✔ the declared BoardLine count matches the required total (0.3923ms)
+✔ BoardGraph has exactly the direct adjacency pairs generated by consecutive line nodes (1.3639ms)
+✔ V3 contains P29-P27-P03 and supports the line path from P29 to P03 (0.6084ms)
+✔ separate temple edge lines cannot be merged into one straight BoardLine (0.2825ms)
+✔ temple line connections remain direct graph edges (0.222ms)
+(node:408) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initial position has explicit perspective and opposite scores (16.5843ms)
+✔ the same board scores identically when only current_player changes (11.2153ms)
+✔ material counts only active board pieces and reserve stays separate (3.2477ms)
+✔ mobility is the real legal-move count difference for either player (5.2047ms)
+✔ a real CLAMP creates a capture opportunity, without evaluating a best move (1.8226ms)
+✔ opponent capture routes create negative vulnerability contribution (2.5627ms)
+✔ opportunity counts distinct capturable nodes while vulnerability counts legal capture actions (7.7205ms)
+✔ capture rules and reserves govern whether an opportunity is counted (1.7317ms)
+✔ temple control excludes P03 while lone-piece mobility risk includes it (8.5134ms)
+✔ a lone temple piece with fewer legal moves has higher nonterminal trap risk (3.1709ms)
+✔ a lone P03 piece with fewer exits has higher mobility risk (6.0252ms)
+✔ CAPTURE_ALL terminal scores work for A and B and bypass ordinary features (0.9486ms)
+✔ TEMPLE_TRAP terminal scores override ordinary temple risk for either winner (1.761ms)
+✔ P03 and ordinary-node immobilization use terminal mate scores, not mobility risk (2.048ms)
+✔ every nonterminal breakdown sums to the score and perspectives are strictly opposite (13.2747ms)
+✔ custom config can isolate material and changes the terminal constant (1.1473ms)
+✔ evaluation is deterministic and leaves board, reserves, turn and winner untouched (17.5747ms)
+(node:22764) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/services/api-client.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ client unwraps success envelope and game API sends exact create/move paths and bodies (3.9983ms)
+✔ review API reads and generates one completed game review (0.7235ms)
+✔ API errors keep public codes and show safe messages (1.3184ms)
+✔ game operation errors have actionable Chinese messages (0.3046ms)
+✔ transport failure and unknown server errors never expose internals (4.4921ms)
+(node:29592) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ RuleEngine provides one facade over the existing rules (7.1341ms)
+✔ capture helpers on the facade delegate to the existing pattern and resolution rules (2.2308ms)
+✔ all generated moves match validation and all valid destinations are generated (2.3781ms)
+✔ RuleEngine queries either player without changing the real turn or finished status (2.4462ms)
+✔ the full turn entry accepts long horizontal, vertical, diagonal, and temple lines (3.343ms)
+✔ a normal turn returns complete snapshots, no captures, and the next player (0.7573ms)
+✔ independent turn simulations do not mutate their shared input (0.6233ms)
+✔ a complete CLAMP turn replaces one enemy piece and spends one reserve (0.5872ms)
+✔ a complete CARRY turn replaces both ends and spends two reserves (1.2434ms)
+✔ moving a tail away creates a new CLAMP without moving a segment piece (1.2708ms)
+✔ one move resolves every new pattern, deduplicates nodes, and spends reserve once (0.8471ms)
+✔ two new CLAMP patterns sharing one enemy spend only one reserve (0.5098ms)
+✔ one move can resolve two CARRY patterns in different directions (0.4535ms)
+✔ a capture replacement that creates another pattern does not capture recursively (0.4981ms)
+✔ an already existing capture pattern is not resolved by an unrelated move (0.4676ms)
+✔ insufficient reserve cancels every capture but keeps the normal move (0.3651ms)
+✔ multi-pattern insufficient reserve is atomic for the entire capture stage (0.4424ms)
+✔ two enemy pieces cannot be carried in a full turn (1.6003ms)
+✔ one enemy piece cannot be clamped in a full turn (0.5978ms)
+✔ capture all wins before switching players and agrees with TurnResult (1.2878ms)
+✔ temple trap is checked only after switching to the trapped player (0.3842ms)
+✔ a lone temple piece with a legal move keeps the game active (0.3647ms)
+✔ a blocked lone piece on P03 loses only after the turn switches to it (0.3315ms)
+✔ an immobilized lone piece on an ordinary node also loses after the turn (0.3215ms)
+✔ blocking a lone piece last exit with the current move ends the game after switching (0.3667ms)
+✔ capture that leaves one blocked survivor checks immobilization after capture (0.3005ms)
+✔ two immobilized pieces do not lose after the turn switches to them (0.3315ms)
+✔ invalid and finished turns reject moves without mutating the input state (1.0727ms)
+(node:20536) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ AI malformed operation refreshes authority and retries original request (7.8478ms)
+✔ AI malformed operation and GET preserve old authority while same request can retry (3.1656ms)
+✔ AI GET refresh alone preserves unresolved request and blocks AI resumption (1.5387ms)
+✔ AI terminal resignation response recovery retries original ID through retry entry (1.5471ms)
+✔ AI unresolved refresh cannot replace the original game (1.3546ms)
+✔ AI definite retry rejection GAME_STATE_CONFLICT refreshes before unlocking (1.8755ms)
+✔ AI definite retry rejection OPERATION_REQUEST_CONFLICT refreshes before unlocking (1.0858ms)
+✔ AI definite retry rejection GAME_ALREADY_FINISHED refreshes before unlocking (0.7902ms)
+✔ compatible LOCAL malformed operation refreshes authority and retries original request (1.7174ms)
+✔ compatible LOCAL malformed operation and GET preserve old authority while same request can retry (1.9987ms)
+✔ compatible LOCAL GET refresh alone preserves unresolved request and blocks AI resumption (0.5863ms)
+✔ compatible LOCAL terminal resignation response recovery retries original ID through retry entry (0.5838ms)
+✔ compatible LOCAL unresolved refresh cannot replace the original game (0.5547ms)
+✔ compatible LOCAL definite retry rejection GAME_STATE_CONFLICT refreshes before unlocking (0.6123ms)
+✔ compatible LOCAL definite retry rejection OPERATION_REQUEST_CONFLICT refreshes before unlocking (0.6515ms)
+✔ compatible LOCAL definite retry rejection GAME_ALREADY_FINISHED refreshes before unlocking (0.6185ms)
+✔ main default connector invokes the real automator with its instance receiver (10.8001ms)
+✔ operation fixtures reject anonymous, expired and malformed login sessions before connection (0.6917ms)
+✔ legal-target setting is selected independently of other switches and their order (3.5857ms)
+✔ operation fixtures verify WeChat ownership before connecting or writing (4.5168ms)
+✔ operation script seeds the verified WeChat session and restores it after a failed page load (22.0532ms)
+(node:20344) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/pages/game/game.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ local page persists moves, confirms undo and resignation separately, and honors settings (207.8993ms)
+✔ game page exposes real operation controls, shared settings, and separate dialogs (2.171ms)
+(node:14580) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/services/game-settings.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ game settings use safe defaults and persist versioned changes (2.7874ms)
+✔ adding node labels preserves legacy settings and persists the new preference (0.5104ms)
+✔ damaged, partial, and wrongly typed stored settings are replaced with defaults (0.6024ms)
+✔ store reads and writes defensive copies (0.3099ms)
+✔ wx store uses the versioned storage key (0.3687ms)
+✔ successful-action vibration respects settings and never breaks the operation (1.8063ms)
+✔ game settings component emits a complete settings object for every control (7.8023ms)
+✔ component template contains four switches, one AI radio group, and no controller access (2.4157ms)
+(node:29704) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ maps canonical initial state to existing ChessBoard geometry and status without mutation (4.533ms)
+✔ maps captured replacement pieces and server reserve/current player directly (0.8139ms)
+✔ marks captured and replacement nodes from server capture result (0.4562ms)
+✔ maps CAPTURE_ALL winner text without inferring board rules (0.3423ms)
+✔ maps TEMPLE_TRAP winner text without inferring board rules (0.2825ms)
+✔ maps LONE_PIECE_IMMOBILIZED winner text without inferring board rules (0.2441ms)
+✔ maps RESIGN winner text without inferring board rules (0.2276ms)
+✔ resignation to winner A is rendered from either viewer or a shared board (0.3487ms)
+✔ resignation to winner B is rendered from either viewer or a shared board (0.3642ms)
+(node:29980) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initial board has exactly the five A and five B positions (4.2417ms)
+✔ all other legal nodes, including P26-P29, are empty initially (0.4238ms)
+✔ BoardState occupancy contains exactly P01-P29 and no other keys (0.2764ms)
+✔ piece counts are derived from BoardState rather than stored separately (0.4485ms)
+✔ each player has one authoritative reserve_count initialized to four (0.517ms)
+✔ firstPlayer configures both first_player and current_player (0.2352ms)
+(node:15400) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ game page records and resumes real local games and indexes server games (217.2367ms)
+✔ shared local resignation and restored terminal name the actual resigning player (39.9708ms)
+(node:28684) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ history page shows real local records and routes each status to a usable destination (110.2092ms)
+(node:25764) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ completed depths 1–3 match fixed ordered Alpha-Beta with TT for both perspectives (6163.8663ms)
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","depth":1,"fixedScore":34,"iterativeScore":34,"fixedBestMove":{"from":"P06","to":"P09"},"iterativeBestMove":{"from":"P06","to":"P09"},"match":true}
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","depth":2,"fixedScore":4,"iterativeScore":4,"fixedBestMove":{"from":"P01","to":"P13"},"iterativeBestMove":{"from":"P01","to":"P13"},"match":true}
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","depth":3,"fixedScore":14,"iterativeScore":14,"fixedBestMove":{"from":"P06","to":"P09"},"iterativeBestMove":{"from":"P06","to":"P09"},"match":true}
+✔ clock timeout keeps the last complete result and counts partial work (252.3085ms)
+✔ zero budget and root timeout return a legal depth-zero fallback (2.5443ms)
+✔ timeout during depth one retains no partial candidate score (6.7196ms)
+✔ TT is reused across depths and its counters cover the whole call (2167.7929ms)
+✔ cutoffs count every completed iteration (11898.2556ms)
+✔ one TT instance spans iterations but a new search gets another table (236.9922ms)
+✔ deadline crossed during the final leaf evaluation does not complete that depth (1.9821ms)
+✔ timeout inside a child never stores an incomplete TT entry (1.131ms)
+✔ finished winner reasons preserve signed scores and never iterate (0.9461ms)
+✔ RULE_AMBIGUITY propagates through the iterative loop (0.5827ms)
+✔ a deeper RULE_AMBIGUITY is not mistaken for timeout after depth one completes (98.3767ms)
+✔ immediate win, defensive reply, faster win and slower loss match fixed search (4322.1275ms)
+✔ invalid depth and budget are rejected (1.1061ms)
+✔ real-clock medium-position benchmark records full and short budgets (5076.8103ms)
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","maxDepth":4,"timeLimitMs":10000,"completedDepth":4,"nodes":6640,"ttHits":1840,"thinkingTimeMs":4974.74,"timedOut":false,"bestMove":{"from":"P01","to":"P13"},"score":0}
+ℹ {"fixture":"P01/P06 A versus P05/P10 B","maxDepth":4,"timeLimitMs":100,"completedDepth":2,"nodes":191,"ttHits":0,"thinkingTimeMs":100.23,"timedOut":true,"bestMove":{"from":"P01","to":"P13"},"score":4}
+(node:25872) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ visual nodes use canonical IDs while preserving the existing physical layout (3.4663ms)
+✔ local initialization and board pieces derive from the real GameState (4.3935ms)
+✔ only the current player can select and legal targets come from RuleEngine (2.9257ms)
+✔ selecting another friendly piece switches selection and illegal empty nodes do not move (2.7455ms)
+✔ a legal target executes one real turn and B can take the next turn (2.3569ms)
+✔ CLAMP and CARRY update every displayed piece and reserve from TurnResult.state (1.8665ms)
+✔ multi-capture and insufficient reserve render the engine result atomically (6.6242ms)
+✔ CAPTURE_ALL and TEMPLE_TRAP stop further taps with winners from GameState (1.2897ms)
+✔ local play stops on a P03 lone-piece loss and the page names its winner reason (2.4007ms)
+✔ stale legal highlighting cannot bypass executeTurn validation (0.9851ms)
+✔ restart recreates the standard game and clears selection and last move (0.9251ms)
+✔ local undo restores exactly the previous state and clears its single frame (1.0427ms)
+✔ local undo refuses terminal sessions even when the winning move left an undo frame (1.0648ms)
+✔ only the latest local move is undoable and play can continue with a fresh frame (3.592ms)
+✔ local resignation awards the win to the opponent and clears interaction state (0.4723ms)
+✔ legal target rendering can be hidden without changing the legal session (0.5564ms)
+(node:10356) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/pages/login/login.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ login waits for button and coalesces repeat taps, then restores a deep link (59.6791ms)
+✔ valid session skips login; unsafe next routes fall back to home (0.691ms)
+✔ failed WeChat login stays on page with a retryable error (1.6658ms)
+✔ business API with no session redirects without automatically logging in (2.4262ms)
+✔ logout clears only login state and preserves local records (1.1696ms)
+✔ app protects cold-start deep links and resumes expired sessions even if launch path was login (7.4385ms)
+✔ guest can open rules and the safe return route recognizes only the registered guide (0.9333ms)
+✔ profile logout returns to login while preserving local history (41.7207ms)
+✔ concurrent login redirects preserve the first return target while navigation is pending (1.4225ms)
+(node:4148) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ depth zero evaluates the unchanged root from the requested perspective (22.0792ms)
+✔ depth one scores every real child and chooses the maximum for player A (36.9443ms)
+✔ depth one treats the opponent-to-root turn as a minimizing node (26.1885ms)
+✔ depth two takes the minimum of every opponent reply and counts all nodes (321.9548ms)
+✔ A and B both choose legal moves from their own turns without changing input (117.5186ms)
+✔ equal scores select the first legal move deterministically (314.7045ms)
+✔ finished states use the existing mate score for all three winner reasons (1.7642ms)
+✔ an immediate real win outranks nonwinning moves at depth one (16.9887ms)
+✔ depth two avoids a tempting move that allows the opponent to win immediately (34.2466ms)
+✔ forced wins in one ply outrank forced wins in three plies (344.2868ms)
+✔ when every move loses, Minimax chooses the defeat four plies away (7815.9295ms)
+✔ nonterminal states with no legal moves report rule ambiguity without inventing a loss (1.2248ms)
+✔ invalid search depths are rejected (0.3093ms)
+(node:19512) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ ordering preserves every real legal move and puts a GameEngine win first (22.618ms)
+✔ both lone-piece winner reasons are immediate wins for ordering (129.8264ms)
+✔ real capture outranks a normal move, while insufficient reserve is not capture (17.5554ms)
+✔ player B capture is ordered as the moving player’s good action (8.8326ms)
+✔ more unique captured nodes rank first within the capture category (2.8123ms)
+✔ a noncapturing move with a real later capture opportunity outranks normal (9.8212ms)
+✔ P03 is an ordering entrance but remains outside TEMPLE_NODES (31.9164ms)
+✔ category priorities follow win, capture, threat, entrance, normal (60.7538ms)
+✔ same category and capture count keep the original stable move order (177.7923ms)
+✔ ordered search preserves exact scores at depths one through three for A and B (2057.4993ms)
+✔ ordered search keeps immediate win, defensive reply and fast mate decisions (315.6631ms)
+✔ depth four slow defeat keeps its mate score and shows actual ordering effect (14345.5775ms)
+ℹ {"fixture":"P03 lone B, seven A blockers","depth":4,"score":-999996,"bestMove":{"from":"P03","to":"P02"},"plainNodes":3580,"plainCutoffs":86,"plainTimeMs":3095,"orderedNodes":3100,"orderedCutoffs":86,"orderedTimeMs":3598}
+✔ ordered search retains terminal and ambiguity behavior (0.672ms)
+✔ ordered search reports a real no-move child when it is visited (41.1967ms)
+(node:28388) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ two devices hold separate seats, synchronize turns, and restore their own credentials (117.8741ms)
+✔ seat token is sent as a request header and lost response retries the same move (38.4998ms)
+✔ a slow room refresh never rewinds a confirmed local turn (3.7193ms)
+✔ idempotent retry response does not rewind a newer opponent position (4.9075ms)
+✔ a cancelled waiting room stays closed when an older poll returns late (2.1053ms)
+(node:26164) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ online history restores active rooms and opens real review for finished games (110.9147ms)
+(node:12352) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ same-version polls publish undo permissions and clear selection while pending (87.3029ms)
+✔ operation APIs use encoded paths, seat headers and original request bodies (2.3312ms)
+✔ request undo freezes play, uses server two-ply authority, and rejects duplicate requests (4.5438ms)
+✔ only the responder may acceptUndo a 1-ply undo (2.091ms)
+✔ only the responder may declineUndo a 1-ply undo (0.9638ms)
+✔ only the responder may acceptUndo a 2-ply undo (0.5404ms)
+✔ only the responder may declineUndo a 2-ply undo (0.478ms)
+✔ uncertain operation keeps its id, version and target through refresh and forbids other actions (2.1462ms)
+✔ invalid operation ply_count undefined resyncs and preserves retry context (0.8878ms)
+✔ invalid operation ply_count -1 resyncs and preserves retry context (2.8517ms)
+✔ invalid operation ply_count 0.5 resyncs and preserves retry context (0.7687ms)
+✔ invalid operation ply_count 2 resyncs and preserves retry context (0.5301ms)
+✔ a malformed operation response cannot clear the request or issue another action (1.3526ms)
+✔ explicit business conflict refreshes and releases the original operation (0.702ms)
+✔ A can resign while an undo is pending and terminal retry preserves the same request (1.9944ms)
+✔ B can resign while an undo is pending and terminal retry preserves the same request (0.6344ms)
+✔ restore reads legacy seat keys and restores an outstanding server undo (0.6171ms)
+✔ credential helpers validate types and retain the existing key format (1.5413ms)
+✔ invalid room ply_count is rejected on entry and same-version refresh without a version fallback (0.6542ms)
+✔ a pre-operation same-version poll cannot restore an undo after decline (0.5043ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.473ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.2816ms)
+✔ partial or contradictory game state cannot complete an uncertain operation (0.2179ms)
+✔ an unchanged playing room is not a valid resignation response (0.3477ms)
+✔ malformed capture data keeps the original move retry and refreshes safely (1.0725ms)
+✔ acceptUndo REMOTE_UNDO_UNAVAILABLE releases the stale target after fresh GET and permits valid actions (1.0198ms)
+✔ declineUndo REMOTE_UNDO_UNAVAILABLE releases the stale target after fresh GET and permits valid actions (0.5116ms)
+✔ acceptUndo REMOTE_UNDO_NOT_FOUND releases the stale target after fresh GET and permits valid actions (0.4668ms)
+✔ declineUndo REMOTE_UNDO_NOT_FOUND releases the stale target after fresh GET and permits valid actions (0.5486ms)
+✔ undo NETWORK_ERROR keeps the original context even when GET shows no pending request (0.6306ms)
+✔ undo INVALID_GAME_RESPONSE keeps the original context even when GET shows no pending request (0.3778ms)
+✔ undo UNKNOWN_OPERATION_ERROR keeps the original context even when GET shows no pending request (2.2479ms)
+(node:16704) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ invite opens a real guest room page and history reopens the saved seat (142.1538ms)
+✔ online page confirms real operations, uses ply count and settings, and never vibrates on polling (74.7704ms)
+✔ online markup binds implemented operations and shared confirmation/settings components (3.3994ms)
+✔ online page restores terminal resignation using its seat for either winner (124.2583ms)
+(node:13120) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ batched turns match canonical individual turns for every suite legal move (116.2644ms)
+✔ ordering and evaluation use one batched turn pass per analyzed position (65.4062ms)
+(node:2844) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ incremental hash matches full hash for normal, long, capture and terminal turns (17.2608ms)
+✔ incremental hash equals full recomputation for every legal move in the original suite (101.6142ms)
+✔ incremental hash remains exact across seeded multi-turn canonical games (40.415ms)
+(node:21416) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ analysis reuses static evaluation and exact completed search for both perspectives (1103.4306ms)
+✔ candidate limit truncates return only, preserving best move and score (322.6234ms)
+✔ default analysis options use a bounded preset (151.7223ms)
+✔ zero time budget is a normal timed-out analysis with no invented candidate score (6.1112ms)
+✔ finished positions have terminal evaluation and never offer a move (1.0478ms)
+✔ immediate win threat carries the real winner reason and move (26.1577ms)
+✔ vulnerability and lone-piece risk use Evaluation evidence (47.3414ms)
+✔ structured threats come from real one-ply engine and evaluation evidence (37.5625ms)
+✔ nonterminal position with no legal moves preserves RULE_AMBIGUITY (1.5166ms)
+(node:4480) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ profile uses saved device identity and real account totals (98.4499ms)
+(node:30072) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ RandomAI returns a move from the real RuleEngine legal moves for player A (5.0369ms)
+✔ RandomAI can choose a legal move for player B (1.36ms)
+✔ repeated choices remain among real legal moves (14.5705ms)
+✔ choosing does not mutate GameState, BoardState, or either reserve (0.8466ms)
+✔ choosing does not execute a turn; the GameEngine executes the returned move (3.3597ms)
+✔ finished games produce no move and do not consume randomness (1.0906ms)
+✔ a playing state with no legal moves returns null (0.4025ms)
+✔ invalid random values cannot produce a nonlegal move (1.166ms)
+(node:29692) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ existing game page renders remote server state, saves ID, restores and keeps local mode (248.0231ms)
+(node:24196) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ creates remote game, asks server for legal targets, then renders only accepted TurnResult (5.5924ms)
+✔ move pending blocks double submission and does not change board before server reply (1.2586ms)
+✔ switching selected pieces discards an older legal-move response (0.9912ms)
+✔ server capture result drives replacement pieces, reserve and terminal display (2.4031ms)
+✔ duplicate game creation is blocked while the first request is pending (2.8388ms)
+✔ new controller restores from stored ID and continues from server state (2.0699ms)
+✔ missing stored game clears ID and creates a fresh game (2.1858ms)
+✔ inaccessible stored game from an older device account is replaced (0.6247ms)
+✔ conflict reloads authoritative state and clears stale selection (1.3031ms)
+✔ failed conflict reload locks stale board until a successful retry (1.0082ms)
+✔ engine outage leaves server board unchanged and never falls back to local rules (0.763ms)
+✔ invalid move clears stale highlights without changing the board (0.5206ms)
+✔ invalid move reloads a newer server state when another client already moved (0.441ms)
+✔ terminal server result blocks further taps and restart creates a new game ID (0.5665ms)
+✔ disposed page ignores late request response (0.3811ms)
+✔ compatible LOCAL remote controller applies authoritative one-ply undo and resignation (1.1292ms)
+✔ compatible controller never treats revision as ply count (0.6383ms)
+✔ compatible controller rejects missing and invalid operation ply counts (0.8853ms)
+(node:29588) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review scores actual move outside top three with the same full-depth search (974.9613ms)
+✔ different moves with equal best score are GOOD and best equivalent (113.9982ms)
+✔ review rejects a history snapshot that disagrees with the actual move (1.6029ms)
+✔ review accepts equivalent database JSON with reordered object keys (180.6281ms)
+✔ immediate mate is GOOD and missing it has a finite mate-range loss (935.3443ms)
+✔ all non-best categories follow centralized heuristic thresholds (456.5263ms)
+✔ best move in a forced slow loss is GOOD despite the final losing score (4830.6985ms)
+(node:12504) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review page reads or creates review, explains it, and keeps structured fields (185.426ms)
+✔ online review verifies its saved seat and only requests room review, including zero move resignation (55.2223ms)
+✔ online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback (62.4487ms)
+(node:29296) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ Node worker returns exact historical move review without changing snapshots (1008.2878ms)
+(node:16856) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/guide/pages/rules/rules.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ guest returning from a cold-start rules page reaches login rather than home (54.0439ms)
+✔ rules retains ordinary back navigation and signed-in home fallback (1.365ms)
+✔ rules starts AI directly only with a session, otherwise preserves the target through login (0.5252ms)
+✔ source checker accepts native radio controls and still rejects unknown tags (764.8188ms)
+✔ source checker validates subpackage routes, events and image assets (826.4733ms)
+(node:12956) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training question hides answer until server scores a legal board move (3.7696ms)
+✔ failed submission retries with the same attempt ID and leaves source snapshot unchanged (1.0519ms)
+✔ failed legal-target request can be retried from the question (0.7694ms)
+✔ more than twenty questions remain reachable from list and next action (0.9257ms)
+(node:9172) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/ai/transposition-table.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ EXACT entry is used only at the same remaining depth (2.9503ms)
+✔ same hash with a different state signature is a collision miss (0.5134ms)
+✔ LOWER_BOUND tightens alpha and records only real TT cutoffs (0.4069ms)
+✔ UPPER_BOUND tightens beta without changing alpha (0.343ms)
+✔ fail-soft flags use the original window (0.3997ms)
+✔ replacement keeps deeper entries and prefers EXACT at equal depth (0.4261ms)
+✔ mate normalization restores the correct positive and negative distance (0.2835ms)
+✔ ordinary scores, even near mate magnitude, are never ply-adjusted (0.4942ms)
+(node:3248) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/services/device-auth.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ WeChat login merges concurrent requests and sends the old anonymous credential once (7.3141ms)
+✔ expired sessions login again; failure preserves the anonymous migration credential (2.1476ms)
+✔ late invalidation cannot delete a newer concurrent session (0.4617ms)
+✔ expired server login returns to login page without replaying a business mutation (1.623ms)
+✔ 403 ownership failures do not login or replay a business mutation (0.7792ms)
+✔ late 401 from an old session does not navigate away from a newer valid session (9.0219ms)
+✔ failed storage and malformed server sessions preserve migration data for retry (0.9037ms)
+✔ DevTools fixtures authenticate using the simulator WeChat code and share its expiring session (3.5595ms)
+(node:30152) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ initial GameState has one consistent unfinished status (2.2955ms)
+✔ only P26-P29 are temple nodes and P03 is outside (2.0938ms)
+✔ CAPTURE_ALL uses board occupancy and ignores opponent reserve (0.7697ms)
+✔ successful capture of all enemy pieces finishes before switching player (1.8541ms)
+✔ capture that leaves an enemy on board does not declare CAPTURE_ALL (0.9831ms)
+✔ insufficient reserve cannot create a false CAPTURE_ALL (0.4588ms)
+✔ one B piece trapped at P27 is detected with real legal moves (0.8282ms)
+✔ a lone temple piece with an available move is not trapped (0.7389ms)
+✔ a mobile lone piece outside the temple keeps playing (0.3655ms)
+✔ P03 is outside the temple but its immobilized lone piece still loses (0.7852ms)
+✔ a blocked lone piece on an ordinary node loses for the non-temple reason (0.6727ms)
+✔ a blocked P27 does not count as trap when B has another board piece (0.2713ms)
+✔ a blocked lone B cannot be declared lost during A turn (0.3805ms)
+✔ two immobilized pieces do not trigger the lone-piece rule (0.344ms)
+✔ executeTurn checks temple trap after switching to the trapped player (0.6717ms)
+✔ a normal non-winning turn switches player and remains playable (0.5839ms)
+✔ finished game rejects another executeTurn without changing the result (2.7432ms)
+✔ last-piece CLAMP and last-two CARRY filters remain active in full turns (0.6186ms)
+(node:8108) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/.worktrees/wechat-login-integration/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\.worktrees\wechat-login-integration\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ fixed-seed hash is repeatable across clones and JSON round trips (4.6666ms)
+✔ all 29 node occupancies and both player identities affect the hash (1.3933ms)
+✔ turn, each reserve, game status, winner and reason independently affect identity (0.6467ms)
+✔ first_player does not split positions with identical future rules and evaluation (0.2765ms)
+ℹ tests 450
+ℹ suites 0
+ℹ pass 450
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 32544.371

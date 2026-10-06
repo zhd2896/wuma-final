@@ -1,0 +1,27 @@
+<view class="page rules-page">
+  <view class="topbar">
+    <text class="topbar-back" bindtap="back">‹</text>
+    玩法讲解
+    <text class="topbar-tag">五马棋图解</text>
+  </view>
+  <view class="rules-intro">
+    <view class="rules-heading">先学玩法，再入棋局</view>
+    <view class="rules-tip">向下滑动阅读，点击图示可放大查看</view>
+    <button class="gold-btn" bindtap="openTutorial">亲手试一试：走棋、夹吃、挑吃</button>
+  </view>
+  <view class="number-guide">
+    <view class="rules-heading">棋盘点位对照 · P01—P29</view>
+    <view class="rules-tip">主盘从上到下、每行从左到右编号。编号与复盘、AI 教练一致。</view>
+    <view class="number-board"><image id="node-diagram" src="../../assets/wuma-node-reference.png" mode="widthFix" bindtap="previewNodes" show-menu-by-longpress="{{true}}" /></view>
+    <view class="rules-tip">点击编号图可放大查看。</view>
+    <view class="number-key"><text>P13：中央</text><text>P03：庙宇入口，属于主盘</text><text>庙内四点：P26 左翼 · P27 中间 · P28 右翼 · P29 宝顶</text></view>
+  </view>
+  <image id="rules-diagram" class="rules-diagram" src="../../assets/wuma-rules.png"
+    mode="widthFix" show-menu-by-longpress="{{true}}"
+    bindtap="preview" bindload="imageLoaded" binderror="imageError" />
+  <view wx:if="{{imageFailed}}" class="rules-image-error">图示暂时无法显示，请返回后重新进入</view>
+  <view class="rules-footer">
+    <text>走棋不越子 · 夹吃一枚 · 挑吃两枚</text>
+    <button id="rules-start-game" class="gold-btn" bindtap="startGame">开始 AI 对弈</button>
+  </view>
+</view>

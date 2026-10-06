@@ -34,8 +34,8 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
-    getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
-      ? 'a'.repeat(64) : stored,
+    getStorageSync: (key: string) => key.startsWith('wuma:wechat-session:')
+      ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : stored,
     setStorageSync: (_key: string, value: string) => { stored = value; },
     removeStorageSync: () => { stored = null; },
     showToast: () => {},
@@ -153,7 +153,7 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   assert.equal(page.data.aiState.analysis, null);
   page.onUnload();
   const wxml = readFileSync(new URL('../miniprogram/pages/game/game.wxml', import.meta.url), 'utf8');
-  assert.match(wxml, /<chess-board board="{{board}}" bind:node="onNode"/);
+  assert.match(wxml, /<chess-board\b[^>]*board="{{board}}"[^>]*bind:node="onNode"/);
   assert.match(wxml, /<ai-thinking \/>/);
   assert.match(wxml, /正在分析局面/);
   assert.match(wxml, /aiAnalysisView\.candidates/);
@@ -172,8 +172,7 @@ test('AI page restores terminal resignation using the human seat for both winner
     (globalThis as any).Page = (value: any) => { definition = value; };
     (globalThis as any).wx = {
       getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
-      getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
-        ? 'a'.repeat(64) : storage.get(key) ?? '',
+      getStorageSync: (key: string) => key.startsWith('wuma:wechat-session:') ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : storage.get(key) ?? '',
       setStorageSync: (key: string, value: unknown) => storage.set(key, value),
       removeStorageSync: (key: string) => storage.delete(key), showToast: () => {},
       request: (options: any) => {

@@ -1,0 +1,39 @@
+(node:17656) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/game/game.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ actual game hint routes local and old cloud local to analysis, retains AI coach and reports missing game (202.3653ms)
+(node:1628) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real profile editor preserves failed drafts, saves, cancels and ignores retired session replies (104.4335ms)
+✔ release preflight rejects unset deployments, invalid roots and placeholders without leaking credentials (3364.7744ms)
+✔ public configuration build writes only target root with its prefix and rejects invalid input without mutation (352.391ms)
+(node:1804) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/login/login.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ unopened trial never logs in or requests and real login page shows safe text (61.08ms)
+✔ native runtime root validation preserves deployed prefixes and rejects invalid trial roots (2.0178ms)
+✔ actual app guard returns unopened releases to login without login/request (8.0234ms)
+(node:2000) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/services/device-auth.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ account merge conflicts keep legacy records and credentials and permit explicit retry (2.9651ms)
+✔ WeChat login merges concurrent requests and sends the old anonymous credential once (3.6721ms)
+✔ expired sessions login again; failure preserves the anonymous migration credential (0.4441ms)
+✔ late invalidation cannot delete a newer concurrent session (0.3232ms)
+✔ expired server login returns to login page without replaying a business mutation (1.3557ms)
+✔ 403 ownership failures do not login or replay a business mutation (0.306ms)
+✔ late 401 from an old session does not navigate away from a newer valid session (5.96ms)
+✔ failed storage and malformed server sessions preserve migration data for retry (0.5552ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4059.2638

@@ -1,0 +1,15 @@
+warning: in the working copy of 'backend/app/api/v1/analysis.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/db/repositories/mysql_store.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/schemas/account.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/coach/service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/game_service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/game_store.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/app/services/review_explanation/service.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/config/api.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/game/game.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/game/game.wxml', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/pages/history/history.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/services/account-api.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'miniprogram/sitemap.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/fixtures/player-skill.mts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'tests/local-score-page.test.mts', LF will be replaced by CRLF the next time Git touches it

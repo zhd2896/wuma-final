@@ -1,0 +1,26 @@
+✔ release preflight rejects unset deployments, invalid roots and placeholders without leaking credentials (3014.0428ms)
+(node:27108) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/login/login.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ unopened trial never logs in or requests and real login page shows safe text (52.5165ms)
+(node:14712) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/services/device-auth.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ account merge conflicts keep legacy records and credentials and permit explicit retry (2.7762ms)
+✔ WeChat login merges concurrent requests and sends the old anonymous credential once (3.8057ms)
+✔ expired sessions login again; failure preserves the anonymous migration credential (0.3985ms)
+✔ late invalidation cannot delete a newer concurrent session (0.341ms)
+✔ expired server login returns to login page without replaying a business mutation (1.1823ms)
+✔ 403 ownership failures do not login or replay a business mutation (0.2971ms)
+✔ late 401 from an old session does not navigate away from a newer valid session (8.1457ms)
+✔ failed storage and malformed server sessions preserve migration data for retry (0.6929ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3208.3655

@@ -14,6 +14,8 @@
           <view class="record-name">{{item.title}}<text>{{item.result}}</text></view>
           <view class="record-meta">{{item.date}} · {{item.turns}} 手</view>
           <view class="record-review">{{item.action}}</view>
+          <view wx:if="{{item.syncReason}}" class="record-meta">{{item.syncReason}}</view>
+          <button wx:if="{{item.syncLabel}}" size="mini" disabled="{{item.syncing}}" data-local-id="{{item.localId}}" catchtap="syncRecord">{{item.syncLabel}}</button>
         </view>
         <view class="chevron">›</view>
       </view>

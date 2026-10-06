@@ -20,8 +20,31 @@ class UserModel(Base):
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
     external_user_id: Mapped[str | None] = mapped_column(String(128), unique=True)
     nickname: Mapped[str | None] = mapped_column(String(255))
+    avatar: Mapped[str] = mapped_column(String(32), nullable=False, default='piece_v1_shi', server_default='piece_v1_shi')
     created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, onupdate=utc_now, nullable=False)
+
+
+class AuthSessionModel(Base):
+    __tablename__ = "auth_sessions"
+    __table_args__ = (Index("ix_auth_sessions_user_id", "user_id"),
+                      Index("ix_auth_sessions_expires_at", "expires_at"))
+    token_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
+
+
+class LocalGameImportModel(Base):
+    __tablename__ = "local_game_imports"
+    __table_args__ = (UniqueConstraint("user_id", "client_key", name="uq_local_import_owner_key"),)
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    user_id: Mapped[str] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), nullable=False)
+    client_key: Mapped[str] = mapped_column(String(64), nullable=False)
+    client_game_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    payload_digest: Mapped[str] = mapped_column(String(64), nullable=False)
+    game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DATETIME(fsp=6), default=utc_now, nullable=False)
 
 
 class GameModel(Base):
@@ -60,6 +83,8 @@ class RemoteRoomModel(Base):
     invite_code: Mapped[str] = mapped_column(String(8), unique=True, nullable=False)
     host_token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     guest_token_hash: Mapped[str | None] = mapped_column(String(64))
+    host_user_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), index=True)
+    guest_user_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"), index=True)
     host_device_id: Mapped[str] = mapped_column(String(64), nullable=False)
     guest_device_id: Mapped[str | None] = mapped_column(String(64))
     public: Mapped[bool] = mapped_column(Boolean, nullable=False)
@@ -290,21 +315,27 @@ class TrainingItemModel(Base):
         UniqueConstraint("source_move_review_id", "training_type", "generation_version",
                          name="uq_training_source_type_version"),
         Index("ix_training_items_category_created", "source_category", "created_at"),
+        Index("ix_training_items_user_id", "user_id"),
     )
 
     id: Mapped[str] = mapped_column(String(32), primary_key=True)
-    source_game_id: Mapped[str] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"), nullable=False)
-    source_move_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("game_moves.id", ondelete="RESTRICT"), nullable=False)
-    source_move_review_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("move_reviews.id", ondelete="RESTRICT"), nullable=False)
-    source_turn: Mapped[int] = mapped_column(Integer, nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("users.id", ondelete="RESTRICT"))
+    source_kind: Mapped[str] = mapped_column(String(16), nullable=False, default='REVIEW')
+    title: Mapped[str] = mapped_column(String(128), nullable=False, default='复盘最佳走法')
+    catalog_version: Mapped[int | None] = mapped_column(Integer)
+    difficulty_basis: Mapped[dict | None] = mapped_column(JSON(none_as_null=True))
+    source_game_id: Mapped[str | None] = mapped_column(String(32), ForeignKey("games.id", ondelete="RESTRICT"))
+    source_move_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("game_moves.id", ondelete="RESTRICT"))
+    source_move_review_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("move_reviews.id", ondelete="RESTRICT"))
+    source_turn: Mapped[int | None] = mapped_column(Integer)
     player: Mapped[str] = mapped_column(String(1), nullable=False)
     state_snapshot: Mapped[dict] = mapped_column(JSON, nullable=False)
     state_schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
-    original_move: Mapped[dict] = mapped_column(JSON, nullable=False)
+    original_move: Mapped[dict | None] = mapped_column(JSON(none_as_null=True))
     best_move: Mapped[dict] = mapped_column(JSON, nullable=False)
     best_score: Mapped[float] = mapped_column(DOUBLE(asdecimal=False), nullable=False)
-    source_category: Mapped[str] = mapped_column(String(16), nullable=False)
-    source_score_loss: Mapped[float] = mapped_column(DOUBLE(asdecimal=False), nullable=False)
+    source_category: Mapped[str | None] = mapped_column(String(16))
+    source_score_loss: Mapped[float | None] = mapped_column(DOUBLE(asdecimal=False))
     training_type: Mapped[str] = mapped_column(String(24), nullable=False)
     training_tags: Mapped[list] = mapped_column(JSON, nullable=False)
     difficulty_tag: Mapped[str] = mapped_column(String(24), nullable=False)

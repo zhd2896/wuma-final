@@ -1,0 +1,1 @@
+mysql+pymysql://root@127.0.0.1:34365/phase3_20261006_014723_970297_test?charset=utf8mb4

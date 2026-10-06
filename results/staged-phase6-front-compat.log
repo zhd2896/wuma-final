@@ -1,0 +1,100 @@
+(node:11936) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/services/api-client.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ client unwraps success envelope and game API sends exact create/move paths and bodies (3.433ms)
+✔ review API reads and generates one completed game review (0.4513ms)
+✔ API errors keep public codes and show safe messages (1.1215ms)
+✔ game operation errors have actionable Chinese messages (0.3392ms)
+✔ transport failure and unknown server errors never expose internals (0.9708ms)
+(node:15420) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/review/review.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review back retains the existing pages/history/history page and options (2.5753ms)
+✔ review back retains the existing pages/game/game page and options (0.2319ms)
+✔ review back retains the existing pages/online/online page and options (0.1764ms)
+✔ review back with 0 page returns to reviewable history without back navigation (0.6297ms)
+✔ review back with 1 page returns to reviewable history without back navigation (0.2436ms)
+✔ review back recovers to reviewable history after SDK navigation failure (0.3098ms)
+✔ review back recovers when the SDK throws synchronously (0.4209ms)
+✔ review root fallback with missing session requires login and retains history destination (0.8314ms)
+✔ review failure fallback with missing session requires login and retains history destination (0.4556ms)
+✔ review root fallback with expired session requires login and retains history destination (0.3695ms)
+✔ review failure fallback with expired session requires login and retains history destination (0.2444ms)
+(node:18964) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ review page reads or creates review, explains it, and keeps structured fields (141.0832ms)
+✖ online review verifies its saved seat and only requests room review, including zero move resignation (33.0247ms)
+✔ online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback (60.1643ms)
+(node:30316) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page route and actual picker handlers send source game and filter requests (93.5899ms)
+(node:17548) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training question hides answer until server scores a legal board move (3.8906ms)
+✔ failed submission retries with the same attempt ID and leaves source snapshot unchanged (1.0967ms)
+✔ failed legal-target request can be retried from the question (1.4359ms)
+✔ more than twenty questions remain reachable from list and next action (1.0418ms)
+✔ filter reset isolates stale initial list replies (0.5463ms)
+✔ filter reset isolates stale pagination and clears the old load-more state (0.3732ms)
+✔ answer syncs progress and next skips completed pages with an explicit end message (1.5365ms)
+✔ next from the final question wraps to an earlier incomplete question (0.3469ms)
+✔ completing an incomplete filtered page keeps the following page first question reachable (0.8676ms)
+ℹ tests 29
+ℹ suites 0
+ℹ pass 27
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 553.2847
+
+✖ failing tests:
+
+test at tests\review-page.test.mts:18:1
+✖ review page reads or creates review, explains it, and keeps structured fields (141.0832ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+    [
+  +   'GET /api/v1/game/g1'
+  -   'GET /api/v1/game/g1/review',
+  -   'POST /api/v1/game/g1/review',
+  -   'GET /api/v1/game/g1/review/explain',
+  -   'POST /api/v1/game/g1/review/explain'
+    ]
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/review-page.test.mts:59:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: [ 'GET /api/v1/game/g1' ],
+    expected: [ 'GET /api/v1/game/g1/review', 'POST /api/v1/game/g1/review', 'GET /api/v1/game/g1/review/explain', 'POST /api/v1/game/g1/review/explain' ],
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }
+
+test at tests\review-page.test.mts:86:1
+✖ online review verifies its saved seat and only requests room review, including zero move resignation (33.0247ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'error' !== 'success'
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/review-page.test.mts:116:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'error',
+    expected: 'success',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

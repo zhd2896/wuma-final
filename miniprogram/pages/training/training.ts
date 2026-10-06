@@ -6,13 +6,20 @@ import { backHome } from '../../utils/navigation';
 import { mapGameStateToView } from '../game/game-state-mapper';
 import { TrainingController } from './training-controller';
 import type { TrainingSnapshot } from './training-controller';
+import type { TrainingFilters } from '../../services/training-api';
 
 const emptyBoard: BoardState = { nodes: boardNodes, lines: boardLines, pieces: [] };
+const difficultyLabels = { EASY: '简易', NORMAL: '一般', COMPLEX: '复杂', UNCALIBRATED: '待校准' };
 
 Page({
   data: {
-    items: [] as { id: string; sourceTurn: number; sourceCategory: string;
-      player: string; tagsText: string }[],
+    items: [] as { id: string; title: string; sourceText: string; difficultyText: string;
+      progressText: string; tagsText: string }[],
+    sourceOptions: ['精选残局', '我的复盘'], sourceIndex: 0,
+    categoryOptions: ['全部类别', '失误', '严重失误'], categoryIndex: 0,
+    difficultyOptions: ['全部难度', '简易', '一般', '复杂', '待校准'], difficultyIndex: 0,
+    completedOptions: ['全部进度', '未完成', '已完成'], completedIndex: 0,
+    gameId: '', player: '' as '' | 'A' | 'B', noticeMessage: null as string | null,
     total: 0,
     question: null as TrainingSnapshot['question'],
     answer: null as TrainingSnapshot['answer'],
@@ -25,11 +32,15 @@ Page({
     resultText: '', bestMoveText: '', submittedMoveText: '',
   },
   controller: null as TrainingController | null,
-  onLoad() {
+  onLoad(options: { source?: string; gameId?: string; player?: string }) {
     this.controller = new TrainingController(createTrainingApi(createApiClient()),
       snapshot => this.render(snapshot));
     this.render(this.controller.snapshot);
-    void this.controller.enter();
+    const source = options?.source === 'REVIEW' ? 'REVIEW' : 'CURATED';
+    const player = source === 'REVIEW' && (options?.player === 'A' || options?.player === 'B') ? options.player : '';
+    this.setData({ sourceIndex: source === 'REVIEW' ? 1 : 0, gameId: source === 'REVIEW' ? options?.gameId || '' : '', player });
+    void this.controller.setFilters({ source, ...(source === 'REVIEW' && options?.gameId
+      ? { source_game_id: options.gameId } : {}), ...(player ? { player } : {}) });
   },
   onUnload() { this.controller?.dispose(); this.controller = null; },
   render(snapshot: TrainingSnapshot) {
@@ -40,9 +51,14 @@ Page({
       lastMove: answer?.submittedMove ?? null,
     }) : null;
     this.setData({
-      items: snapshot.items.map(item => ({ id: item.id, sourceTurn: item.sourceTurn,
-        sourceCategory: item.sourceCategory, player: item.player,
+      items: snapshot.items.map(item => ({ id: item.id, title: item.title,
+        sourceText: item.sourceKind === 'CURATED' ? `精选残局 · 题库 v${item.catalogVersion}`
+          : `复盘第 ${item.sourceTurn} 手 · ${item.sourceCategory === 'BLUNDER' ? '严重失误' : '失误'}`,
+        difficultyText: `${difficultyLabels[item.difficultyTag]}${item.difficultyBasis ? '（引擎估计）' : ''}`,
+        progressText: `${item.progress.completed ? '已完成' : '未完成'} · 已答 ${item.progress.attemptCount} 次` +
+          (item.progress.latestResult ? ` · 最近${item.progress.latestResult === 'CORRECT' ? '正确' : '尚可改进'}` : ''),
         tagsText: item.trainingTags.join(' · ') })),
+      noticeMessage: snapshot.noticeMessage,
       total: snapshot.total, question, answer, board: view?.board ?? emptyBoard,
       selectedNode: snapshot.selectedNode, legalTargets: snapshot.legalTargets,
       isLoading: snapshot.isLoading, isLoadingLegalMoves: snapshot.isLoadingLegalMoves,
@@ -53,6 +69,24 @@ Page({
       submittedMoveText: answer
         ? `${answer.submittedMove.from} → ${answer.submittedMove.to}` : '',
     });
+  },
+  changeFilter(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const key = event.currentTarget.dataset.filter as 'sourceIndex' | 'categoryIndex' | 'difficultyIndex' | 'completedIndex';
+    const value = Number(event.detail.value);
+    this.setData({ [key]: value });
+    if (key === 'sourceIndex') this.setData({ categoryIndex: 0, gameId: '', player: '' });
+    this.applyFilters();
+  },
+  clearGameFilter() { this.setData({ gameId: '', player: '' }); this.applyFilters(); },
+  applyFilters() {
+    const source = this.data.sourceIndex === 1 ? 'REVIEW' : 'CURATED';
+    const category = [undefined, 'MISTAKE', 'BLUNDER'][this.data.categoryIndex] as TrainingFilters['category'];
+    const difficulty = [undefined, 'EASY', 'NORMAL', 'COMPLEX', 'UNCALIBRATED'][this.data.difficultyIndex] as TrainingFilters['difficulty'];
+    const completed = [undefined, false, true][this.data.completedIndex];
+    void this.controller?.setFilters({ source, ...(source === 'REVIEW' && category ? { category } : {}),
+      ...(difficulty ? { difficulty } : {}), ...(completed !== undefined ? { completed } : {}),
+      ...(source === 'REVIEW' && this.data.gameId ? { source_game_id: this.data.gameId } : {}),
+      ...(source === 'REVIEW' && this.data.player ? { player: this.data.player } : {}) });
   },
   back() {
     if (this.data.question) this.controller?.backToList();

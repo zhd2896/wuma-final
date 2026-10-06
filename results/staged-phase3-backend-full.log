@@ -1,0 +1,48 @@
+........................................................................ [ 31%]
+........................................................................ [ 62%]
+........................F............................................... [ 93%]
+...............                                                          [100%]
+================================== FAILURES ===================================
+___________ test_review_source_game_filter_and_private_permissions ____________
+
+client = <starlette.testclient.TestClient object at 0x0000023941AE9220>
+
+    def test_review_source_game_filter_and_private_permissions(client):
+        first, _ = finished_review(client)
+        questions1 = client.post(f'/api/v1/game/{first}/training', json={}).json()['data']['items']
+>       second, _ = finished_review(client)
+                    ^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\test_mysql_training_catalog.py:40:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <starlette.testclient.TestClient object at 0x0000023941AE9220>
+
+    def finished_review(client):
+        created = client.post("/api/v1/game", json={"first_player": "A", "mode": "LOCAL"})
+        game_id = created.json()["data"]["game_id"]
+        for source, target in MOVES:
+            response = client.post(f"/api/v1/game/{game_id}/move",
+                                   json={"from_node": source, "to_node": target})
+            assert response.status_code == 200, response.text
+        review = client.post(f"/api/v1/game/{game_id}/review", json={})
+>       assert review.status_code == 200, review.text
+E       AssertionError: {"code":"GAME_NOT_FOUND","message":"Game not found","data":null}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+backend\tests\test_training.py:27: AssertionError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+backend/tests/test_migration_branches.py: 6 warnings
+backend/tests/test_mysql_migrations.py: 5 warnings
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\alembic\config.py:604: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_mysql_training_catalog.py::test_review_source_game_filter_and_private_permissions
+1 failed, 230 passed, 12 warnings in 189.23s (0:03:09)

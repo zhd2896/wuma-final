@@ -3,6 +3,7 @@ import type { EvaluationBreakdown } from '../../ai/evaluation';
 import type { PositionAnalysis, ThreatType } from '../../ai/position-analysis';
 import type { BoardState } from '../../types/domain';
 import { mapGameStateToView } from '../game/game-state-mapper';
+import { describeMove, highlightBoardMove } from '../../utils/board-guidance';
 
 export const threatLabels: Readonly<Record<ThreatType, string>> = {
   IMMEDIATE_WIN_AVAILABLE: '存在直接获胜走法',
@@ -56,6 +57,7 @@ export interface AnalysisCandidateRow {
 
 export interface AnalysisViewModel {
   readonly board: BoardState;
+  readonly reserve: Readonly<Record<Player, number>>;
   readonly perspective: Player;
   readonly score: number;
   readonly bestScore: number;
@@ -82,15 +84,15 @@ function candidateRow(move: Move, score: number, rank: number,
     notation: `${move.from} → ${move.to}`,
     score,
     assessment: isBest ? '最佳走法' : `候选 ${rank}`,
-    detail: `引擎评分 ${score}`,
+    detail: `引擎评分 ${score} · ${describeMove(move)}`,
   };
 }
 
 export function mapPositionAnalysis(state: GameState,
                                     analysis: PositionAnalysis): AnalysisViewModel {
-  const board = mapGameStateToView(state, {
+  const board = highlightBoardMove(mapGameStateToView(state, {
     selectedNode: null, legalTargets: [], lastMove: analysis.bestMove,
-  }).board;
+  }).board, analysis.bestMove);
   const candidates = analysis.candidateMoves.map(item =>
     candidateRow(item.move, item.score, item.rank, item.isBest));
   const bestCandidate = analysis.bestMove
@@ -124,6 +126,7 @@ export function mapPositionAnalysis(state: GameState,
   });
   return {
     board,
+    reserve: { A: state.players.A.reserve_count, B: state.players.B.reserve_count },
     perspective: analysis.analyzedPlayer,
     score: analysis.evaluationBefore.score,
     bestScore: analysis.bestScore,

@@ -207,6 +207,7 @@ class MoveReview(ReviewMoveAnalysis):
     gameMoveId: int
     turn: int
     player: Player
+    stateBefore: GameState | None = None
 
 
 class GameReview(StrictModel):
@@ -228,6 +229,25 @@ class GameReview(StrictModel):
     createdAt: datetime
 
 
+class ReplayStep(StrictModel):
+    kind: Literal["MOVE", "RESIGN"]
+    ply: int = Field(ge=0)
+    version: int = Field(ge=0)
+    game_move_id: int | None
+    player: Player
+    move: Move | None
+    capture: CaptureResult | None
+    state: GameState
+
+
+class GameReplay(StrictModel):
+    game_id: str
+    version: int = Field(ge=0)
+    ply_count: int = Field(ge=0)
+    initial_state: GameState
+    steps: list[ReplayStep]
+
+
 class ReviewRequest(StrictModel):
     reviewed_player: Player | None = None
 
@@ -236,7 +256,21 @@ class CreateGameRequest(StrictModel):
     first_player: Player = "A"
     mode: Literal["LOCAL", "AI"] = "LOCAL"
     ai_player: Player | None = None
-    ai_level: Literal["STANDARD"] | None = None
+    ai_level: Literal["BEGINNER", "STANDARD", "ADVANCED"] | None = None
+
+
+class LocalImportMove(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    from_node: NodeId = Field(alias="from")
+    to_node: NodeId = Field(alias="to")
+
+
+class LocalImportRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    clientGameId: ClientRequestId
+    firstPlayer: Player
+    moves: list[LocalImportMove] = Field(max_length=2048)
+    resigningPlayer: Player | None
 
 
 class MoveRequest(StrictModel):
@@ -266,7 +300,7 @@ class GameResponse(StrictModel):
     mode: Literal["LOCAL", "AI"]
     human_player: Player | None
     ai_player: Player | None
-    ai_level: Literal["STANDARD"] | None
+    ai_level: Literal["BEGINNER", "STANDARD", "ADVANCED"] | None
 
 
 class GameOperationResponse(StrictModel):

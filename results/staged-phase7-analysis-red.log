@@ -1,0 +1,40 @@
+(node:10084) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ online source restores a bound seat and analyzes actual room version without generic APIs (64.2752ms)
+✔ online account switch discards late analysis and unavailable rooms never analyze (605.0983ms)
+✔ local source analyzes the exact saved state without calling the server (35.8699ms)
+✔ local source falls back to active game and reports empty for no valid record (38.3618ms)
+✔ active local storage failure becomes a retryable page error (0.4439ms)
+✔ server source reads the authoritative version before requesting analysis (36.6973ms)
+✔ server conflict discards stale results and retry reloads the new version (37.3168ms)
+✔ duplicate loading and disposed late response cannot overwrite state (59.6621ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 7
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1254.6091
+
+✖ failing tests:
+
+test at tests\analysis-controller.test.mts:37:1
+✖ online source restores a bound seat and analyzes actual room version without generic APIs (64.2752ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'error' !== 'success'
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/analysis-controller.test.mts:53:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'error',
+    expected: 'success',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

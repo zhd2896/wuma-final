@@ -1,0 +1,95 @@
+F.FFFFFF.                                                                [100%]
+================================== FAILURES ===================================
+______ test_saved_level_controls_real_worker_search[BEGINNER-expected0] _______
+
+level = 'BEGINNER', expected = (2, 500)
+
+    @pytest.mark.parametrize('level,expected', [('BEGINNER',(2,500)),('STANDARD',(4,1000)),('ADVANCED',(6,2000))])
+    def test_saved_level_controls_real_worker_search(level, expected):
+        with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as client:
+            response = client.post('/api/v1/game', json={'mode':'AI','ai_player':'A','ai_level':level})
+>           assert response.status_code == 200, response.text
+E           AssertionError: {"code":"INVALID_REQUEST","message":"Invalid request","data":null}
+E           assert 422 == 200
+E            +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+backend\tests\test_ai_levels.py:12: AssertionError
+______ test_saved_level_controls_real_worker_search[ADVANCED-expected2] _______
+
+level = 'ADVANCED', expected = (6, 2000)
+
+    @pytest.mark.parametrize('level,expected', [('BEGINNER',(2,500)),('STANDARD',(4,1000)),('ADVANCED',(6,2000))])
+    def test_saved_level_controls_real_worker_search(level, expected):
+        with TestClient(create_app(store=InMemoryGameStore(), require_auth=False)) as client:
+            response = client.post('/api/v1/game', json={'mode':'AI','ai_player':'A','ai_level':level})
+>           assert response.status_code == 200, response.text
+E           AssertionError: {"code":"INVALID_REQUEST","message":"Invalid request","data":null}
+E           assert 422 == 200
+E            +  where 422 = <Response [422 Unprocessable Entity]>.status_code
+
+backend\tests\test_ai_levels.py:12: AssertionError
+_ test_invalid_configuration_has_bounded_strictly_ordered_budgets[True-False] _
+
+depth = True, time = False
+
+    @pytest.mark.parametrize('depth,time', [(True,False),(-1,0),(2.5,'1000'),(None,None),(10**20,10**20)])
+    def test_invalid_configuration_has_bounded_strictly_ordered_budgets(depth,time):
+>       from backend.app.services.ai_levels import ai_search_budget
+E       ModuleNotFoundError: No module named 'backend.app.services.ai_levels'
+
+backend\tests\test_ai_levels.py:24: ModuleNotFoundError
+____ test_invalid_configuration_has_bounded_strictly_ordered_budgets[-1-0] ____
+
+depth = -1, time = 0
+
+    @pytest.mark.parametrize('depth,time', [(True,False),(-1,0),(2.5,'1000'),(None,None),(10**20,10**20)])
+    def test_invalid_configuration_has_bounded_strictly_ordered_budgets(depth,time):
+>       from backend.app.services.ai_levels import ai_search_budget
+E       ModuleNotFoundError: No module named 'backend.app.services.ai_levels'
+
+backend\tests\test_ai_levels.py:24: ModuleNotFoundError
+__ test_invalid_configuration_has_bounded_strictly_ordered_budgets[2.5-1000] __
+
+depth = 2.5, time = '1000'
+
+    @pytest.mark.parametrize('depth,time', [(True,False),(-1,0),(2.5,'1000'),(None,None),(10**20,10**20)])
+    def test_invalid_configuration_has_bounded_strictly_ordered_budgets(depth,time):
+>       from backend.app.services.ai_levels import ai_search_budget
+E       ModuleNotFoundError: No module named 'backend.app.services.ai_levels'
+
+backend\tests\test_ai_levels.py:24: ModuleNotFoundError
+_ test_invalid_configuration_has_bounded_strictly_ordered_budgets[None-None] __
+
+depth = None, time = None
+
+    @pytest.mark.parametrize('depth,time', [(True,False),(-1,0),(2.5,'1000'),(None,None),(10**20,10**20)])
+    def test_invalid_configuration_has_bounded_strictly_ordered_budgets(depth,time):
+>       from backend.app.services.ai_levels import ai_search_budget
+E       ModuleNotFoundError: No module named 'backend.app.services.ai_levels'
+
+backend\tests\test_ai_levels.py:24: ModuleNotFoundError
+_ test_invalid_configuration_has_bounded_strictly_ordered_budgets[100000000000000000000-100000000000000000000] _
+
+depth = 100000000000000000000, time = 100000000000000000000
+
+    @pytest.mark.parametrize('depth,time', [(True,False),(-1,0),(2.5,'1000'),(None,None),(10**20,10**20)])
+    def test_invalid_configuration_has_bounded_strictly_ordered_budgets(depth,time):
+>       from backend.app.services.ai_levels import ai_search_budget
+E       ModuleNotFoundError: No module named 'backend.app.services.ai_levels'
+
+backend\tests\test_ai_levels.py:24: ModuleNotFoundError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_ai_levels.py::test_saved_level_controls_real_worker_search[BEGINNER-expected0]
+FAILED backend/tests/test_ai_levels.py::test_saved_level_controls_real_worker_search[ADVANCED-expected2]
+FAILED backend/tests/test_ai_levels.py::test_invalid_configuration_has_bounded_strictly_ordered_budgets[True-False]
+FAILED backend/tests/test_ai_levels.py::test_invalid_configuration_has_bounded_strictly_ordered_budgets[-1-0]
+FAILED backend/tests/test_ai_levels.py::test_invalid_configuration_has_bounded_strictly_ordered_budgets[2.5-1000]
+FAILED backend/tests/test_ai_levels.py::test_invalid_configuration_has_bounded_strictly_ordered_budgets[None-None]
+FAILED backend/tests/test_ai_levels.py::test_invalid_configuration_has_bounded_strictly_ordered_budgets[100000000000000000000-100000000000000000000]
+7 failed, 2 passed, 1 warning in 4.26s

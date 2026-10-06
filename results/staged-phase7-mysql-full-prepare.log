@@ -1,0 +1,3 @@
+Instance verified: uuid=79904ab3-c0d6-11f1-b2bb-088fc3774c8f, port=34365; fresh migration schema=staged_phase7_full_20261006_1830_test
+New migration schema is empty; no schema was deleted.
+Feature schema upgraded and verified at 0018_remote_training_owners.

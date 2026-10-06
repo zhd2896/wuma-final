@@ -6,13 +6,16 @@ import hashlib
 import json
 import re
 import secrets
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
+
+from pydantic import BaseModel, ConfigDict, Field
 
 from fastapi import APIRouter, Query, Request
 from typing import Literal
 
 from backend.app.core.errors import ApiError
 from backend.app.schemas.game import ApiResponse
+from backend.app.schemas.account import PersonalProfileDto, ProfileUpdate
 
 
 router = APIRouter(prefix="/api/v1", tags=["account"])
@@ -49,8 +52,7 @@ async def require_game_owner(request: Request, game_id: str) -> str | None:
 async def require_training_owner(request: Request, training_id: str) -> str | None:
     user_id = await require_account(request)
     if user_id is not None:
-        item = await request.app.state.store.get_training_item(training_id)
-        await require_game_owner(request, item.sourceGameId)
+        await request.app.state.store.authorize_training(training_id, user_id)
     return user_id
 
 
@@ -74,6 +76,23 @@ def _decode_cursor(value: str | None) -> tuple[datetime, str] | None:
         raise ApiError("INVALID_REQUEST", "Invalid history cursor") from None
 
 
+class WechatLoginRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    code: str = Field(min_length=1, max_length=256, pattern=r"^\S+$")
+    device_token: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+
+
+@router.post("/auth/wechat", response_model=ApiResponse[dict])
+async def wechat_login(request: Request, body: WechatLoginRequest) -> ApiResponse[dict]:
+    identity = await request.app.state.wechat_auth.exchange(body.code)
+    token = secrets.token_hex(32)
+    expires = datetime.now(timezone.utc) + timedelta(days=request.app.state.auth_session_days)
+    user_id = await request.app.state.store.login_wechat(
+        identity, _token_hash(token), expires,
+        _token_hash(body.device_token) if body.device_token else None)
+    return ApiResponse(data={"userId": user_id, "token": token, "expiresAt": expires.isoformat()})
+
+
 @router.post("/auth/device", response_model=ApiResponse[dict])
 async def create_device_account(request: Request) -> ApiResponse[dict]:
     token = secrets.token_hex(32)
@@ -81,12 +100,21 @@ async def create_device_account(request: Request) -> ApiResponse[dict]:
     return ApiResponse(data={"userId": user_id, "token": token})
 
 
-@router.get("/me/profile", response_model=ApiResponse[dict])
-async def my_profile(request: Request) -> ApiResponse[dict]:
+@router.get("/me/profile", response_model=ApiResponse[PersonalProfileDto])
+async def my_profile(request: Request) -> ApiResponse[PersonalProfileDto]:
     user_id = await require_account(request)
     if user_id is None:
         raise ApiError("AUTH_REQUIRED", "Device account is required")
-    return ApiResponse(data=await request.app.state.store.personal_profile(user_id))
+    return ApiResponse(data=PersonalProfileDto.model_validate(await request.app.state.store.personal_profile(user_id)))
+
+
+@router.post('/me/profile', response_model=ApiResponse[PersonalProfileDto])
+async def update_profile(request: Request, body: ProfileUpdate) -> ApiResponse[PersonalProfileDto]:
+    user_id = await require_account(request)
+    if user_id is None:
+        raise ApiError('AUTH_REQUIRED', 'Account is required')
+    await request.app.state.store.update_profile(user_id, body.nickname, body.avatar)
+    return ApiResponse(data=PersonalProfileDto.model_validate(await request.app.state.store.personal_profile(user_id)))
 
 
 @router.get("/me/games", response_model=ApiResponse[dict])

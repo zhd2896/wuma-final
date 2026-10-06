@@ -1,0 +1,2 @@
+staged_phase9_features_full_test: correct daemon UUID/port, fresh feature schema head0019 and zero users.
+staged_phase9_full_migration_test: correct daemon UUID/port, still empty, utf8mb4_unicode_ci.

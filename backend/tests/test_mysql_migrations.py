@@ -69,8 +69,73 @@ def test_fresh_mysql_upgrade_preserves_string_foreign_key_collations(monkeypatch
             )).all()
             assert foreign_keys, "migration must create string foreign keys"
             assert all(child == parent for _, _, child, parent in foreign_keys), foreign_keys
+        verify_training_catalog_upgrade_retains_review_rows(config, engine, database_url)
+        verify_private_remote_owner_downgrade_guard(config, engine, database_url)
     finally:
         engine.dispose()
+
+
+def verify_private_remote_owner_downgrade_guard(config, engine, database_url):
+    """旧题为空owner仍保留，真实私有owner不可有损降级。"""
+    from fastapi.testclient import TestClient
+    from backend.app.main import create_app
+    from backend.app.core.config import Settings
+    from backend.tests.test_remote_learning import finished
+    command.upgrade(config, 'head')
+    with engine.connect() as connection:
+        assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='REVIEW' AND user_id IS NULL")) > 0
+        assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='CURATED' AND user_id IS NULL")) > 0
+    with TestClient(create_app(Settings(database_url=database_url))) as client:
+        host, seats, _ = finished(client)
+        path = '/api/v1/remote/rooms/' + host['game_id']
+        assert client.post(path + '/review', headers=seats[0], json={}).status_code == 200
+        response = client.post(path + '/training', headers=seats[0], json={})
+        assert response.status_code == 200, response.text
+        ids = [item['id'] for item in response.json()['data']['items']]
+        assert ids
+        with engine.connect() as connection:
+            before = connection.execute(text('SELECT id,user_id FROM training_items WHERE user_id IS NOT NULL ORDER BY id')).all()
+            assert {id for id, owner in before} == set(ids)
+        with pytest.raises(RuntimeError, match='私有联机训练题归属'):
+            command.downgrade(config, '0017_local_game_imports')
+        with engine.connect() as connection:
+            assert connection.execute(text('SELECT id,user_id FROM training_items WHERE user_id IS NOT NULL ORDER BY id')).all() == before
+            assert connection.scalar(text('SELECT version_num FROM alembic_version')) == '0018_remote_training_owners'
+
+
+def verify_training_catalog_upgrade_retains_review_rows(config, engine, database_url):
+    """真实旧复盘记录降级再升级保留；新增精选记录拒绝有损降级。"""
+    from fastapi.testclient import TestClient
+    from backend.app.main import create_app
+    from backend.app.core.config import Settings
+    from backend.tests.test_training import finished_review
+    with TestClient(create_app(Settings(database_url=database_url), require_auth=False)) as client:
+        game_id, _ = finished_review(client)
+        generated = client.post(f'/api/v1/game/{game_id}/training', json={})
+        assert generated.status_code == 200, generated.text
+        ids = [q['id'] for q in generated.json()['data']['items']]
+        assert ids
+        with engine.connect() as connection:
+            before = connection.execute(text('SELECT id,source_game_id,source_move_id,source_move_review_id,'
+                'original_move,best_move,best_score,scoring_config FROM training_items ORDER BY id')).all()
+        command.downgrade(config, '0015_remote_participants')
+        with engine.connect() as connection:
+            assert connection.execute(text('SELECT id,source_game_id,source_move_id,source_move_review_id,'
+                'original_move,best_move,best_score,scoring_config FROM training_items ORDER BY id')).all() == before
+        command.upgrade(config, 'head')
+        with engine.connect() as connection:
+            assert connection.execute(text('SELECT id,source_game_id,source_move_id,source_move_review_id,'
+                'original_move,best_move,best_score,scoring_config FROM training_items ORDER BY id')).all() == before
+            assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='REVIEW'")) == len(ids)
+        curated = client.get('/api/v1/training?source=CURATED').json()['data']
+        assert curated['total'] == 3
+        with pytest.raises(RuntimeError, match='拒绝有损降级'):
+            command.downgrade(config, '0015_remote_participants')
+        with engine.connect() as connection:
+            assert connection.scalar(text('SELECT version_num FROM alembic_version')) == '0016_training_catalog'
+            assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='CURATED' AND source_game_id IS NULL")) == 3
+            assert connection.scalar(text('SELECT COUNT(*) FROM training_items')) == len(ids) + 3
+        client.app.state.store.close()
 
 
 @pytest.mark.parametrize("query", [

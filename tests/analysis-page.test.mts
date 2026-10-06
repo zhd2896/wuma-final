@@ -27,7 +27,7 @@ test('independent page analyzes saved local state offline and authoritative serv
     lastMove: null,
   }] });
   storage.set('activeLocalGameId', 'local-1');
-  storage.set('wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64));
+  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const requests: Array<{ method: string; path: string; data: any }> = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
@@ -66,6 +66,19 @@ test('independent page analyzes saved local state offline and authoritative serv
   assert.equal(local.data.gameId, 'local-1');
   assert.equal(local.data.view.board.pieces.length, 10);
   assert.ok(local.data.view.candidates.length > 0);
+  const originalBoard = structuredClone(local.data.view.board);
+  const candidate = local.data.view.candidates.at(-1);
+  local.selectMove({ detail: { id: candidate.id } });
+  assert.equal(local.data.previewBoard.recommendedFrom, candidate.move.from);
+  assert.equal(local.data.previewBoard.recommendedTo, candidate.move.to);
+  assert.ok(local.data.previewBoard.recommendLine);
+  assert.deepEqual(local.data.previewBoard.pieces, originalBoard.pieces);
+  assert.deepEqual(local.data.view.board, originalBoard);
+  const selectedBoard = local.data.previewBoard;
+  local.selectMove({ detail: { id: 'not-a-candidate' } });
+  assert.equal(local.data.previewBoard, selectedBoard);
+  local.showBestMove();
+  assert.equal(local.data.previewBoard.recommendedTo, local.data.view.bestMove.move.to);
   assert.deepEqual(requests, [], 'local analysis must remain available offline');
   local.onUnload();
 

@@ -1,0 +1,20 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { registerHooks } from 'node:module';
+import { existsSync, readFileSync } from 'node:fs';
+registerHooks({ resolve(s,c,next) { try { return next(s,c); } catch(e) { if(s.startsWith('.')&&c.parentURL&&existsSync(new URL(s+'.ts',c.parentURL)))return next(new URL(s+'.ts',c.parentURL).href,c);throw e; } } });
+test('actual game hint routes local and old cloud local to analysis, retains AI coach and reports missing game', async () => {
+  let definition:any; const urls:string[]=[]; const messages:string[]=[]; let coach=0;
+  (globalThis as any).Page=(p:any)=>{definition=p;};
+  (globalThis as any).wx={getAccountInfoSync:()=>({miniProgram:{envVersion:'develop'}}),getStorageSync:()=>({token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'}),navigateTo:(o:any)=>urls.push(o.url),showToast:(o:any)=>messages.push(o.title)};
+  await import('../miniprogram/pages/game/game.ts');
+  const page={...definition,data:{...definition.data},setData(p:any){this.data={...this.data,...p};}};
+  page.data.mode='local';page.data.localGameId='local-actual';page.hint();
+  assert.equal(urls.pop(),'/pages/analysis/analysis?mode=local&gameId=local-actual');
+  page.data.mode='remote';page.data.remoteState={gameId:'cloud-actual'};page.hint();
+  assert.equal(urls.pop(),'/pages/analysis/analysis?mode=remote&gameId=cloud-actual');
+  page.data.mode='ai';page.aiController={requestCoachHint(){coach++;}};page.hint();assert.equal(coach,1);
+  page.data.mode='local';page.data.localGameId='';page.hint();assert.match(messages.pop()!,/没有可分析/);
+  const markup=readFileSync(new URL('../miniprogram/pages/game/game.wxml',import.meta.url),'utf8');
+  assert.doesNotMatch(markup,/演示提示/);
+});

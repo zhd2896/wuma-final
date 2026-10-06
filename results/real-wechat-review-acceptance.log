@@ -1,0 +1,13 @@
+[1] Connecting DevTools ws://127.0.0.1:9420
+[1] DevTools connected
+[2] Creating finished fixture game through real move API
+[2] Finished fixture game created id=f0684447f2624a3c9b1292c1c0edbf42 mode=LOCAL turns=14
+[3] Opening review page
+[3] Review page opened; automatic GET and POST started
+[4] Review generated id=085e570b206c4771be6495ec3e005cf0 reviewedMoves=7 ms=7098
+[5] WeChat rendered statistics, turning points and MoveReview
+[6] GET review verified against UI POST result
+[7] MySQL review rows and duplicate POST verified
+[8] Game state, version and move count unchanged
+PASS real personal history renders finished owned game
+{"gameId":"f0684447f2624a3c9b1292c1c0edbf42","mode":"LOCAL","winner":"B","winnerReason":"LONE_PIECE_IMMOBILIZED","reviewedPlayer":"A","reviewedMoves":7,"good":0,"normal":0,"mistake":0,"blunder":7,"bestMoveRate":0,"turningPoints":[13,9,5],"overallScore":null,"totalReviewTimeMs":7098,"timedOutTurns":[],"moveReviews":[{"turn":1,"player":"A","actualMove":{"from":"P01","to":"P19"},"bestMove":{"from":"P06","to":"P07"},"bestScore":-8,"actualMoveScore":-228,"scoreLoss":220,"category":"BLUNDER","bestMoveEquivalent":false,"searchDepth":2,"timedOut":false},{"turn":3,"player":"A","actualMove":{"from":"P16","to":"P18"},"bestMove":{"from":"P19","to":"P24"},"bestScore":-20,"actualMoveScore":-248,"scoreLoss":228,"category":"BLUNDER","bestMoveEquivalent":false,"searchDepth":2,"timedOut":false},{"turn":5,"player":"A","actualMove":{"from":"P18","to":"P13"},"bestMove":{"from":"P18","to":"P03"},"bestScore":16,"actualMoveScore":-462,"scoreLoss":478,"category":"BLUNDER","bestMoveEquivalent":false,"searchDepth":2,"timedOut":false}],"gameReviewsCount":1,"moveReviewsCount":7,"gameStateChanged":false,"versionChanged":false,"gameMovesCountChanged":false,"duplicateRows":false}

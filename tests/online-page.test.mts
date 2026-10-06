@@ -18,7 +18,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('invite opens a real guest room page and history reopens the saved seat', async () => {
   const storage = new Map<string, unknown>();
-  storage.set('wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64));
+  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const requests: any[] = [];
   const initial = createInitialGameState();
   let definition: Record<string, any> | null = null;
@@ -66,7 +66,7 @@ test('invite opens a real guest room page and history reopens the saved seat', a
 test('online page confirms real operations, uses ply count and settings, and never vibrates on polling', async () => {
   const { RuleEngine } = await import('../miniprogram/domain/index.ts');
   const storage = new Map<string, unknown>([
-    ['wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64)],
+    ['wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' }],
     ['wuma:online:active', 'page-ops'], ['wuma:online:seat:page-ops', 'seat'],
     ['wuma:game-settings:v1', { version: 1, settings: {
       showLegalTargets: false, showCaptureNotice: false, vibrateOnAction: true, aiFirstPlayer: 'A' } }],
@@ -196,8 +196,7 @@ test('online page restores terminal resignation using its seat for either winner
     (globalThis as any).Page = (value: any) => { definition = value; };
     (globalThis as any).wx = {
       getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
-      getStorageSync: (key: string) => key.startsWith('wuma:device-account-token:')
-        ? 'a'.repeat(64) : storage.get(key) ?? '',
+      getStorageSync: (key: string) => key.startsWith('wuma:wechat-session:') ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : storage.get(key) ?? '',
       setStorageSync: (key: string, value: unknown) => storage.set(key, value),
       removeStorageSync: (key: string) => storage.delete(key),
       request: (options: any) => {

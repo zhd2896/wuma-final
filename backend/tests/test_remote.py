@@ -427,3 +427,6 @@ def test_remote_review_analyzes_only_active_moves_from_each_seat():
             move = review['moveReviews'][0]
             assert move['turn'] == turn and move['scorePerspective'] == seat
             assert move['actualMove'] == {'from': source, 'to': target}
+            assert move['stateBefore']['current_player'] == seat
+            assert move['stateBefore']['board']['occupancy'][source] == seat
+            assert move['stateBefore']['board']['occupancy'][target] is None

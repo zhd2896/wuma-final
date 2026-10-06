@@ -1,0 +1,201 @@
+FFFFFFFF                                                                 [100%]
+================================== FAILURES ===================================
+___________ test_replay_natural_end_keeps_real_capture_and_reserves ___________
+
+client = <starlette.testclient.TestClient object at 0x000002379D10EA50>
+
+    def test_replay_natural_end_keeps_real_capture_and_reserves(client):
+>       data = replay_assertions(client, create_short_game(client))
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\test_replay.py:48:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <starlette.testclient.TestClient object at 0x000002379D10EA50>
+game_id = 'de3c90cf83c74e51bbd038d541598fc5'
+
+    def replay_assertions(client, game_id):
+        store = client.app.state.store
+        before = client.portal.call(store.get_snapshot, game_id)
+        moves = client.portal.call(store.list_moves, game_id)
+        reviews = dict(getattr(store, '_reviews', {}))
+        with patch.object(client.app.state.adapter, 'execute_turn', side_effect=AssertionError('History must use saved snapshots')):
+            response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"code":"HTTP_ERROR","message":"Not Found","data":null}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+backend\tests\test_replay.py:26: AssertionError
+_________ test_replay_undo_shows_effective_branch_and_separate_resign _________
+
+client = <starlette.testclient.TestClient object at 0x000002379D1A8230>
+
+    def test_replay_undo_shows_effective_branch_and_separate_resign(client):
+        game_id = client.post('/api/v1/game', json={'mode': 'LOCAL'}).json()['data']['game_id']
+        base = f'/api/v1/game/{game_id}'
+        assert client.post(base + '/move', json={'from_node': 'P01', 'to_node': 'P02'}).status_code == 200
+        assert client.post(base + '/undo', json={'expected_version': 1, 'client_request_id': 'replay-undo-001'}).status_code == 200
+        assert client.post(base + '/move', json={'from_node': 'P01', 'to_node': 'P19'}).status_code == 200
+        assert client.post(base + '/resign', json={'expected_version': 3, 'client_request_id': 'replay-resign-001'}).status_code == 200
+>       data = replay_assertions(client, game_id)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\test_replay.py:61:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+client = <starlette.testclient.TestClient object at 0x000002379D1A8230>
+game_id = 'f2fe61c2a32a46d1ac3e064db7f9b307'
+
+    def replay_assertions(client, game_id):
+        store = client.app.state.store
+        before = client.portal.call(store.get_snapshot, game_id)
+        moves = client.portal.call(store.list_moves, game_id)
+        reviews = dict(getattr(store, '_reviews', {}))
+        with patch.object(client.app.state.adapter, 'execute_turn', side_effect=AssertionError('History must use saved snapshots')):
+            response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 200, response.text
+E       AssertionError: {"code":"HTTP_ERROR","message":"Not Found","data":null}
+E       assert 404 == 200
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+backend\tests\test_replay.py:26: AssertionError
+_____ test_replay_synced_import_zero_move_resign_has_initial_and_terminal _____
+
+client = <starlette.testclient.TestClient object at 0x000002379D29D8E0>
+
+    def test_replay_synced_import_zero_move_resign_has_initial_and_terminal(client):
+        headers = account(client)
+        game = client.post('/api/v1/game/import-local', headers=headers, json={
+            'clientGameId': 'replay-local-zero', 'firstPlayer': 'B', 'moves': [], 'resigningPlayer': 'B'}).json()['data']
+>       data = replay_assertions(client, game['game_id'])
+                                         ^^^^^^^^^^^^^^^
+E       TypeError: 'NoneType' object is not subscriptable
+
+backend\tests\test_replay.py:73: TypeError
+_________________ test_replay_rejects_corrupt_history[count] __________________
+
+client = <starlette.testclient.TestClient object at 0x000002379D2E47D0>
+corruption = 'count'
+
+    @pytest.mark.parametrize('corruption', ['count', 'number', 'before', 'final'])
+    def test_replay_rejects_corrupt_history(client, corruption):
+        game_id = create_short_game(client)
+        store = client.app.state.store
+        if corruption == 'count':
+            store._games[game_id] = replace(store._games[game_id], ply_count=2)
+        elif corruption == 'final':
+            old = store._games[game_id]
+            store._games[game_id] = replace(old, state=old.initial_state)
+        else:
+            item = store._moves[game_id][0]
+            store._moves[game_id][0] = replace(item, turn_number=2) if corruption == 'number' else replace(
+                item, turn=item.turn.model_copy(update={'before_state': item.turn.state}))
+        response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 500 and response.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (404 == 500)
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+backend\tests\test_replay.py:93: AssertionError
+_________________ test_replay_rejects_corrupt_history[number] _________________
+
+client = <starlette.testclient.TestClient object at 0x000002379D30A5A0>
+corruption = 'number'
+
+    @pytest.mark.parametrize('corruption', ['count', 'number', 'before', 'final'])
+    def test_replay_rejects_corrupt_history(client, corruption):
+        game_id = create_short_game(client)
+        store = client.app.state.store
+        if corruption == 'count':
+            store._games[game_id] = replace(store._games[game_id], ply_count=2)
+        elif corruption == 'final':
+            old = store._games[game_id]
+            store._games[game_id] = replace(old, state=old.initial_state)
+        else:
+            item = store._moves[game_id][0]
+            store._moves[game_id][0] = replace(item, turn_number=2) if corruption == 'number' else replace(
+                item, turn=item.turn.model_copy(update={'before_state': item.turn.state}))
+        response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 500 and response.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (404 == 500)
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+backend\tests\test_replay.py:93: AssertionError
+_________________ test_replay_rejects_corrupt_history[before] _________________
+
+client = <starlette.testclient.TestClient object at 0x000002379D262DB0>
+corruption = 'before'
+
+    @pytest.mark.parametrize('corruption', ['count', 'number', 'before', 'final'])
+    def test_replay_rejects_corrupt_history(client, corruption):
+        game_id = create_short_game(client)
+        store = client.app.state.store
+        if corruption == 'count':
+            store._games[game_id] = replace(store._games[game_id], ply_count=2)
+        elif corruption == 'final':
+            old = store._games[game_id]
+            store._games[game_id] = replace(old, state=old.initial_state)
+        else:
+            item = store._moves[game_id][0]
+            store._moves[game_id][0] = replace(item, turn_number=2) if corruption == 'number' else replace(
+                item, turn=item.turn.model_copy(update={'before_state': item.turn.state}))
+        response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 500 and response.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (404 == 500)
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+backend\tests\test_replay.py:93: AssertionError
+_________________ test_replay_rejects_corrupt_history[final] __________________
+
+client = <starlette.testclient.TestClient object at 0x000002379D3B2AB0>
+corruption = 'final'
+
+    @pytest.mark.parametrize('corruption', ['count', 'number', 'before', 'final'])
+    def test_replay_rejects_corrupt_history(client, corruption):
+        game_id = create_short_game(client)
+        store = client.app.state.store
+        if corruption == 'count':
+            store._games[game_id] = replace(store._games[game_id], ply_count=2)
+        elif corruption == 'final':
+            old = store._games[game_id]
+            store._games[game_id] = replace(old, state=old.initial_state)
+        else:
+            item = store._moves[game_id][0]
+            store._moves[game_id][0] = replace(item, turn_number=2) if corruption == 'number' else replace(
+                item, turn=item.turn.model_copy(update={'before_state': item.turn.state}))
+        response = client.get(f'/api/v1/game/{game_id}/replay')
+>       assert response.status_code == 500 and response.json()['code'] == 'REPLAY_INTEGRITY_ERROR'
+E       assert (404 == 500)
+E        +  where 404 = <Response [404 Not Found]>.status_code
+
+backend\tests\test_replay.py:93: AssertionError
+____ test_replay_requires_owner_and_remote_requires_both_account_and_seat _____
+
+    def test_replay_requires_owner_and_remote_requires_both_account_and_seat():
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            a, b, stranger = account(client), account(client), account(client)
+            game_id = client.post('/api/v1/game', headers=a, json={'mode': 'LOCAL'}).json()['data']['game_id']
+            path = f'/api/v1/game/{game_id}/replay'
+>           assert client.get(path).status_code == 401
+E           AssertionError: assert 404 == 401
+E            +  where 404 = <Response [404 Not Found]>.status_code
+E            +    where <Response [404 Not Found]> = get('/api/v1/game/a780d5ad9a22474daa88aad3fac80d73/replay')
+E            +      where get = <starlette.testclient.TestClient object at 0x000002379D3D2D20>.get
+
+backend\tests\test_replay.py:101: AssertionError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_replay.py::test_replay_natural_end_keeps_real_capture_and_reserves
+FAILED backend/tests/test_replay.py::test_replay_undo_shows_effective_branch_and_separate_resign
+FAILED backend/tests/test_replay.py::test_replay_synced_import_zero_move_resign_has_initial_and_terminal
+FAILED backend/tests/test_replay.py::test_replay_rejects_corrupt_history[count]
+FAILED backend/tests/test_replay.py::test_replay_rejects_corrupt_history[number]
+FAILED backend/tests/test_replay.py::test_replay_rejects_corrupt_history[before]
+FAILED backend/tests/test_replay.py::test_replay_rejects_corrupt_history[final]
+FAILED backend/tests/test_replay.py::test_replay_requires_owner_and_remote_requires_both_account_and_seat
+8 failed, 1 warning in 4.36s

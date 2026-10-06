@@ -1,0 +1,33 @@
+✖ account merge conflicts keep legacy records and credentials and permit explicit retry (2.5237ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 235.496
+
+✖ failing tests:
+
+test at tests\wechat-auth.test.mts:22:1
+✖ account merge conflicts keep legacy records and credentials and permit explicit retry (2.5237ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /无法合并.*保留原记录/. Input:
+
+  'WechatLoginError: 微信登录暂时不可用，请稍后重试'
+
+      at async TestContext.<anonymous> (file:///C:/Users/86175/AppData/Local/Packages/sandbox.%7B0cee06ea-586f-4985-ada0-947bca9869be%7D/AC/Temp/wuma-auth-baseline-HM6DIe/tests/wechat-auth.test.mts:27:5)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: WechatLoginError: 微信登录暂时不可用，请稍后重试
+        at Object.success (file:///C:/Users/86175/AppData/Local/Packages/sandbox.%7B0cee06ea-586f-4985-ada0-947bca9869be%7D/AC/Temp/wuma-auth-baseline-HM6DIe/miniprogram/services/device-auth.ts:71:20)
+        at wx.request (file:///C:/Users/86175/AppData/Local/Packages/sandbox.%7B0cee06ea-586f-4985-ada0-947bca9869be%7D/AC/Temp/wuma-auth-baseline-HM6DIe/tests/wechat-auth.test.mts:26:52)
+        at file:///C:/Users/86175/AppData/Local/Packages/sandbox.%7B0cee06ea-586f-4985-ada0-947bca9869be%7D/AC/Temp/wuma-auth-baseline-HM6DIe/miniprogram/services/device-auth.ts:58:10
+        at new Promise (<anonymous>)
+        at file:///C:/Users/86175/AppData/Local/Packages/sandbox.%7B0cee06ea-586f-4985-ada0-947bca9869be%7D/AC/Temp/wuma-auth-baseline-HM6DIe/miniprogram/services/device-auth.ts:57:12,
+    expected: /无法合并.*保留原记录/,
+    operator: 'rejects',
+    diff: 'simple'
+  }

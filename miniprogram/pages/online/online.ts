@@ -96,6 +96,11 @@ Page({
     });
   },
   back() { backHome(); },
+  openAnalysis() {
+    const room = this.data.snapshot?.room;
+    if (room && (room.room_status === 'PLAYING' || room.room_status === 'FINISHED'))
+      openPage(`/pages/analysis/analysis?mode=online&gameId=${encodeURIComponent(room.game_id)}`);
+  },
   viewReview() {
     const room = this.data.snapshot?.room;
     if (room?.room_status === 'FINISHED')

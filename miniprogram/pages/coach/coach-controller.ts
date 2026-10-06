@@ -1,3 +1,4 @@
+import { isAiLevel, type AiLevel } from '../../services/api-contract';
 import type { GameState, Player } from '../../domain/index';
 import { ApiError, messageForApiError } from '../../services/api-client';
 import type { CoachHintDto, GameDto } from '../../services/api-contract';
@@ -35,13 +36,13 @@ function validAiGame(game: GameDto): game is GameDto & {
   readonly version: number;
   readonly human_player: Player;
   readonly ai_player: Player;
-  readonly ai_level: 'STANDARD';
+  readonly ai_level: AiLevel;
 } {
   return game.mode === 'AI' && typeof game.version === 'number' &&
     Number.isInteger(game.version) && game.version >= 0 &&
     (game.human_player === 'A' || game.human_player === 'B') &&
     (game.ai_player === 'A' || game.ai_player === 'B') &&
-    game.human_player !== game.ai_player && game.ai_level === 'STANDARD';
+    game.human_player !== game.ai_player && isAiLevel(game.ai_level);
 }
 
 function unavailableNotice(game: GameDto): string {

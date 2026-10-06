@@ -1,3 +1,6 @@
+export type AiLevel = 'BEGINNER' | 'STANDARD' | 'ADVANCED';
+export const AI_LEVEL_LABELS: Record<AiLevel, string> = { BEGINNER: '入门', STANDARD: '标准', ADVANCED: '进阶' };
+export function isAiLevel(value: unknown): value is AiLevel { return value === 'BEGINNER' || value === 'STANDARD' || value === 'ADVANCED'; }
 /** Transport types copied from backend/app/schemas/game.py, reusing the canonical DTO shape. */
 import type { CaptureResult, GameState, Move, NodeId, Player, TurnResult } from '../domain/index';
 import type { IterativeDeepeningSearchResult } from '../ai/iterative-deepening';
@@ -15,6 +18,24 @@ export type CaptureResultDto = CaptureResult;
 export type TurnResultDto = TurnResult;
 export type SearchResultDto = IterativeDeepeningSearchResult;
 
+export type ReplayStepDto = {
+  readonly ply: number;
+  readonly version: number;
+  readonly player: Player;
+  readonly state: GameState;
+} & ({ readonly kind: 'MOVE'; readonly game_move_id: number;
+  readonly move: Move; readonly capture: CaptureResult }
+  | { readonly kind: 'RESIGN'; readonly game_move_id: null;
+    readonly move: null; readonly capture: null });
+
+export interface GameReplayDto {
+  readonly game_id: string;
+  readonly version: number;
+  readonly ply_count: number;
+  readonly initial_state: GameState;
+  readonly steps: readonly ReplayStepDto[];
+}
+
 export interface GameDto {
   readonly game_id: string;
   readonly version?: number;
@@ -23,7 +44,7 @@ export interface GameDto {
   readonly mode: 'LOCAL' | 'AI';
   readonly human_player: Player | null;
   readonly ai_player: Player | null;
-  readonly ai_level: 'STANDARD' | null;
+  readonly ai_level: AiLevel | null;
 }
 export interface GameOperationRequestDto {
   readonly expected_version: number;
@@ -38,7 +59,7 @@ export interface GameOperationDto {
 export type CreateGameRequestDto =
   | { readonly first_player: Player; readonly mode: 'LOCAL' }
   | { readonly first_player: Player; readonly mode: 'AI';
-      readonly ai_player: Player; readonly ai_level: 'STANDARD' };
+      readonly ai_player?: Player; readonly ai_level?: AiLevel };
 export interface LegalMovesDto { readonly moves: readonly Move[] }
 export interface MoveRequestDto { readonly from_node: NodeId; readonly to_node: NodeId }
 export interface MoveResponseDto { readonly turn: TurnResultDto }
@@ -67,13 +88,21 @@ export interface CoachHintDto {
 
 export interface TrainingQuestionDto {
   readonly id: string;
+  readonly sourceKind: 'REVIEW' | 'CURATED';
+  readonly title: string;
+  readonly catalogVersion: number | null;
+  readonly sourceGameId: string | null;
   readonly player: Player;
   readonly stateSnapshot: GameState;
-  readonly sourceTurn: number;
-  readonly sourceCategory: 'MISTAKE' | 'BLUNDER';
+  readonly sourceTurn: number | null;
+  readonly sourceCategory: 'MISTAKE' | 'BLUNDER' | null;
   readonly trainingType: 'BEST_MOVE';
   readonly trainingTags: readonly string[];
-  readonly difficultyTag: 'UNCALIBRATED';
+  readonly difficultyTag: 'UNCALIBRATED' | 'EASY' | 'NORMAL' | 'COMPLEX';
+  readonly difficultyBasis: { readonly kind: 'ENGINE_ESTIMATE'; readonly legalCandidateCount: number;
+    readonly scoringDepth: number; readonly configVersion: number; readonly methodVersion: number } | null;
+  readonly progress: { readonly attemptCount: number; readonly latestResult: 'CORRECT' | 'SUBOPTIMAL' | null;
+    readonly completed: boolean };
 }
 
 export interface TrainingListDto {
@@ -101,6 +130,7 @@ export interface TrainingAnswerDto {
 }
 
 export type MoveReviewDto = ReviewMoveAnalysis & {
+  readonly stateBefore?: GameState | null;
   readonly gameMoveId: number;
   readonly turn: number;
   readonly player: Player;

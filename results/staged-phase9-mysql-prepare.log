@@ -1,0 +1,5 @@
+Instance verified: uuid=79904ab3-c0d6-11f1-b2bb-088fc3774c8f, port=34365; created fresh schema=staged_phase9_profile_migration_test
+New migration schema is empty. No schema was deleted.
+0019 preserves old nicknames/default avatars and refuses lossy custom-avatar downgrade.
+Default-only downgrade and re-upgrade verified.
+Feature schema at 0019_user_profiles; NOT NULL avatar default verified.

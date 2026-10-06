@@ -4,7 +4,16 @@ import type { BoardState as BoardView } from '../../types/domain';
 import { mapGameStateToView } from './game-state-mapper';
 
 /** GameState is the sole authority; the other fields only describe the current UI interaction. */
+export interface LocalScore {
+  readonly version: 1;
+  readonly firstPlayer: Player;
+  readonly moves: readonly Move[];
+  readonly resigningPlayer: Player | null;
+}
+
 export interface LocalGameSession {
+  /** Absent on legacy snapshot-only saves: a missing prefix is never invented. */
+  readonly score?: LocalScore;
   readonly gameState: GameState;
   readonly selectedNode: NodeId | null;
   readonly legalDestinations: readonly NodeId[];
@@ -26,6 +35,7 @@ export interface LocalTapResult {
 export function createLocalGameSession(firstPlayer: Player = 'A'): LocalGameSession {
   return {
     gameState: RuleEngine.initializeGame({ firstPlayer }),
+    score: { version: 1, firstPlayer, moves: [], resigningPlayer: null },
     selectedNode: null,
     legalDestinations: [],
     lastMove: null,
@@ -60,6 +70,8 @@ export function getLocalBoardView(session: LocalGameSession,
 export function undoLocalGame(session: LocalGameSession): LocalGameSession {
   if (session.gameState.game_status !== 'PLAYING' || session.undoFrame === null) return session;
   return {
+    score: session.score ? { ...session.score,
+      moves: session.score.moves.slice(0, -1).map(move => ({ ...move })) } : undefined,
     gameState: copyGameState(session.undoFrame.gameState),
     selectedNode: null,
     legalDestinations: [],
@@ -80,7 +92,9 @@ export function resignLocalGame(session: LocalGameSession): LocalGameSession {
     },
     selectedNode: null,
     legalDestinations: [],
-    lastMove: session.lastMove,
+    score: session.score ? { ...session.score,
+      moves: session.score.moves.map(move => ({ ...move })), resigningPlayer: loser } : undefined,
+    lastMove: copyMove(session.lastMove),
     undoFrame: null,
   };
 }
@@ -111,6 +125,8 @@ export function tapLocalGameNode(session: LocalGameSession, id: string): LocalTa
     const turn = RuleEngine.executeTurn(session.gameState, { from: session.selectedNode, to: nodeId });
     return {
       session: {
+        score: session.score ? { ...session.score,
+          moves: [...session.score.moves.map(move => ({ ...move })), { ...turn.move }] } : undefined,
         gameState: turn.state,
         selectedNode: null,
         legalDestinations: [],

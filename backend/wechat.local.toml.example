@@ -1,0 +1,5 @@
+# Local backend-only WeChat credentials. Restart the API after editing.
+# Obtain AppSecret for this AppID in the WeChat mini-program management console.
+WECHAT_APP_ID = "wx698f21721461ccf5"
+WECHAT_APP_SECRET = ""
+AUTH_SESSION_DAYS = 7

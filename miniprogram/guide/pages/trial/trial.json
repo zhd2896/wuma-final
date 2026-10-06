@@ -1,0 +1,4 @@
+{
+  "navigationBarTitleText": "免登录试玩",
+  "usingComponents": { "chess-board": "../../../components/chess-board/chess-board" }
+}

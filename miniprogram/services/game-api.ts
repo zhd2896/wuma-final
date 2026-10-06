@@ -1,13 +1,15 @@
 import type { NodeId } from '../domain/index';
 import { ApiError } from './api-client';
+import { requireReplay } from './replay-contract';
 import type { ApiClient } from './api-client';
 import type { AiMoveRequestDto, AiMoveResponseDto, CreateGameRequestDto, GameDto, LegalMovesDto,
   MoveRequestDto, MoveResponseDto, PositionAnalysisDto, GameReviewDto,
-  ExplainedReviewDto, CoachHintDto, GameOperationDto, GameOperationRequestDto } from './api-contract';
+  ExplainedReviewDto, CoachHintDto, GameOperationDto, GameOperationRequestDto, GameReplayDto } from './api-contract';
 
 export interface GameApi {
   createGame(request?: CreateGameRequestDto): Promise<GameDto>;
   getGame(gameId: string): Promise<GameDto>;
+  getReplay(gameId: string): Promise<GameReplayDto>;
   getLegalMoves(gameId: string, fromNode?: NodeId): Promise<LegalMovesDto>;
   move(gameId: string, request: MoveRequestDto): Promise<MoveResponseDto>;
   aiMove(gameId: string, request: AiMoveRequestDto): Promise<AiMoveResponseDto>;
@@ -34,6 +36,7 @@ export function createGameApi(client: ApiClient): GameApi {
     createGame: (request = { first_player: 'A', mode: 'LOCAL' }) =>
       client.request('POST', '/api/v1/game', request),
     getGame: gameId => client.request('GET', base(gameId)),
+    getReplay: async gameId => requireReplay(await client.request<GameReplayDto>('GET', `${base(gameId)}/replay`), gameId),
     getLegalMoves: (gameId, fromNode) => client.request('GET',
       `${base(gameId)}/legal-moves${fromNode ? `?from_node=${encodeURIComponent(fromNode)}` : ''}`),
     move: (gameId, request) => client.request('POST', `${base(gameId)}/move`, request),

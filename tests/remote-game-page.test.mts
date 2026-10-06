@@ -22,7 +22,7 @@ test('existing game page renders remote server state, saves ID, restores and kee
   let serverState = initial;
   let storedId: string | null = null;
   const otherStorage = new Map<string, unknown>();
-  otherStorage.set('wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64));
+  otherStorage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   let creates = 0;
   const requests: Array<{ method: string; url: string; data?: unknown }> = [];
   let pageDefinition: Record<string, any> | null = null;
@@ -112,5 +112,5 @@ test('existing game page renders remote server state, saves ID, restores and kee
   assert.equal(local.data.localSession.gameState.current_player, 'A');
   assert.equal(local.data.board.pieces.length, 10);
   const wxml = readFileSync(new URL('../miniprogram/pages/game/game.wxml', import.meta.url), 'utf8');
-  assert.match(wxml, /<chess-board board="{{board}}" bind:node="onNode"/);
+  assert.match(wxml, /<chess-board\b[^>]*board="{{board}}"[^>]*bind:node="onNode"/);
 });

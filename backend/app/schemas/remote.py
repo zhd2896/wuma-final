@@ -32,6 +32,10 @@ class MatchRoomRequest(StrictModel):
     device_id: DeviceId
 
 
+class RemoteAnalyzeRequest(StrictModel):
+    expected_version: int = Field(ge=0)
+
+
 class RemoteMoveRequest(StrictModel):
     from_node: NodeId
     to_node: NodeId
@@ -55,6 +59,7 @@ class PendingUndoResponse(StrictModel):
 
 
 class RemoteRoomResponse(StrictModel):
+    account_bound: bool = False
     game_id: str
     seat: Player
     room_status: RoomStatus

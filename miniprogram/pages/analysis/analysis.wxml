@@ -10,12 +10,14 @@
       <view class="empty-actions"><button bindtap="startLocalGame">开始本地对局</button><button bindtap="openHistory">查看历史对局</button></view>
     </view>
     <block wx:elif="{{state == 'success' && view}}">
+      <view wx:if="{{seat}}" class="note-card card">你执玩家 {{seat}} · 分析视角：玩家 {{view.perspective}}</view>
       <view wx:if="{{tab == 'evaluation'}}">
         <evaluation-panel score="{{view.score}}" best-score="{{view.bestScore}}" perspective="{{view.perspective}}" />
         <section-title title="评分分项" subtitle="当前行棋方视角" />
         <view class="metric-card card"><view wx:for="{{view.breakdown}}" wx:key="key" class="metric-row"><text>{{item.label}}</text><text>{{item.weightedScore}}</text></view></view>
         <section-title title="当前局面" subtitle="真实棋盘" />
-        <view class="board-preview"><chess-board board="{{view.board}}" compact="{{true}}" /></view>
+        <view class="note-card card">A 备用棋 {{view.reserve.A}} · B 备用棋 {{view.reserve.B}}</view>
+        <view class="board-preview"><chess-board board="{{previewBoard}}" compact="{{true}}" show-node-labels="{{true}}" /></view>
         <section-title title="关键威胁" subtitle="引擎检测结果" />
         <view class="note-card card" wx:if="{{view.threats.length}}"><view wx:for="{{view.threats}}" wx:key="id" class="note-row"><text>◇</text><view><view>{{item.label}}</view><view class="note-detail" wx:if="{{item.move || item.nodes}}">{{item.move}} {{item.nodes}}</view></view></view></view>
         <view wx:else class="empty-inline card">当前没有检测到明确威胁</view>
@@ -25,11 +27,11 @@
         <section-title title="关键棋子" subtitle="由威胁和候选走法提取" />
         <view class="note-card card" wx:if="{{view.keyPieces.length}}"><view wx:for="{{view.keyPieces}}" wx:key="nodeId" class="note-row"><text>✦</text><view><view>{{item.nodeId}} · {{item.sideLabel}}</view><view class="note-detail">{{item.reason}}</view></view></view></view>
         <view wx:else class="empty-inline card">当前没有可标记的关键棋子</view>
-        <view class="board-preview"><chess-board board="{{view.board}}" compact="{{true}}" /></view>
+        <view class="board-preview"><chess-board board="{{previewBoard}}" compact="{{true}}" show-node-labels="{{true}}" /></view>
       </view>
       <view wx:else>
         <section-title title="最佳行动推荐" subtitle="真实搜索结果" />
-        <view wx:if="{{view.bestMove}}" class="recommend card"><view class="recommend-top">{{view.bestMove.notation}}<text>最佳走法</text></view><view class="recommend-body">引擎评分 {{view.bestMove.score}} · {{view.perspective}} 方视角</view></view>
+        <view wx:if="{{view.bestMove}}" class="recommend card" bindtap="showBestMove"><view class="recommend-top">{{view.bestMove.notation}}<text>最佳走法</text></view><view class="recommend-body">引擎评分 {{view.bestMove.score}} · {{view.perspective}} 方视角</view></view>
         <view wx:elif="{{view.terminal}}" class="empty-inline card">
           <view>当前为终局，无可推荐走法</view>
           <view wx:if="{{view.winner}}">胜方 {{view.winner}} 方</view>
@@ -38,9 +40,10 @@
           <view wx:elif="{{view.winnerReason == 'LONE_PIECE_IMMOBILIZED'}}">胜因：对方孤棋无路可走</view>
         </view>
         <view wx:else class="empty-inline card">当前没有合法推荐走法</view>
-        <view class="board-preview"><chess-board board="{{view.board}}" compact="{{true}}" /></view>
+        <view class="board-preview"><chess-board board="{{previewBoard}}" compact="{{true}}" show-node-labels="{{true}}" /></view>
+        <view wx:if="{{routeText}}" class="search-meta">{{routeText}}</view>
         <section-title title="候选行动" subtitle="按真实评分排序" />
-        <candidate-move-list wx:if="{{view.candidates.length}}" moves="{{view.candidates}}" />
+        <candidate-move-list wx:if="{{view.candidates.length}}" moves="{{view.candidates}}" bind:select="selectMove" />
         <view wx:else class="empty-inline card">没有合法候选走法</view>
       </view>
       <view class="disclaimer">评分为当前行棋方视角的引擎评估。</view>

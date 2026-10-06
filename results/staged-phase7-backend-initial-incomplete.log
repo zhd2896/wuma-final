@@ -1,0 +1,125 @@
+.F..                                                                     [100%]
+================================== FAILURES ===================================
+__________ test_online_analysis_uses_room_version_and_terminal_state __________
+
+    def test_online_analysis_uses_room_version_and_terminal_state():
+        with TestClient(create_app(store=InMemoryGameStore())) as client:
+            host, seats, stranger = playing(client)
+            path = '/api/v1/remote/rooms/' + host['game_id']
+>           response = client.post(path + '/analyze', headers=seats[0], json={'expected_version': 0})
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\test_remote_learning.py:40:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\.venv\Lib\site-packages\httpx\_client.py:1144: in post
+    return self.request(
+backend\.venv\Lib\site-packages\starlette\testclient.py:463: in request
+    return super().request(
+backend\.venv\Lib\site-packages\httpx\_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\httpx\_client.py:914: in send
+    response = self._send_handling_auth(
+backend\.venv\Lib\site-packages\httpx\_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+backend\.venv\Lib\site-packages\httpx\_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\httpx\_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\starlette\testclient.py:360: in handle_request
+    raise exc
+backend\.venv\Lib\site-packages\starlette\testclient.py:357: in handle_request
+    portal.call(self.app, scope, receive, send)
+backend\.venv\Lib\site-packages\anyio\from_thread.py:340: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\86175\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py:456: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Users\86175\AppData\Local\Programs\Python\Python312\Lib\concurrent\futures\_base.py:401: in __get_result
+    raise self._exception
+backend\.venv\Lib\site-packages\anyio\from_thread.py:265: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\fastapi\applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+backend\.venv\Lib\site-packages\starlette\applications.py:96: in __call__
+    await self.middleware_stack(scope, receive, send)
+backend\.venv\Lib\site-packages\starlette\middleware\errors.py:186: in __call__
+    raise exc
+backend\.venv\Lib\site-packages\starlette\middleware\errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+backend\.venv\Lib\site-packages\starlette\middleware\exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+backend\.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+backend\.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+backend\.venv\Lib\site-packages\fastapi\middleware\asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+backend\.venv\Lib\site-packages\starlette\routing.py:676: in __call__
+    await self.middleware_stack(scope, receive, send)
+backend\.venv\Lib\site-packages\fastapi\routing.py:2734: in app
+    await route.handle(scope, receive, send)
+backend\.venv\Lib\site-packages\fastapi\routing.py:1780: in handle
+    await self.original_router.handle(scope, receive, send)
+backend\.venv\Lib\site-packages\fastapi\routing.py:2789: in handle
+    await included_router._handle_selected(scope, receive, send)
+backend\.venv\Lib\site-packages\fastapi\routing.py:1800: in _handle_selected
+    await original_route.handle(scope, receive, send)
+backend\.venv\Lib\site-packages\fastapi\routing.py:1279: in handle
+    await app(scope, receive, send)
+backend\.venv\Lib\site-packages\fastapi\routing.py:158: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+backend\.venv\Lib\site-packages\starlette\_exception_handler.py:53: in wrapped_app
+    raise exc
+backend\.venv\Lib\site-packages\starlette\_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+backend\.venv\Lib\site-packages\fastapi\routing.py:144: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\fastapi\routing.py:706: in app
+    raw_response = await run_endpoint_function(
+backend\.venv\Lib\site-packages\fastapi\routing.py:352: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\app\api\v1\remote.py:26: in analyze_room
+    return ApiResponse(data=await request.app.state.remote_service.analyze(
+backend\app\services\remote_service.py:235: in analyze
+    result = await self.game_service._analyze(game_id, expected_version,
+backend\app\services\game_service.py:219: in _analyze
+    await self.store.commit_analysis(game_id, snapshot.version, analysis,
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <backend.app.services.game_store.InMemoryGameStore object at 0x00000284C70D2780>
+game_id = 'd9a66b8f27174f92a77c694b8935c73d', expected_version = 0
+analysis = PositionAnalysis(analyzedPlayer='A', scorePerspective='A', bestMove=Move(from_node='P06', to_node='P07'), bestScore=-8...'ITERATIVE_DEEPENING_ALPHA_BETA', ttHits=0, timedOut=False, threats=[], terminal=False, winner=None, winnerReason=None)
+remote_token_hash = '212463b9a27ccbfa585689ac80789f9988d392bf83249800c32520fe0fc50a99'
+user_id = '565b541e69344466b976170a3c2edf20'
+
+    async def commit_analysis(self, game_id: str, expected_version: int,
+                              analysis: PositionAnalysis, *, remote_token_hash: str | None = None,
+                              user_id: str | None = None) -> None:
+        lock = await self.lock_for(game_id)
+        async with lock:
+            game = await self.get_snapshot(game_id)
+            if remote_token_hash is not None:
+                await self.validate_remote_learning(game_id, remote_token_hash, user_id, expected_version)
+            if game.version != expected_version or (game.state.game_status != "PLAYING" and remote_token_hash is None):
+                raise ApiError("GAME_STATE_CONFLICT", "Game state changed; retry analysis")
+>           self._analyses[game_id].append((expected_version, analysis))
+            ^^^^^^^^^^^^^^^^^^^^^^^
+E           KeyError: 'd9a66b8f27174f92a77c694b8935c73d'
+
+backend\app\services\game_store.py:959: KeyError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_remote_learning.py::test_online_analysis_uses_room_version_and_terminal_state
+1 failed, 3 passed, 1 warning in 18.05s

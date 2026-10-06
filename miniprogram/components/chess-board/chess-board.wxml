@@ -15,6 +15,13 @@
       </view>
     </block>
     <view wx:for="{{board.pieces}}" wx:key="id" class="piece-position" style="left:{{item.x}}%;top:{{item.y}}%" data-id="{{item.nodeId}}" bindtap="onNode"><chess-piece side="{{item.side}}" state="{{item.nodeId == board.selectedId ? 'selected' : item.state}}" /></view>
+    <block wx:if="{{showNodeLabels}}">
+      <block wx:for="{{board.nodes}}" wx:key="id">
+      <view wx:if="{{!item.visualOnly}}"
+        class="node-label {{item.id == board.recommendedFrom ? 'label-source' : ''}} {{item.id == board.recommendedTo ? 'label-target' : ''}} {{item.focused ? 'label-focus' : ''}}"
+        style="left:{{item.x}}%;top:{{item.y}}%">{{item.id}}</view>
+      </block>
+    </block>
     <view class="board-plaque">五 马 棋</view>
   </view>
   <view class="board-caption"><text>五马棋 · 标准棋盘</text><text>宝顶 · 左右翼</text></view>

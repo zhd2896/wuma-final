@@ -1,3 +1,4 @@
+import { isAiLevel, type AiLevel } from '../../services/api-contract';
 import { NODE_IDS } from '../../domain/index';
 import type { CaptureResult, GameState, Move, NodeId, Player } from '../../domain/index';
 import { ApiError, messageForApiError } from '../../services/api-client';
@@ -13,7 +14,7 @@ export interface AiGameSnapshot {
   readonly gameState: GameState | null;
   readonly humanPlayer: Player | null;
   readonly aiPlayer: Player | null;
-  readonly aiLevel: 'STANDARD' | null;
+  readonly aiLevel: AiLevel | null;
   readonly selectedNode: NodeId | null;
   readonly legalTargets: readonly NodeId[];
   readonly lastMove: Move | null;
@@ -53,17 +54,19 @@ export class AiGameController {
   private readonly storage: GameIdStorage;
   private readonly onChange: (snapshot: AiGameSnapshot) => void;
   private readonly preferredAiPlayer: Player;
+  private readonly getAiLevel: () => AiLevel;
   private readonly createOnMissing: boolean;
   private pendingUndo: { readonly id: string; readonly expectedVersion: number } | null = null;
   private pendingResign: { readonly id: string; readonly expectedVersion: number } | null = null;
 
   constructor(api: GameApi, storage: GameIdStorage,
               onChange: (snapshot: AiGameSnapshot) => void,
-              options: { aiPlayer?: Player; createOnMissing?: boolean } = {}) {
+              options: { aiPlayer?: Player; createOnMissing?: boolean; getAiLevel?: () => AiLevel } = {}) {
     this.api = api;
     this.storage = storage;
     this.onChange = onChange;
     this.preferredAiPlayer = options.aiPlayer ?? 'B';
+    this.getAiLevel = options.getAiLevel ?? (() => 'STANDARD');
     this.createOnMissing = options.createOnMissing ?? true;
   }
 
@@ -83,7 +86,7 @@ export class AiGameController {
 
   private accept(game: GameDto): void {
     const plyCount = requirePlyCount(game);
-    if (game.mode !== 'AI' || !game.ai_player || !game.human_player || !game.ai_level) {
+    if (game.mode !== 'AI' || !game.ai_player || !game.human_player || !isAiLevel(game.ai_level)) {
       throw new ApiError('AI_MODE_REQUIRED', 409);
     }
     this.storage.write(game.game_id);
@@ -101,7 +104,7 @@ export class AiGameController {
 
   private async create(firstPlayer: Player): Promise<GameDto> {
     return this.api.createGame({ first_player: firstPlayer, mode: 'AI',
-      ai_player: this.preferredAiPlayer, ai_level: 'STANDARD' });
+      ai_player: this.preferredAiPlayer, ai_level: this.getAiLevel() });
   }
 
   async enter(firstPlayer: Player = 'A'): Promise<void> {

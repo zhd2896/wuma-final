@@ -1,0 +1,9 @@
+
+> yizhi-wuma-ui@0.1.0 check:release
+> node scripts/check-release.mjs release --api-root https://api.example.com/wuma
+
+(node:2612) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/config/api-root.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+公开配置格式检查通过；不代表域名已注册或服务在线。

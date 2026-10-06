@@ -18,13 +18,14 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('game page records and resumes real local games and indexes server games', async () => {
   const storage = new Map<string, unknown>();
-  storage.set('wuma:device-account-token:v1:http://127.0.0.1:8000', 'a'.repeat(64));
+  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   let failHistoryWrite = false;
   let failActiveWrite = false;
   const navigations: string[] = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: (key: string) => storage.get(key) ?? '',
     setStorageSync: (key: string, value: unknown) => {
       if (key === 'wuma:history:v1' && failHistoryWrite) {

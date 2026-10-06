@@ -1,0 +1,3 @@
+staged_phase9_finish_full_20261006_test: verified dedicated UUID/port, migration head0019 and NOT NULL avatar.
+staged_phase9_finish_empty_20261006_test: verified dedicated UUID/port, expected guarded downgrade at0018 and preserved private owners.
+Read-only postfinal verification complete; no schemas were deleted.

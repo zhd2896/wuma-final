@@ -1,0 +1,41 @@
+(node:5268) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ actual online game exposes playing and finished analysis route with room ID (96.5691ms)
+✖ actual analysis page uses bound room token version and keeps terminal empty analysis (117.6135ms)
+✔ actual online review reads explanation and empty training gives honest notice; own list route retains player (39.6293ms)
+✔ online review ignores explanation and training after hide, account switch or token rotation (61.6169ms)
+✔ online training generation cannot navigate after hide, account switch or token rotation (64.6439ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 4
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 700.2557
+
+✖ failing tests:
+
+test at tests\remote-learning-page.test.mts:61:1
+✖ actual analysis page uses bound room token version and keeps terminal empty analysis (117.6135ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:
+  + actual - expected
+
+  + undefined
+  - {
+  -   A: 4,
+  -   B: 4
+  - }
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/remote-learning-page.test.mts:75:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: { A: 4, B: 4 },
+    operator: 'deepStrictEqual',
+    diff: 'simple'
+  }

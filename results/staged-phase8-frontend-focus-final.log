@@ -1,0 +1,17 @@
+(node:18836) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ legacy preferences keep all choices and gain STANDARD; all levels persist (2.0132ms)
+✔ native picker string index emits selected difficulty and ignores invalid indexes (6.6143ms)
+✔ actual page uses next default on new/restart, keeps saved current label, and restores difficulty (154.2358ms)
+✔ independent coach and replay context accept all saved AI levels (8.0061ms)
+✔ history displays real cloud/device levels and leaves unknown older metadata unlabeled (49.011ms)
+ℹ tests 5
+ℹ suites 0
+ℹ pass 5
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 472.0364

@@ -4,7 +4,7 @@ import { ApiError, messageForApiError } from '../../services/api-client';
 import { requirePlyCount } from '../../services/game-api';
 import { requireOnlineRoom } from '../../services/online-api';
 import type { OnlineApi, OnlineMoveRequest, OnlineOperationRequest, OnlineRoom } from '../../services/online-api';
-import { ACTIVE_ONLINE_KEY, DEVICE_ONLINE_KEY, readOnlineSeat, writeOnlineSeat } from '../../services/online-credentials';
+import { ACTIVE_ONLINE_KEY, DEVICE_ONLINE_KEY, restoreOnlineSeat, writeOnlineSeat } from '../../services/online-credentials';
 import type { OnlineStorage } from '../../services/online-credentials';
 export type { OnlineStorage } from '../../services/online-credentials';
 
@@ -60,6 +60,7 @@ export class OnlineGameController {
     canRespondToUndo: false, canResign: false, operationNotice: '', successfulAction: 0,
   };
   private token = '';
+  private restoreGameId: string | null = null;
   private pending: OnlineMoveRequest | null = null;
   private operation: PendingOperation | null = null;
   private refreshing = false;
@@ -103,6 +104,7 @@ export class OnlineGameController {
     const room = requireOnlineRoom(value);
     if (typeof room.token !== 'string' || !room.token.trim()) throw new ApiError('INVALID_GAME_RESPONSE', 502);
     this.token = room.token;
+    this.restoreGameId = null;
     this.invalidateRefresh();
     this.publish({ room, selectedNode: null, legalTargets: [], lastMove: null,
       lastCapture: null, pendingMove: false, error: '', operationNotice: '' });
@@ -140,11 +142,11 @@ export class OnlineGameController {
     try {
       const gameId = id ?? this.storage.read(ACTIVE_ONLINE_KEY);
       if (typeof gameId !== 'string' || !gameId.trim()) return;
-      const token = readOnlineSeat(this.storage, gameId);
-      if (!token) { this.publish({ error: '本机没有这个房间的席位凭证' }); return; }
-      this.token = token;
-      this.storage.write(ACTIVE_ONLINE_KEY, gameId);
-      await this.refresh(gameId);
+      this.restoreGameId = gameId;
+      await this.begin(async () => {
+        const restored = await restoreOnlineSeat(this.api, this.storage, gameId);
+        return { ...restored.room, token: restored.token };
+      });
     } catch (error) { this.publish({ error: messageForApiError(error) }); }
   }
 
@@ -179,6 +181,7 @@ export class OnlineGameController {
     try {
       requireOnlineRoom(await this.api.cancel(room.game_id, this.token), room);
       this.storage.remove(ACTIVE_ONLINE_KEY);
+      this.restoreGameId = null;
       this.publish({ room: null, selectedNode: null, legalTargets: [] });
     } catch (error) { this.publish({ error: messageForApiError(error) }); }
     finally { this.publish({ busy: false }); }
@@ -187,6 +190,7 @@ export class OnlineGameController {
   leave(): void {
     if (this.disposed || this.state.busy || this.hasPending) return;
     this.storage.remove(ACTIVE_ONLINE_KEY);
+    this.restoreGameId = null;
     this.token = '';
     this.invalidateRefresh();
     this.publish({ room: null, selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
@@ -224,6 +228,7 @@ export class OnlineGameController {
   async retry(): Promise<void> {
     if (this.operation) await this.submitOperation();
     else if (this.pending) await this.submitPending();
+    else if (!this.state.room && this.restoreGameId) await this.restore(this.restoreGameId);
     else await this.refresh();
   }
 

@@ -1,0 +1,44 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+___ test_remote_explanation_and_generation_use_same_actual_mysql_lock_order ___
+
+db = Engine(mysql+pymysql://root@127.0.0.1:34365/staged_features_test?charset=utf8mb4)
+
+    def test_remote_explanation_and_generation_use_same_actual_mysql_lock_order(db):
+        """Observe real locking SQL: reverse Review/User order creates a concurrent deadlock cycle."""
+        store = MySQLGameStore(DB_URL)
+        try:
+            with TestClient(create_app(store=store)) as client:
+                host, seats, _ = contracts.playing(client)
+                path = '/api/v1/remote/rooms/' + host['game_id']
+                client.post(path + '/resign', headers=seats[1], json={'expected_version': 0, 'client_request_id': 'mysql-lock-order-resign'})
+                assert client.post(path + '/review', headers=seats[0], json={}).status_code == 200
+                locks = []
+                def record_lock(_connection, _cursor, statement, _params, _context, _many):
+                    if 'FOR UPDATE' in statement.upper():
+                        match = re.search(r'FROM\s+`?(users|remote_rooms|games|game_reviews)`?\b', statement, re.I)
+                        if match and (not locks or locks[-1] != match[1].lower()):
+                            locks.append(match[1].lower())
+                event.listen(store.engine, 'before_cursor_execute', record_lock)
+                try:
+                    for endpoint in ['/review/explain', '/training']:
+                        locks.clear()
+                        response = client.post(path + endpoint, headers=seats[0], json={})
+                        assert response.status_code == 200, response.text
+>                       assert locks[:4] == ['users', 'remote_rooms', 'games', 'game_reviews'], (endpoint, locks)
+E                       AssertionError: ('/review/explain', ['game_reviews', 'users', 'remote_rooms', 'games', 'users', 'remote_rooms', ...])
+E                       assert ['game_review...oms', 'games'] == ['users', 're...game_reviews']
+E
+E                         At index 0 diff: 'game_reviews' != 'users'
+E                         Use -v to get more diff
+
+backend\tests\test_mysql_remote_learning.py:108: AssertionError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_mysql_remote_learning.py::test_remote_explanation_and_generation_use_same_actual_mysql_lock_order
+1 failed, 18 deselected, 1 warning in 2.86s

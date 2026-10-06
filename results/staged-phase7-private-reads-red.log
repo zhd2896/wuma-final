@@ -1,0 +1,170 @@
+FFFF                                                                     [100%]
+================================== FAILURES ===================================
+__ test_private_training_reads_recheck_active_owner_after_async_work[legal] ___
+
+read = 'legal'
+
+    @pytest.mark.parametrize('read', ['legal', 'get', 'list', 'count'])
+    def test_private_training_reads_recheck_active_owner_after_async_work(read):
+        store = InMemoryGameStore()
+        with TestClient(create_app(store=store)) as client:
+            host, seats, _ = finished(client)
+            path = '/api/v1/remote/rooms/' + host['game_id']
+            client.post(path + '/review', headers=seats[0], json={})
+            q = client.post(path + '/training', headers=seats[0], json={}).json()['data']['items'][0]
+            from backend.app.api.v1.account import _token_hash
+            expires = datetime.now(timezone.utc) + timedelta(days=1)
+            client.portal.call(store.login_wechat, 'read-target', 'target-token', expires)
+            if read == 'legal':
+                target, name = client.app.state.adapter, 'legal_moves'
+            elif read == 'count':
+                target, name = store, 'list_training_items'
+            else:
+                target, name = store, 'training_progress'
+            original = getattr(target, name); merged = False
+            async def changed(*args):
+                nonlocal merged
+                result = await original(*args)
+                if not merged:
+                    merged = True
+                    await store.login_wechat('read-target', 'merged-token', expires, _token_hash(seats[0]['Authorization'][7:]))
+                return result
+            with patch.object(target, name, changed):
+                endpoint = '/api/v1/training/' + q['id'] + ('/legal-moves' if read == 'legal' else '')
+                if read in ('list', 'count'):
+                    endpoint = '/api/v1/training?source_game_id=' + host['game_id'] + ('&offset=100' if read == 'count' else '')
+                response = client.get(endpoint, headers=seats[0])
+>           assert response.json()['code'] == 'AUTH_INVALID', response.text
+E           AssertionError: {"code":0,"message":"success","data":{"moves":[{"from":"P01","to":"P02"},{"from":"P01","to":"P03"},{"from":"P01","to":"P04"},{"from":"P01","to":"P07"},{"from":"P01","to":"P13"},{"from":"P01","to":"P19"},{"from":"P06","to":"P07"},{"from":"P06","to":"P08"},{"from":"P06","to":"P09"},{"from":"P11","to":"P03"},{"from":"P11","to":"P07"},{"from":"P11","to":"P12"},{"from":"P11","to":"P13"},{"from":"P11","to":"P14"},{"from":"P11","to":"P17"},{"from":"P11","to":"P23"},{"from":"P16","to":"P17"},{"from":"P16","to":"P18"},{"from":"P16","to":"P19"},{"from":"P21","to":"P09"},{"from":"P21","to":"P13"},{"from":"P21","to":"P17"},{"from":"P21","to":"P22"},{"from":"P21","to":"P23"},{"from":"P21","to":"P24"}]}}
+E           assert 0 == 'AUTH_INVALID'
+
+backend\tests\test_remote_learning.py:315: AssertionError
+___ test_private_training_reads_recheck_active_owner_after_async_work[get] ____
+
+read = 'get'
+
+    @pytest.mark.parametrize('read', ['legal', 'get', 'list', 'count'])
+    def test_private_training_reads_recheck_active_owner_after_async_work(read):
+        store = InMemoryGameStore()
+        with TestClient(create_app(store=store)) as client:
+            host, seats, _ = finished(client)
+            path = '/api/v1/remote/rooms/' + host['game_id']
+            client.post(path + '/review', headers=seats[0], json={})
+            q = client.post(path + '/training', headers=seats[0], json={}).json()['data']['items'][0]
+            from backend.app.api.v1.account import _token_hash
+            expires = datetime.now(timezone.utc) + timedelta(days=1)
+            client.portal.call(store.login_wechat, 'read-target', 'target-token', expires)
+            if read == 'legal':
+                target, name = client.app.state.adapter, 'legal_moves'
+            elif read == 'count':
+                target, name = store, 'list_training_items'
+            else:
+                target, name = store, 'training_progress'
+            original = getattr(target, name); merged = False
+            async def changed(*args):
+                nonlocal merged
+                result = await original(*args)
+                if not merged:
+                    merged = True
+                    await store.login_wechat('read-target', 'merged-token', expires, _token_hash(seats[0]['Authorization'][7:]))
+                return result
+            with patch.object(target, name, changed):
+                endpoint = '/api/v1/training/' + q['id'] + ('/legal-moves' if read == 'legal' else '')
+                if read in ('list', 'count'):
+                    endpoint = '/api/v1/training?source_game_id=' + host['game_id'] + ('&offset=100' if read == 'count' else '')
+                response = client.get(endpoint, headers=seats[0])
+>           assert response.json()['code'] == 'AUTH_INVALID', response.text
+E           AssertionError: {"code":0,"message":"success","data":{"id":"424d2c9505244f51be2f29b707d803ff","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"fa7835a93e1d4125a209b2ccf3f46929","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":"A","P02":null,"P03":null,"P04":null,"P05":"B","P06":"A","P07":null,"P08":null,"P09":null,"P10":"B","P11":"A","P12":null,"P13":null,"P14":null,"P15":"B","P16":"A","P17":null,"P18":null,"P19":null,"P20":"B","P21":"A","P22":null,"P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":1,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["GENERAL"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}}}
+E           assert 0 == 'AUTH_INVALID'
+
+backend\tests\test_remote_learning.py:315: AssertionError
+___ test_private_training_reads_recheck_active_owner_after_async_work[list] ___
+
+read = 'list'
+
+    @pytest.mark.parametrize('read', ['legal', 'get', 'list', 'count'])
+    def test_private_training_reads_recheck_active_owner_after_async_work(read):
+        store = InMemoryGameStore()
+        with TestClient(create_app(store=store)) as client:
+            host, seats, _ = finished(client)
+            path = '/api/v1/remote/rooms/' + host['game_id']
+            client.post(path + '/review', headers=seats[0], json={})
+            q = client.post(path + '/training', headers=seats[0], json={}).json()['data']['items'][0]
+            from backend.app.api.v1.account import _token_hash
+            expires = datetime.now(timezone.utc) + timedelta(days=1)
+            client.portal.call(store.login_wechat, 'read-target', 'target-token', expires)
+            if read == 'legal':
+                target, name = client.app.state.adapter, 'legal_moves'
+            elif read == 'count':
+                target, name = store, 'list_training_items'
+            else:
+                target, name = store, 'training_progress'
+            original = getattr(target, name); merged = False
+            async def changed(*args):
+                nonlocal merged
+                result = await original(*args)
+                if not merged:
+                    merged = True
+                    await store.login_wechat('read-target', 'merged-token', expires, _token_hash(seats[0]['Authorization'][7:]))
+                return result
+            with patch.object(target, name, changed):
+                endpoint = '/api/v1/training/' + q['id'] + ('/legal-moves' if read == 'legal' else '')
+                if read in ('list', 'count'):
+                    endpoint = '/api/v1/training?source_game_id=' + host['game_id'] + ('&offset=100' if read == 'count' else '')
+                response = client.get(endpoint, headers=seats[0])
+>           assert response.json()['code'] == 'AUTH_INVALID', response.text
+E           AssertionError: {"code":0,"message":"success","data":{"items":[{"id":"fb94c65975a14eb5a2491dafc315062b","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"6bb27c748260491d8e1f25921d96ccc5","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":null,"P02":null,"P03":"B","P04":null,"P05":null,"P06":"A","P07":null,"P08":null,"P09":null,"P10":"B","P11":"A","P12":null,"P13":"A","P14":null,"P15":"B","P16":null,"P17":null,"P18":null,"P19":"A","P20":"B","P21":"A","P22":null,"P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":7,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["CAPTURE"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}},{"id":"ac70b76122ba4ced9c8857ffdec82548","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"6bb27c748260491d8e1f25921d96ccc5","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":null,"P02":null,"P03":"B","P04":"B","P05":null,"P06":null,"P07":"B","P08":null,"P09":null,"P10":null,"P11":"A","P12":null,"P13":"A","P14":null,"P15":null,"P16":null,"P17":null,"P18":null,"P19":"A","P20":"B","P21":"A","P22":"A","P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":13,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["VULNERABILITY"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}},{"id":"98af2d7ee3d54e6190bc544795982c4d","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"6bb27c748260491d8e1f25921d96ccc5","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":"A","P02":null,"P03":null,"P04":null,"P05":"B","P06":"A","P07":null,"P08":null,"P09":null,"P10":"B","P11":"A","P12":null,"P13":null,"P14":null,"P15":"B","P16":"A","P17":null,"P18":null,"P19":null,"P20":"B","P21":"A","P22":null,"P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":1,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["GENERAL"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}},{"id":"6f9d94d9d8ab42cb82ca513a8898b03a","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"6bb27c748260491d8e1f25921d96ccc5","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":"B","P02":null,"P03":null,"P04":null,"P05":null,"P06":"A","P07":null,"P08":null,"P09":null,"P10":"B","P11":"A","P12":null,"P13":null,"P14":null,"P15":"B","P16":"A","P17":null,"P18":null,"P19":"A","P20":"B","P21":"A","P22":null,"P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":3,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["VULNERABILITY"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}},{"id":"6c63c44509a543709d3b4a677e194b6d","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"6bb27c748260491d8e1f25921d96ccc5","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":null,"P02":null,"P03":"B","P04":null,"P05":null,"P06":null,"P07":"B","P08":null,"P09":null,"P10":null,"P11":"A","P12":null,"P13":"A","P14":"B","P15":null,"P16":null,"P17":"A","P18":null,"P19":"A","P20":"B","P21":"A","P22":null,"P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":11,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["CAPTURE"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}},{"id":"4fbf88058a1447d38d596b4d95d869f3","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"6bb27c748260491d8e1f25921d96ccc5","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":null,"P02":null,"P03":null,"P04":null,"P05":null,"P06":"A","P07":"B","P08":null,"P09":null,"P10":"B","P11":"A","P12":null,"P13":null,"P14":null,"P15":"B","P16":null,"P17":null,"P18":"A","P19":"A","P20":"B","P21":"A","P22":null,"P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":5,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["CAPTURE","VULNERABILITY"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}},{"id":"0002888e12a14b749db294e5add59849","sourceKind":"REVIEW","title":"��������߷�","catalogVersion":null,"sourceGameId":"6bb27c748260491d8e1f25921d96ccc5","player":"A","stateSnapshot":{"board":{"occupancy":{"P01":null,"P02":null,"P03":"B","P04":null,"P05":null,"P06":"A","P07":"B","P08":null,"P09":null,"P10":null,"P11":null,"P12":null,"P13":"A","P14":null,"P15":"B","P16":null,"P17":"A","P18":null,"P19":"A","P20":"B","P21":"A","P22":null,"P23":null,"P24":null,"P25":"B","P26":null,"P27":null,"P28":null,"P29":null}},"players":{"A":{"reserve_count":4},"B":{"reserve_count":4}},"first_player":"A","current_player":"A","game_status":"PLAYING","winner":null,"winner_reason":null},"sourceTurn":9,"sourceCategory":"BLUNDER","trainingType":"BEST_MOVE","trainingTags":["CAPTURE"],"difficultyTag":"UNCALIBRATED","difficultyBasis":null,"progress":{"attemptCount":0,"latestResult":null,"completed":false}}],"total":7}}
+E           assert 0 == 'AUTH_INVALID'
+
+backend\tests\test_remote_learning.py:315: AssertionError
+__ test_private_training_reads_recheck_active_owner_after_async_work[count] ___
+
+read = 'count'
+
+    @pytest.mark.parametrize('read', ['legal', 'get', 'list', 'count'])
+    def test_private_training_reads_recheck_active_owner_after_async_work(read):
+        store = InMemoryGameStore()
+        with TestClient(create_app(store=store)) as client:
+            host, seats, _ = finished(client)
+            path = '/api/v1/remote/rooms/' + host['game_id']
+            client.post(path + '/review', headers=seats[0], json={})
+            q = client.post(path + '/training', headers=seats[0], json={}).json()['data']['items'][0]
+            from backend.app.api.v1.account import _token_hash
+            expires = datetime.now(timezone.utc) + timedelta(days=1)
+            client.portal.call(store.login_wechat, 'read-target', 'target-token', expires)
+            if read == 'legal':
+                target, name = client.app.state.adapter, 'legal_moves'
+            elif read == 'count':
+                target, name = store, 'list_training_items'
+            else:
+                target, name = store, 'training_progress'
+            original = getattr(target, name); merged = False
+            async def changed(*args):
+                nonlocal merged
+                result = await original(*args)
+                if not merged:
+                    merged = True
+                    await store.login_wechat('read-target', 'merged-token', expires, _token_hash(seats[0]['Authorization'][7:]))
+                return result
+            with patch.object(target, name, changed):
+                endpoint = '/api/v1/training/' + q['id'] + ('/legal-moves' if read == 'legal' else '')
+                if read in ('list', 'count'):
+                    endpoint = '/api/v1/training?source_game_id=' + host['game_id'] + ('&offset=100' if read == 'count' else '')
+                response = client.get(endpoint, headers=seats[0])
+>           assert response.json()['code'] == 'AUTH_INVALID', response.text
+E           AssertionError: {"code":0,"message":"success","data":{"items":[],"total":7}}
+E           assert 0 == 'AUTH_INVALID'
+
+backend\tests\test_remote_learning.py:315: AssertionError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_remote_learning.py::test_private_training_reads_recheck_active_owner_after_async_work[legal]
+FAILED backend/tests/test_remote_learning.py::test_private_training_reads_recheck_active_owner_after_async_work[get]
+FAILED backend/tests/test_remote_learning.py::test_private_training_reads_recheck_active_owner_after_async_work[list]
+FAILED backend/tests/test_remote_learning.py::test_private_training_reads_recheck_active_owner_after_async_work[count]
+4 failed, 14 deselected, 1 warning in 19.99s

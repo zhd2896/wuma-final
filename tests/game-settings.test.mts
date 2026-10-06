@@ -46,10 +46,12 @@ test('game settings use safe defaults and persist versioned changes', () => {
   const store = createGameSettingsStore(memory.storage);
 
   assert.deepEqual(store.read(), {
+    showNodeLabels: false,
     showLegalTargets: true,
     showCaptureNotice: true,
     vibrateOnAction: true,
     aiFirstPlayer: 'A',
+    defaultAiLevel: 'STANDARD',
   });
 
   store.write({ ...store.read(), showLegalTargets: false, aiFirstPlayer: 'B' });
@@ -57,13 +59,26 @@ test('game settings use safe defaults and persist versioned changes', () => {
   assert.deepEqual(memory.values.get('wuma:game-settings:v1'), {
     version: 1,
     settings: {
+      showNodeLabels: false,
       showLegalTargets: false,
       showCaptureNotice: true,
       vibrateOnAction: true,
       aiFirstPlayer: 'B',
+      defaultAiLevel: 'STANDARD',
     },
   });
   assert.equal(createGameSettingsStore(memory.storage).read().aiFirstPlayer, 'B');
+});
+
+test('adding node labels preserves legacy settings and persists the new preference', () => {
+  const legacy = { showLegalTargets: false, showCaptureNotice: false,
+    vibrateOnAction: false, aiFirstPlayer: 'B' };
+  const memory = memoryStorage({ version: 1, settings: legacy });
+  const store = createGameSettingsStore(memory.storage);
+  assert.deepEqual(store.read(), { ...legacy, showNodeLabels: false, defaultAiLevel: 'STANDARD' });
+  store.write({ ...store.read(), showNodeLabels: true });
+  assert.deepEqual(createGameSettingsStore(memory.storage).read(),
+    { ...legacy, showNodeLabels: true, defaultAiLevel: 'STANDARD' });
 });
 
 test('damaged, partial, and wrongly typed stored settings are replaced with defaults', () => {
@@ -149,6 +164,7 @@ test('game settings component emits a complete settings object for every control
   assert.deepEqual(definition.properties.settings.value, DEFAULT_GAME_SETTINGS);
   const base = { ...DEFAULT_GAME_SETTINGS };
   for (const [method, detail, changedKey, expected] of [
+    ['onNodeLabelsChange', { value: true }, 'showNodeLabels', true],
     ['onLegalTargetsChange', { value: false }, 'showLegalTargets', false],
     ['onCaptureNoticeChange', { value: false }, 'showCaptureNotice', false],
     ['onVibrationChange', { value: false }, 'vibrateOnAction', false],
@@ -168,13 +184,13 @@ test('game settings component emits a complete settings object for every control
   }
 });
 
-test('component template contains three switches, one AI radio group, and no controller access', () => {
+test('component template contains four switches, one AI radio group, and no controller access', () => {
   const root = new URL('../miniprogram/components/game-settings/', import.meta.url);
   const wxml = readFileSync(new URL('game-settings.wxml', root), 'utf8');
   const source = readFileSync(new URL('game-settings.ts', root), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('game-settings.json', root), 'utf8'));
 
-  assert.equal((wxml.match(/<switch\b/g) ?? []).length, 3);
+  assert.equal((wxml.match(/<switch\b/g) ?? []).length, 4);
   assert.match(wxml, /<radio-group\b/);
   assert.match(wxml, /showAiFirstPlayer/);
   assert.deepEqual(manifest, { component: true });

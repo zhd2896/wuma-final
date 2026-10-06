@@ -1,0 +1,5 @@
+
+> yizhi-wuma-ui@0.1.0 check
+> node scripts/check.cjs
+
+Checked 11 registered pages and 18 components: JSON, WXML tags, events, local assets, navigation routes.

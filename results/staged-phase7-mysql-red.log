@@ -1,0 +1,351 @@
+.............F..........                                                 [100%]
+================================== FAILURES ===================================
+______ test_fresh_mysql_upgrade_preserves_string_foreign_key_collations _______
+
+self = <sqlalchemy.engine.base.Connection object at 0x0000022079FB13D0>
+dialect = <sqlalchemy.dialects.mysql.pymysql.MySQLDialect_pymysql object at 0x0000022079F91C40>
+context = <sqlalchemy.dialects.mysql.mysqldb.MySQLExecutionContext_mysqldb object at 0x0000022079E90F20>
+statement = <sqlalchemy.dialects.mysql.base.MySQLDDLCompiler object at 0x0000022079FBF560>
+parameters = [immutabledict({})]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+
+        effective_parameters: Optional[_AnyExecuteParams]
+
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+
+        if self._echo:
+            self._log_info(str_statement)
+
+            stats = context._get_cache_stats()
+
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py:1969:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+backend\.venv\Lib\site-packages\pymysql\cursors.py:170: in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\pymysql\cursors.py:335: in _query
+    conn.query(q)
+backend\.venv\Lib\site-packages\pymysql\connections.py:581: in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\pymysql\connections.py:857: in _read_query_result
+    result.read()
+backend\.venv\Lib\site-packages\pymysql\connections.py:1290: in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\pymysql\connections.py:810: in _read_packet
+    packet.raise_for_error()
+backend\.venv\Lib\site-packages\pymysql\protocol.py:219: in raise_for_error
+    err.raise_mysql_exception(self._data)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+data = b"\xff\x11\x06#HY000Cannot drop index 'ix_training_items_user_id': needed in a foreign key constraint"
+
+    def raise_mysql_exception(data):
+        errno = struct.unpack("<h", data[1:3])[0]
+        # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html
+        # Error packet has optional sqlstate that is 5 bytes and starts with '#'.
+        sqlstate = None
+        if data[3] == 0x23:  # '#'
+            sqlstate = data[4:9].decode()
+            errval = data[9:].decode("utf-8", "replace")
+        else:
+            errval = data[3:].decode("utf-8", "replace")
+        errorclass = error_map.get(errno)
+        if errorclass is None:
+            errorclass = InternalError if errno < 1000 else OperationalError
+>       raise errorclass(errno, errval, sqlstate=sqlstate)
+E       pymysql.err.OperationalError: (1553, "Cannot drop index 'ix_training_items_user_id': needed in a foreign key constraint")
+
+backend\.venv\Lib\site-packages\pymysql\err.py:154: OperationalError
+
+The above exception was the direct cause of the following exception:
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x0000022079C42F60>
+
+    def test_fresh_mysql_upgrade_preserves_string_foreign_key_collations(monkeypatch):
+        database_url = os.getenv("WUMA_TEST_MIGRATION_DATABASE_URL")
+        if not database_url:
+            pytest.skip("empty isolated MySQL migration test database not configured")
+        parsed_url = make_url(database_url)
+        allowed_query_options = {"charset", "connect_timeout", "read_timeout", "write_timeout"}
+        if (
+            not parsed_url.drivername.startswith("mysql")
+            or not (parsed_url.database or "").endswith("_test")
+            or set(parsed_url.query) - allowed_query_options
+        ):
+            raise RuntimeError(
+                "WUMA_TEST_MIGRATION_DATABASE_URL must name an isolated MySQL *_test database "
+                "with only charset and timeout query options"
+            )
+
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                if connection.scalar(text("SELECT DATABASE()")) != parsed_url.database:
+                    raise RuntimeError("migration connected database differs from the isolated test database")
+                assert not inspect(connection).get_table_names(), "migration test requires an empty database"
+                collation = connection.scalar(text(
+                    "SELECT DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA "
+                    "WHERE SCHEMA_NAME = DATABASE()"
+                ))
+                assert collation == "utf8mb4_unicode_ci"
+
+            monkeypatch.setenv("DATABASE_URL", database_url)
+            config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+            command.upgrade(config, "head")
+
+            with engine.connect() as connection:
+                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
+                    ScriptDirectory.from_config(config).get_current_head()
+                )
+                foreign_keys = connection.execute(text(
+                    "SELECT fk.TABLE_NAME, fk.COLUMN_NAME, child.COLLATION_NAME, "
+                    "parent.COLLATION_NAME AS referenced_collation "
+                    "FROM information_schema.KEY_COLUMN_USAGE AS fk "
+                    "JOIN information_schema.COLUMNS AS child "
+                    "ON child.TABLE_SCHEMA = fk.TABLE_SCHEMA "
+                    "AND child.TABLE_NAME = fk.TABLE_NAME AND child.COLUMN_NAME = fk.COLUMN_NAME "
+                    "JOIN information_schema.COLUMNS AS parent "
+                    "ON parent.TABLE_SCHEMA = fk.REFERENCED_TABLE_SCHEMA "
+                    "AND parent.TABLE_NAME = fk.REFERENCED_TABLE_NAME "
+                    "AND parent.COLUMN_NAME = fk.REFERENCED_COLUMN_NAME "
+                    "WHERE fk.TABLE_SCHEMA = DATABASE() "
+                    "AND fk.REFERENCED_TABLE_NAME IS NOT NULL AND child.COLLATION_NAME IS NOT NULL"
+                )).all()
+                assert foreign_keys, "migration must create string foreign keys"
+                assert all(child == parent for _, _, child, parent in foreign_keys), foreign_keys
+>           verify_training_catalog_upgrade_retains_review_rows(config, engine, database_url)
+
+backend\tests\test_mysql_migrations.py:72:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_mysql_migrations.py:121: in verify_training_catalog_upgrade_retains_review_rows
+    command.downgrade(config, '0015_remote_participants')
+backend\.venv\Lib\site-packages\alembic\command.py:534: in downgrade
+    script.run_env()
+backend\.venv\Lib\site-packages\alembic\script\base.py:550: in run_env
+    util.load_python_file(self.dir, "env.py")
+backend\.venv\Lib\site-packages\alembic\util\pyfiles.py:114: in load_python_file
+    module = load_module_py(module_id, path)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\alembic\util\pyfiles.py:132: in load_module_py
+    spec.loader.exec_module(module)  # type: ignore
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<frozen importlib._bootstrap_external>:995: in exec_module
+    ???
+<frozen importlib._bootstrap>:488: in _call_with_frames_removed
+    ???
+backend\alembic\env.py:34: in <module>
+    run_migrations_online()
+backend\alembic\env.py:27: in run_migrations_online
+    context.run_migrations()
+<string>:8: in run_migrations
+    ???
+backend\.venv\Lib\site-packages\alembic\runtime\environment.py:970: in run_migrations
+    self.get_context().run_migrations(**kw)
+backend\.venv\Lib\site-packages\alembic\runtime\migration.py:616: in run_migrations
+    step.migration_fn(**kw)
+backend\alembic\versions\0018_remote_training_owners.py:22: in downgrade
+    op.drop_index('ix_training_items_user_id', table_name='training_items')
+<string>:8: in drop_index
+    ???
+<string>:3: in drop_index
+    ???
+backend\.venv\Lib\site-packages\alembic\operations\ops.py:1133: in drop_index
+    return operations.invoke(op)
+           ^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\alembic\operations\base.py:448: in invoke
+    return fn(self, operation)
+           ^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\alembic\operations\toimpl.py:125: in drop_index
+    operations.impl.drop_index(
+backend\.venv\Lib\site-packages\alembic\ddl\impl.py:475: in drop_index
+    self._exec(schema.DropIndex(index, **kw))
+backend\.venv\Lib\site-packages\alembic\ddl\impl.py:252: in _exec
+    return conn.execute(construct, params)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py:1421: in execute
+    return meth(
+backend\.venv\Lib\site-packages\sqlalchemy\sql\ddl.py:188: in _execute_on_connection
+    return connection._execute_ddl(
+backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py:1532: in _execute_ddl
+    ret = self._execute_context(
+backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py:1848: in _execute_context
+    return self._exec_single_context(
+backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py:1988: in _exec_single_context
+    self._handle_dbapi_exception(
+backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py:2365: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+backend\.venv\Lib\site-packages\sqlalchemy\engine\base.py:1969: in _exec_single_context
+    self.dialect.do_execute(
+backend\.venv\Lib\site-packages\sqlalchemy\engine\default.py:952: in do_execute
+    cursor.execute(statement, parameters)
+backend\.venv\Lib\site-packages\pymysql\cursors.py:170: in execute
+    result = self._query(query)
+             ^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\pymysql\cursors.py:335: in _query
+    conn.query(q)
+backend\.venv\Lib\site-packages\pymysql\connections.py:581: in query
+    self._affected_rows = self._read_query_result(unbuffered=unbuffered)
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\pymysql\connections.py:857: in _read_query_result
+    result.read()
+backend\.venv\Lib\site-packages\pymysql\connections.py:1290: in read
+    first_packet = self.connection._read_packet()
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+backend\.venv\Lib\site-packages\pymysql\connections.py:810: in _read_packet
+    packet.raise_for_error()
+backend\.venv\Lib\site-packages\pymysql\protocol.py:219: in raise_for_error
+    err.raise_mysql_exception(self._data)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+data = b"\xff\x11\x06#HY000Cannot drop index 'ix_training_items_user_id': needed in a foreign key constraint"
+
+    def raise_mysql_exception(data):
+        errno = struct.unpack("<h", data[1:3])[0]
+        # https://dev.mysql.com/doc/dev/mysql-server/latest/page_protocol_basic_err_packet.html
+        # Error packet has optional sqlstate that is 5 bytes and starts with '#'.
+        sqlstate = None
+        if data[3] == 0x23:  # '#'
+            sqlstate = data[4:9].decode()
+            errval = data[9:].decode("utf-8", "replace")
+        else:
+            errval = data[3:].decode("utf-8", "replace")
+        errorclass = error_map.get(errno)
+        if errorclass is None:
+            errorclass = InternalError if errno < 1000 else OperationalError
+>       raise errorclass(errno, errval, sqlstate=sqlstate)
+E       sqlalchemy.exc.OperationalError: (pymysql.err.OperationalError) (1553, "Cannot drop index 'ix_training_items_user_id': needed in a foreign key constraint")
+E       [SQL:
+E       DROP INDEX ix_training_items_user_id ON training_items]
+E       (Background on this error at: https://sqlalche.me/e/20/e3q8)
+
+backend\.venv\Lib\site-packages\pymysql\err.py:154: OperationalError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\alembic\config.py:604: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+1 failed, 23 passed, 4 warnings in 45.56s

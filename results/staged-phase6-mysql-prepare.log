@@ -1,0 +1,3 @@
+Instance verified: uuid=79904ab3-c0d6-11f1-b2bb-088fc3774c8f, port=34365; fresh migration schema=staged_phase6_20261006_0535_test
+Migration schema is empty; no database was deleted.
+Feature schema verified: staged_features_test, head 0017_local_game_imports.

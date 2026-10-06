@@ -1,6 +1,7 @@
 """Run with WUMA_TEST_DATABASE_URL set to a dedicated migrated MySQL 8 database."""
 
 import os
+import hashlib
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 from unittest.mock import patch
@@ -19,7 +20,7 @@ from backend.app.db.models import (AiAnalysisModel, CoachHintModel, TrainingItem
                                     GameReviewModel, MoveReviewModel,
                                     ReviewExplanationModel, RemoteRoomModel, UserModel,
                                     GameTerminalEventModel, GameUndoEventModel,
-                                    RemoteUndoRequestModel, utc_now)
+                                    RemoteUndoRequestModel, AuthSessionModel, LocalGameImportModel, utc_now)
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.db.repositories.mysql_store import MySQLGameStore
 from backend.app.main import create_app
@@ -40,6 +41,7 @@ pytestmark = pytest.mark.skipif(not DB_URL, reason="isolated MySQL 8 test databa
 def db():
     engine = create_engine(DB_URL)
     with Session(engine) as session, session.begin():
+        session.execute(delete(AuthSessionModel))
         session.execute(delete(TrainingRecordModel))
         session.execute(delete(TrainingItemModel))
         session.execute(delete(CoachHintModel))
@@ -52,6 +54,7 @@ def db():
         session.execute(delete(GameTerminalEventModel))
         session.execute(delete(GameMoveModel))
         session.execute(delete(RemoteRoomModel))
+        session.execute(delete(LocalGameImportModel))
         session.execute(delete(GameModel))
         session.execute(delete(UserModel))
     yield engine
@@ -67,6 +70,11 @@ def client(db):
         test_client.app.state.store.close()
 
 
+def new_account_headers(client):
+    token = client.post("/api/v1/auth/device").json()["data"]["token"]
+    return {"Authorization": "Bearer " + token}
+
+
 def create_game(client, mode="LOCAL", first_player="A", ai_player=None):
     body = {"first_player": first_player, "mode": mode}
     if ai_player is not None:
@@ -74,6 +82,25 @@ def create_game(client, mode="LOCAL", first_player="A", ai_player=None):
     response = client.post("/api/v1/game", json=body)
     assert response.status_code == 200, response.text
     return response.json()["data"]["game_id"]
+
+
+@pytest.mark.parametrize('level', ['BEGINNER', 'STANDARD', 'ADVANCED'])
+def test_ai_level_sql_persists_history_and_restart(client, db, level):
+    response = client.post('/api/v1/game', json={'mode':'AI','ai_player':'A','ai_level':level})
+    assert response.status_code == 200,response.text
+    game = response.json()['data']
+    with Session(db) as session:
+        assert session.get(GameModel,game['game_id']).ai_level == level
+    assert client.get('/api/v1/me/games').json()['data']['items'][0]['aiLevel'] == level
+    with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
+        restarted.headers['Authorization'] = client.headers['Authorization']
+        assert restarted.get('/api/v1/game/'+game['game_id']).json()['data']['ai_level'] == level
+        adapter = restarted.app.state.adapter
+        with patch.object(adapter,'ai_move',wraps=adapter.ai_move) as search:
+            moved = restarted.post('/api/v1/game/'+game['game_id']+'/ai-move',json={})
+            assert moved.status_code == 200,moved.text
+            assert search.call_args.args[1:] == {'BEGINNER':(2,500),'STANDARD':(4,1000),'ADVANCED':(6,2000)}[level]
+        restarted.app.state.store.close()
 
 
 def test_personal_accounts_filter_mysql_history_and_survive_restart(client, db):
@@ -110,7 +137,8 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
     host = host_response.json()["data"]
     assert host["version"] == host["ply_count"] == 0
     game_id = host["game_id"]
-    guest_response = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest_response = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-guest-device"})
     assert guest_response.status_code == 200, guest_response.text
     guest = guest_response.json()["data"]
@@ -134,9 +162,9 @@ def test_remote_room_persists_two_seats_and_idempotent_turn(client, db):
     assert moves[0].turn_number == moves[0].created_revision == 1
     assert moves[0].reverted_revision is None
     with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
-        restarted.headers["Authorization"] = client.headers["Authorization"]
+        restarted.headers["Authorization"] = guest_headers["Authorization"]
         fetched = restarted.get(f"/api/v1/remote/rooms/{game_id}",
-                                headers={"X-Room-Token": guest["token"]})
+                                headers={**guest_headers, "X-Room-Token": guest["token"]})
         assert fetched.status_code == 200, fetched.text
         assert fetched.json()["data"]["seat"] == "B"
         assert fetched.json()["data"]["version"] == fetched.json()["data"]["ply_count"] == 1
@@ -147,8 +175,9 @@ def test_simultaneous_public_match_pairs_two_devices(client, db):
     barrier = Barrier(2)
 
     def match(device_id):
+        headers = new_account_headers(client)
         barrier.wait()
-        response = client.post("/api/v1/remote/match", json={"device_id": device_id})
+        response = client.post("/api/v1/remote/match", headers=headers, json={"device_id": device_id})
         assert response.status_code == 200, response.text
         return response.json()["data"]
 
@@ -537,7 +566,8 @@ def test_mysql_remote_pending_undo_is_rechecked_inside_move_transaction(client, 
     host = client.post("/api/v1/remote/rooms", json={
         "device_id": "mysql-pending-host", "public": False,
     }).json()["data"]
-    guest = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-pending-guest",
     }).json()["data"]
     game_id = host["game_id"]
@@ -570,7 +600,8 @@ def test_mysql_reverted_remote_request_is_a_permanent_tombstone(client, db):
     host = client.post("/api/v1/remote/rooms", json={
         "device_id": "mysql-tombstone-host", "public": False,
     }).json()["data"]
-    guest = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-tombstone-guest",
     }).json()["data"]
     game_id = host["game_id"]
@@ -584,7 +615,7 @@ def test_mysql_reverted_remote_request_is_a_permanent_tombstone(client, db):
         "expected_version": 1, "client_request_id": "mysql-tombstone-create-0001",
     }).json()["data"]["pending_undo"]
     accepted = client.post(path + f"/undo-requests/{created['id']}/accept",
-                           headers={"X-Room-Token": guest["token"]}, json={
+                           headers={**guest_headers, "X-Room-Token": guest["token"]}, json={
         "expected_version": 1, "client_request_id": "mysql-tombstone-accept-0001",
     })
     assert accepted.status_code == 200, accepted.text
@@ -599,20 +630,21 @@ def test_mysql_remote_operation_retries_return_identical_revert_counts(client, d
         host = client.post("/api/v1/remote/rooms", json={
             "device_id": f"{prefix}-host-device", "public": False,
         }).json()["data"]
-        guest = client.post("/api/v1/remote/join", json={
+        guest_headers = new_account_headers(client)
+        guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
             "invite_code": host["invite_code"],
             "device_id": f"{prefix}-guest-device",
         }).json()["data"]
-        return host, guest
+        return host, guest, guest_headers
 
-    host, guest = playing_room("mysql-idem-accept")
+    host, guest, guest_headers = playing_room("mysql-idem-accept")
     game_id = host["game_id"]
     path = f"/api/v1/remote/rooms/{game_id}/move"
     assert client.post(path, headers={"X-Room-Token": host["token"]}, json={
         "from_node": "P01", "to_node": "P02", "expected_version": 0,
         "client_request_id": "mysql-idem-accept-move-a",
     }).status_code == 200
-    assert client.post(path, headers={"X-Room-Token": guest["token"]}, json={
+    assert client.post(path, headers={**guest_headers, "X-Room-Token": guest["token"]}, json={
         "from_node": "P05", "to_node": "P04", "expected_version": 1,
         "client_request_id": "mysql-idem-accept-move-b",
     }).status_code == 200
@@ -633,7 +665,7 @@ def test_mysql_remote_operation_retries_return_identical_revert_counts(client, d
     assert first == retry
     assert first.revert_count == 2
 
-    host, guest = playing_room("mysql-idem-decline")
+    host, guest, guest_headers = playing_room("mysql-idem-decline")
     game_id = host["game_id"]
     assert client.post(f"/api/v1/remote/rooms/{game_id}/move",
                        headers={"X-Room-Token": host["token"]}, json={
@@ -657,7 +689,7 @@ def test_mysql_remote_operation_retries_return_identical_revert_counts(client, d
     assert first == retry
     assert first.revert_count == 1
 
-    host, guest = playing_room("mysql-idem-stale")
+    host, guest, guest_headers = playing_room("mysql-idem-stale")
     game_id = host["game_id"]
     assert client.post(f"/api/v1/remote/rooms/{game_id}/move",
                        headers={"X-Room-Token": host["token"]}, json={
@@ -723,7 +755,8 @@ def test_mysql_remote_resign_event_failure_rolls_back_game_and_pending_request(c
     host = client.post("/api/v1/remote/rooms", json={
         "device_id": "mysql-resign-host", "public": False,
     }).json()["data"]
-    guest = client.post("/api/v1/remote/join", json={
+    guest_headers = new_account_headers(client)
+    guest = client.post("/api/v1/remote/join", headers=guest_headers, json={
         "invite_code": host["invite_code"], "device_id": "mysql-resign-guest",
     }).json()["data"]
     game_id = host["game_id"]
@@ -904,10 +937,11 @@ def test_review_persists_atomic_ordered_rows_and_reuses_same_config(client, db):
         assert session.scalar(select(GameReviewModel).where(GameReviewModel.game_id == game_id)) is None
     original_commit = client.app.state.store.commit_review
 
-    async def invalid_second_fk(review, expected_version):
+    async def invalid_second_fk(review, expected_version, user_id=None, remote_token_hash=None):
         bad_move = review.moveReviews[1].model_copy(update={"gameMoveId": 999999999})
         invalid = review.model_copy(update={"moveReviews": [review.moveReviews[0], bad_move]})
-        return await original_commit(invalid, expected_version)
+        return await original_commit(invalid, expected_version,
+                                     user_id=user_id, remote_token_hash=remote_token_hash)
 
     with patch.object(client.app.state.store, "commit_review", side_effect=invalid_second_fk):
         rolled_back = client.post(f"/api/v1/game/{game_id}/review", json={})
@@ -1102,3 +1136,147 @@ def test_training_real_history_answer_records_and_source_game_unchanged(client, 
     assert after.current_state == before.current_state and after.version == before.version
     assert [row.id for row in after_moves] == [row.id for row in before_moves]
     assert client.get(f"/api/v1/game/{game_id}/review").json()["data"] == review
+
+
+def test_wechat_mysql_login_migrates_records_and_recovers_after_restart(client, db):
+    from backend.tests.test_wechat_auth import FakeWechat, login
+    from backend.tests.test_training import finished_review
+    from backend.app.api.v1.account import _token_hash
+    client.app.state.wechat_auth = FakeWechat()
+    original = client.headers["Authorization"][7:]
+    game_id, review = finished_review(client)
+    question = client.post(f"/api/v1/game/{game_id}/training", json={}).json()["data"]["items"][0]
+    best = next(move["bestMove"] for move in review["moveReviews"] if move["turn"] == question["sourceTurn"])
+    assert client.post(f'/api/v1/training/{question["id"]}/answer', json={
+        "from_node": best["from"], "to_node": best["to"], "client_attempt_id": "mysql-wx-answer"}).status_code == 200
+    target = login(client).json()["data"]
+    migrated = login(client, device_token=original).json()["data"]
+    assert migrated["userId"] == target["userId"]
+    assert client.get("/api/v1/me/profile").status_code == 401
+    with Session(db) as session:
+        assert session.get(GameModel, game_id).user_id == target["userId"]
+        assert session.scalar(select(TrainingRecordModel.user_id)) == target["userId"]
+        assert session.get(AuthSessionModel, _token_hash(migrated["token"])) is not None
+    with TestClient(create_app(Settings(database_url=DB_URL))) as restarted:
+        restarted.app.state.wechat_auth = FakeWechat()
+        restarted.headers["Authorization"] = "Bearer " + migrated["token"]
+        assert restarted.get("/api/v1/me/profile").json()["data"]["training"] == 1
+        same = login(restarted).json()["data"]
+        assert same["userId"] == target["userId"]
+        other = login(restarted, "bob").json()["data"]
+        restarted.headers["Authorization"] = "Bearer " + other["token"]
+        assert restarted.get(f"/api/v1/game/{game_id}").status_code == 403
+        restarted.app.state.store.close()
+
+
+def test_concurrent_first_wechat_logins_create_one_mysql_user(db):
+    from datetime import datetime, timedelta, timezone
+    barrier = Barrier(2)
+    store = MySQLGameStore(DB_URL)
+    def sign_in(index):
+        barrier.wait()
+        return store._login_wechat("wx-app:concurrent-user", str(index) * 64,
+            datetime.now(timezone.utc) + timedelta(days=1), None)
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            ids = list(pool.map(sign_in, [1, 2]))
+        assert ids[0] == ids[1]
+        with Session(db) as session:
+            assert len(session.scalars(select(UserModel).where(
+                UserModel.external_user_id == "wechat:" + hashlib.sha256(b"wx-app:concurrent-user").hexdigest())).all()) == 1
+    finally:
+        store.close()
+
+def test_mysql_local_import_transaction_retry_case_and_rollback(client,db):
+    from backend.tests.test_local_import import payload
+    from backend.app.db.models import LocalGameImportModel
+    body=payload(resigningPlayer='A')
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        responses=list(pool.map(lambda _:client.post('/api/v1/game/import-local',json=body),range(4)))
+    assert all(r.status_code==200 for r in responses), [r.text for r in responses]
+    game=responses[0].json()['data']; assert {r.json()['data']['game_id'] for r in responses}=={game['game_id']}
+    assert game['version']==3 and game['ply_count']==2
+    upper=client.post('/api/v1/game/import-local',json=payload(clientGameId='LOCAL-score-001'))
+    assert upper.status_code==200 and upper.json()['data']['game_id']!=game['game_id']
+    assert client.post('/api/v1/game/import-local',json=payload()).status_code==409
+    original=MoveRepository.create_move
+    def fail_second(self,*args,**kwargs):
+        original(self,*args,**kwargs)
+        if args[1]==2: raise IntegrityError('injected import insert',None,Exception('rollback'))
+    with patch.object(MoveRepository,'create_move',fail_second):
+        bad=client.post('/api/v1/game/import-local',json=payload(clientGameId='rollback-import'))
+        assert bad.status_code==503, bad.text
+    with Session(db) as s:
+        assert len(s.scalars(select(GameModel)).all())==2
+        assert len(s.scalars(select(LocalGameImportModel)).all())==2
+        assert len(s.scalars(select(GameMoveModel)).all())==4
+        assert len(s.scalars(select(GameTerminalEventModel)).all())==1
+    restarted=MySQLGameStore(DB_URL)
+    assert client.portal.call(restarted.get_snapshot,game['game_id']).version==3
+    restarted.close()
+
+@pytest.mark.parametrize('conflict',[False,True])
+def test_mysql_local_import_merge_conflict_atomic_retired_inflight(client,db,conflict):
+    from backend.tests.test_local_import import payload
+    from backend.tests.test_wechat_auth import FakeWechat,login
+    from backend.app.schemas.game import LocalImportRequest
+    client.app.state.wechat_auth=FakeWechat()
+    target=login(client,'merge-target').json()['data']
+    target_header={'Authorization':'Bearer '+target['token']}
+    if conflict:
+        target_game=client.post('/api/v1/game/import-local',headers=target_header,json=payload()).json()['data']['game_id']
+    source=client.post('/api/v1/auth/device').json()['data']
+    source_header={'Authorization':'Bearer '+source['token']}
+    game=client.post('/api/v1/game/import-local',headers=source_header,json=payload()).json()['data']['game_id']
+    migrated=login(client,'merge-target',device_token=source['token'])
+    if conflict:
+        assert migrated.status_code==409 and migrated.json()['code']=='LOCAL_IMPORT_ACCOUNT_CONFLICT'
+        assert client.get(f'/api/v1/game/{game}',headers=source_header).status_code==200
+        with Session(db) as s:
+            assert s.get(GameModel,game).user_id==source['userId']
+            assert s.get(GameModel,target_game).user_id==target['userId']
+            assert s.get(UserModel,source['userId']).external_user_id is not None
+    else:
+        assert migrated.status_code==200, migrated.text
+        assert client.get(f'/api/v1/game/{game}',headers=source_header).status_code==401
+        assert client.post('/api/v1/game/import-local',headers=target_header,json=payload()).json()['data']['game_id']==game
+        with pytest.raises(ApiError,match='AUTH_INVALID'):
+            client.portal.call(client.app.state.service.import_local,LocalImportRequest.model_validate(payload(clientGameId='retired-import')),source['userId'])
+
+def test_mysql_import_exact_owner_scope_and_finished_replay_training(client,db):
+    from backend.tests.test_local_import import payload
+    from backend.tests.test_training import MOVES
+    body=payload(moves=[{'from':a,'to':b} for a,b in MOVES])
+    finished=client.post('/api/v1/game/import-local',json=body)
+    assert finished.status_code==200,finished.text
+    game=finished.json()['data'];assert game['state']['game_status']=='FINISHED'
+    assert game['version']==game['ply_count']==len(MOVES)
+    assert client.post(f"/api/v1/game/{game['game_id']}/review",json={}).status_code==200
+    training=client.post(f"/api/v1/game/{game['game_id']}/training",json={})
+    assert training.status_code==200 and training.json()['data']['items']
+    other=new_account_headers(client)
+    second=client.post('/api/v1/game/import-local',headers=other,json=body)
+    assert second.status_code==200 and second.json()['data']['game_id']!=game['game_id']
+    assert client.get(f"/api/v1/game/{game['game_id']}",headers=other).status_code==403
+
+
+def test_mysql_import_authenticated_before_merge_but_persisting_after_merge_is_rejected(client,db):
+    import asyncio
+    from threading import Event
+    from backend.tests.test_wechat_auth import FakeWechat,login
+    from backend.tests.test_local_import import payload
+    client.app.state.wechat_auth=FakeWechat()
+    login(client,'inflight-target')
+    source=client.post('/api/v1/auth/device').json()['data']
+    started=Event();proceed=Event();adapter=client.app.state.service.adapter;original=adapter.initialize
+    async def pause(first):
+        state=await original(first);started.set();await asyncio.to_thread(proceed.wait,10);return state
+    with patch.object(adapter,'initialize',pause),ThreadPoolExecutor(max_workers=1) as pool:
+        request=pool.submit(client.post,'/api/v1/game/import-local',json=payload(),headers={'Authorization':'Bearer '+source['token']})
+        assert started.wait(10)
+        merged=login(client,'inflight-target',device_token=source['token']);assert merged.status_code==200
+        proceed.set();response=request.result(timeout=15)
+        assert response.status_code==401 and response.json()['code']=='AUTH_INVALID'
+    with Session(db) as s:
+        assert not s.scalars(select(GameModel)).all()
+        assert not s.scalars(select(LocalGameImportModel)).all()

@@ -16,7 +16,7 @@
       <view wx:else>
         <view class="versus ink-card"><player-card name="玩家 A" level="黑方" pieces="五马" avatar="棋" side="human" /><view class="vs">VS</view><player-card name="玩家 B" level="红方" pieces="五马" avatar="友" side="human" /></view>
         <view class="reserve-row"><text>A 备用棋 {{view.reserve.A}}</text><text>B 备用棋 {{view.reserve.B}}</text></view>
-        <view class="board-area"><chess-board board="{{board}}" bind:node="onNode" /></view>
+        <view class="board-area"><chess-board board="{{board}}" show-node-labels="{{settings.showNodeLabels}}" bind:node="onNode" /></view>
         <view wx:if="{{snapshot.room.pending_undo}}" class="undo-request-card">
           <view wx:if="{{snapshot.room.pending_undo.responder == snapshot.room.seat}}">
             <view>对方申请悔棋，将回退 {{snapshot.room.pending_undo.revert_count}} 手</view>
@@ -29,6 +29,7 @@
       </view>
       <view wx:if="{{snapshot.operationNotice}}" class="operation-notice">{{snapshot.operationNotice}}</view>
       <button wx:if="{{snapshot.room.room_status == 'FINISHED'}}" id="online-review" bindtap="viewReview">查看复盘</button>
+      <button wx:if="{{snapshot.room.room_status == 'PLAYING' || snapshot.room.room_status == 'FINISHED'}}" id="online-analysis" bindtap="openAnalysis">分析当前局面</button>
       <view class="operation-actions"><button id="online-request-undo" disabled="{{operationBusy || !snapshot.canRequestUndo}}" bindtap="requestUndo">申请悔棋</button><button id="online-resign" disabled="{{operationBusy || !snapshot.canResign}}" bindtap="resign">认输</button><button id="online-settings" bindtap="settings">设置</button></view>
       <view wx:if="{{showSettings}}" class="settings-area"><game-settings settings="{{settings}}" bind:change="onSettingsChange" /></view>
       <view class="room-actions"><button disabled="{{operationBusy}}" bindtap="refreshRoom">刷新棋局</button><button disabled="{{operationBusy || snapshot.pendingOperation || snapshot.pendingMove}}" bindtap="leaveRoom">返回房间大厅</button></view>
