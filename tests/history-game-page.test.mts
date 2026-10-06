@@ -25,6 +25,7 @@ test('game page records and resumes real local games and indexes server games', 
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: (key: string) => storage.get(key) ?? '',
     setStorageSync: (key: string, value: unknown) => {
       if (key === 'wuma:history:v1' && failHistoryWrite) {

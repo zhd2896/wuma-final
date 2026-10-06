@@ -32,11 +32,11 @@ function environment() {
   } };
 }
 
-test('guest returning from a cold-start rules page reaches login rather than home', async () => {
+test('guest returning from a cold-start rules page reaches the public home without login', async () => {
   const env = environment();
   await import('../miniprogram/guide/pages/rules/rules.ts');
   definition.back();
-  assert.deepEqual(env.destinations, ['/pages/login/login?next=/pages/index/index']);
+  assert.deepEqual(env.destinations, ['/pages/index/index']);
 });
 
 test('rules retains ordinary back navigation and signed-in home fallback', () => {

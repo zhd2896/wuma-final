@@ -8,6 +8,12 @@
     <view class="hero-note">一局入境 · 于方寸间见谋略</view>
   </view>
   <view class="home-content">
+    <view wx:if="{{!loggedIn}}" class="guest-welcome">
+      <view class="guest-title">先走一局，再决定登录</view>
+      <view class="guest-note">教学和电脑试玩免登录；保存棋谱、联机对战时再登录微信。</view>
+      <button id="guest-trial" class="gold-btn" bindtap="openTrial">免登录电脑试玩</button>
+      <button class="guest-login" bindtap="login">微信登录 · 保存记录与联机</button>
+    </view>
     <view id="tutorial-entry" class="rules-link" bindtap="openTutorial">
       <view class="rules-seal">练</view>
       <view class="rules-copy"><view class="rules-title">新手实操</view><view class="rules-sub">走棋 → 夹吃 → 挑吃 → 入门 AI</view></view>

@@ -83,7 +83,8 @@ test('cloud REMOTE history opens online resume or its own seat review', async ()
   let definition: any;
   const urls: string[] = [];
   (globalThis as any).Page = value => { definition = value; };
-  (globalThis as any).wx = { getStorageSync: () => '', navigateTo: ({ url }) => urls.push(url) };
+  (globalThis as any).wx = { getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    getStorageSync: key => key.startsWith('wuma:wechat-session:') ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : '', navigateTo: ({ url }) => urls.push(url) };
   await import('../miniprogram/pages/history/history.ts');
   const page = { ...definition, data: { ...definition.data },
     cloud: [{ gameId: 'cloud-room', mode: 'REMOTE', seat: 'B', status: 'PLAYING',

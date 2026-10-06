@@ -14,6 +14,7 @@ Page({
     if (hasWechatSession()) wx.reLaunch({ url: this.data.nextRoute });
   },
   onUnload() { this.disposed = true; },
+  browse() { wx.reLaunch({ url: '/pages/index/index' }); },
   openRules() { wx.navigateTo({ url: '/guide/pages/rules/rules' }); },
   openTutorial() { wx.navigateTo({ url: '/guide/pages/tutorial/tutorial' }); },
   async login() {

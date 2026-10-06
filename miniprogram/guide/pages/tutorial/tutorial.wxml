@@ -27,7 +27,8 @@
     <view class="completion-line">✓ 夹吃：两枚己方棋夹住一枚对方棋</view>
     <view class="completion-line">✓ 挑吃：己方棋走到两枚对方棋中间</view>
     <view class="completion-note">吃子还需整条直线没有其他棋子、备用棋足够。被吃的位置由备用棋替换。对方最后一子不能夹吃，只剩两子不能挑吃。</view>
-    <button id="tutorial-start-ai" class="gold-btn" bindtap="startAi" loading="{{startingAi}}" disabled="{{startingAi}}">开始入门 AI 对局</button>
+    <button class="gold-btn" bindtap="openTrial">免登录电脑试玩</button>
+    <button id="tutorial-start-ai" class="retry-button" bindtap="startAi" loading="{{startingAi}}" disabled="{{startingAi}}">开始正式入门 AI · 微信登录</button>
     <view class="completion-note">你执黑棋先走。未登录时先微信登录，再开始对局并保存棋谱。</view>
     <button class="retry-button" bindtap="retry">重新学习</button>
   </view>

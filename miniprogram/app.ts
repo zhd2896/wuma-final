@@ -6,7 +6,8 @@ App({
   onShow(options) {
     const pages = getCurrentPages();
     const current = pages[pages.length - 1];
-    if (isPublicRoute(current?.route || options.path || '')) return;
+    const route = current?.route || options.path || 'pages/index/index';
+    if (isPublicRoute(route) || route === 'pages/login/login') return;
     try { getApiBaseUrl(); } catch { showLogin(); return; }
     if (hasWechatSession()) return;
     if (current?.route === 'pages/login/login' || (!current && options.path === 'pages/login/login')) return;

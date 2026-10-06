@@ -5,7 +5,7 @@ const LOGIN_NAVIGATION_TIMEOUT_MS = 3000;
 const allowedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online'];
 
 export function isPublicRoute(value: string): boolean {
-  return ['guide/pages/rules/rules', 'guide/pages/tutorial/tutorial']
+  return ['pages/index/index', 'guide/pages/rules/rules', 'guide/pages/tutorial/tutorial', 'guide/pages/trial/trial']
     .includes(value.replace(/^\//, '').split('?')[0]);
 }
 

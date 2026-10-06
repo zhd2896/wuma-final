@@ -53,6 +53,7 @@ Page({
   back() {
     wx.navigateBack({ delta: 1, fail: () => wx.reLaunch({ url: '/guide/pages/rules/rules' }) });
   },
+  openTrial() { wx.navigateTo({ url: '/guide/pages/trial/trial' }); },
   startAi() {
     if (!this.controller?.snapshot.completed || this.data.startingAi) return;
     if (!hasWechatSession()) { showLogin(aiRoute); return; }

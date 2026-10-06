@@ -31,6 +31,8 @@ test('real local Page persists exact undo branch, reload, and blocks stale-page 
 
 test('real history Page exposes catchtap sync and opens linked finished rows with server ID',async()=>{
  values.clear();routes.length=0;
+ values.set('wuma:wechat-session:v1:http://127.0.0.1:8000',{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
+ (globalThis as any).wx.getAccountInfoSync=()=>({miniProgram:{envVersion:'develop'}});
  const p=make(gameDefinition);p.onLoad({mode:'local'});await p.confirmResign();const id=p.data.localGameId;
  const store=createWxDeviceHistoryStore();const pending=store.beginLocalSync(id,'owner','http://127.0.0.1:8000').localSync;
  store.linkLocalSync(id,pending,'d'.repeat(32));

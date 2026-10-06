@@ -1,0 +1,19 @@
+<view class="page trial-page">
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>免登录试玩<text class="topbar-tag">离线电脑</text></view>
+  <view class="trial-intro"><view class="trial-title">先下一局，感受五马棋</view><view class="trial-note">你执黑棋先走，红棋由电脑随机走合法棋步。无需登录和联网；正式 AI 对战、保存棋谱和联机需要微信登录。</view></view>
+  <block wx:if="{{ready}}">
+    <view class="trial-status"><text>● 你 · 备用 {{blackReserve}}</text><text class="red-side">● 电脑 · 备用 {{redReserve}}</text><text>{{turns}} 手</text></view>
+    <chess-board board="{{board}}" show-node-labels="{{true}}" bind:node="onNode" />
+    <view class="trial-feedback"><view class="trial-title">{{finished ? result : (locked ? '此局已结束试玩' : '轮到你走黑棋')}}</view><view class="trial-note">{{locked ? '棋谱正在保存或已保存。保存失败可重试，确认成功后可再开新局。' : message}}</view></view>
+    <view class="trial-actions"><button bindtap="resign" disabled="{{finished || locked || saving}}">认输</button><button bindtap="restart" disabled="{{saving}}">重新开始</button></view>
+    <button wx:if="{{!saved}}" class="gold-btn" bindtap="save" loading="{{saving}}" disabled="{{saving || turns == 0}}">{{saving ? '正在保存棋谱' : (locked ? '重试保存棋谱' : '保存棋谱 · 微信登录')}}</button>
+    <button wx:else class="gold-btn" bindtap="openHistory">已保存 · 查看个人记录</button>
+    <view class="trial-note">保存后本次试玩结束，棋谱可从历史查看。试玩不计入正式 AI 棋力。</view>
+  </block>
+  <button wx:else class="gold-btn" bindtap="restart">重新开始试玩</button>
+  <view wx:if="{{errorMessage}}" class="trial-error">{{errorMessage}}</view>
+  <view wx:if="{{draftWarning}}" class="trial-error">{{draftWarning}}</view>
+  <button class="trial-link" bindtap="openTutorial">还不熟悉规则？先学三步</button>
+  <button class="trial-link" bindtap="online">联机对战 · 微信登录</button>
+  <view class="trial-note">未保存的试玩暂存在本机，退出后可继续；尚未成为个人云端记录。</view>
+</view>

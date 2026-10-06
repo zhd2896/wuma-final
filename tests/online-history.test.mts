@@ -18,10 +18,12 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('online history restores active rooms and opens real review for finished games', async () => {
   const storage = new Map<string, unknown>();
+  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const routes: string[] = [];
   let definition: Record<string, any> | null = null;
   (globalThis as any).Page = (page: Record<string, any>) => { definition = page; };
   (globalThis as any).wx = {
+    getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
     getStorageSync: (key: string) => storage.get(key) ?? '',
     setStorageSync: (key: string, value: unknown) => { storage.set(key, value); },
     removeStorageSync: (key: string) => { storage.delete(key); },

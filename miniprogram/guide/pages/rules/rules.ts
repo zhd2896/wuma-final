@@ -11,10 +11,7 @@ Page({
   back() {
     wx.navigateBack({
       delta: 1,
-      fail: () => {
-        if (hasWechatSession()) wx.reLaunch({ url: '/pages/index/index' });
-        else showLogin('/pages/index/index');
-      },
+      fail: () => wx.reLaunch({ url: '/pages/index/index' }),
     });
   },
   preview() {

@@ -6,7 +6,7 @@ registerHooks({ resolve(s,c,next) { try { return next(s,c); } catch(e) { if(s.st
 test('actual game hint routes local and old cloud local to analysis, retains AI coach and reports missing game', async () => {
   let definition:any; const urls:string[]=[]; const messages:string[]=[]; let coach=0;
   (globalThis as any).Page=(p:any)=>{definition=p;};
-  (globalThis as any).wx={navigateTo:(o:any)=>urls.push(o.url),showToast:(o:any)=>messages.push(o.title)};
+  (globalThis as any).wx={getAccountInfoSync:()=>({miniProgram:{envVersion:'develop'}}),getStorageSync:()=>({token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'}),navigateTo:(o:any)=>urls.push(o.url),showToast:(o:any)=>messages.push(o.title)};
   await import('../miniprogram/pages/game/game.ts');
   const page={...definition,data:{...definition.data},setData(p:any){this.data={...this.data,...p};}};
   page.data.mode='local';page.data.localGameId='local-actual';page.hint();
