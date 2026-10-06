@@ -1,0 +1,79 @@
+(node:12312) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ real page renders zero, hundred, API seal and both review gates (48.1783ms)
+✖ partial readiness keeps true single scores while overall stays pending (0.631ms)
+✖ latest load wins; errors clear previous account data and retry works (7.9752ms)
+✖ hide and unload invalidate pending profile writes (1.9412ms)
+✖ missing fields and missing review gates produce explicit contract errors (1.8438ms)
+(node:4432) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ profile uses saved device identity and real account totals (53.7137ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 1
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 298.7737
+
+✖ failing tests:
+
+test at tests\player-skill-page.test.mts:37:1
+✖ real page renders zero, hundred, API seal and both review gates (48.1783ms)
+  TypeError: Cannot read properties of undefined (reading 'seal')
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/player-skill-page.test.mts:39:81)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:385:3)
+
+test at tests\player-skill-page.test.mts:51:1
+✖ partial readiness keeps true single scores while overall stays pending (0.631ms)
+  TypeError: Cannot read properties of undefined (reading 'overall')
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/player-skill-page.test.mts:53:39)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+
+test at tests\player-skill-page.test.mts:59:1
+✖ latest load wins; errors clear previous account data and retry works (7.9752ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  '微信棋手' !== '新账号'
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/player-skill-page.test.mts:64:10)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '微信棋手',
+    expected: '新账号',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests\player-skill-page.test.mts:72:1
+✖ hide and unload invalidate pending profile writes (1.9412ms)
+  TypeError: page[lifecycle] is not a function
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/player-skill-page.test.mts:75:20)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7)
+
+test at tests\player-skill-page.test.mts:79:1
+✖ missing fields and missing review gates produce explicit contract errors (1.8438ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+
+  'success' !== 'error'
+
+      at TestContext.<anonymous> (file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/tests/player-skill-page.test.mts:87:12)
+      at async Test.run (node:internal/test_runner/test:1313:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:897:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'success',
+    expected: 'error',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

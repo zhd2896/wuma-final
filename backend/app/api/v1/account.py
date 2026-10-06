@@ -15,6 +15,7 @@ from typing import Literal
 
 from backend.app.core.errors import ApiError
 from backend.app.schemas.game import ApiResponse
+from backend.app.schemas.account import PersonalProfileDto
 
 
 router = APIRouter(prefix="/api/v1", tags=["account"])
@@ -101,12 +102,12 @@ async def create_device_account(request: Request) -> ApiResponse[dict]:
     return ApiResponse(data={"userId": user_id, "token": token})
 
 
-@router.get("/me/profile", response_model=ApiResponse[dict])
-async def my_profile(request: Request) -> ApiResponse[dict]:
+@router.get("/me/profile", response_model=ApiResponse[PersonalProfileDto])
+async def my_profile(request: Request) -> ApiResponse[PersonalProfileDto]:
     user_id = await require_account(request)
     if user_id is None:
         raise ApiError("AUTH_REQUIRED", "Device account is required")
-    return ApiResponse(data=await request.app.state.store.personal_profile(user_id))
+    return ApiResponse(data=PersonalProfileDto.model_validate(await request.app.state.store.personal_profile(user_id)))
 
 
 @router.get("/me/games", response_model=ApiResponse[dict])

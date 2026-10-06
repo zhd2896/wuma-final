@@ -1,0 +1,779 @@
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF                                       [100%]
+================================== FAILURES ===================================
+_________ test_empty_evidence_returns_null_scores_and_complete_gates __________
+
+    def test_empty_evidence_returns_null_scores_and_complete_gates():
+>       profile = calculate()
+                  ^^^^^^^^^^^
+
+backend\tests\test_player_skill.py:23:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+________________________ test_six_formulas_and_overall ________________________
+
+    def test_six_formulas_and_overall():
+>       profile = ready()
+                  ^^^^^^^
+
+backend\tests\test_player_skill.py:36:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+________________ test_gates_are_independent[changes0-missing0] ________________
+
+changes = {'wins': 2, 'losses': 2}, missing = ['performance']
+
+    @pytest.mark.parametrize('changes,missing', [
+        ({'wins': 2, 'losses': 2}, ['performance']),
+        ({'reviewed_games': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'reviewed_moves': 14, 'good_moves': 4, 'normal_moves': 5, 'mistakes': 3, 'blunders': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'training_attempts': 4}, ['training']),
+    ])
+    def test_gates_are_independent(changes, missing):
+>       profile = ready(**changes)
+                  ^^^^^^^^^^^^^^^^
+
+backend\tests\test_player_skill.py:49:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 2, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+________________ test_gates_are_independent[changes1-missing1] ________________
+
+changes = {'reviewed_games': 2}
+missing = ['best_move', 'decision', 'stability', 'mistake_control']
+
+    @pytest.mark.parametrize('changes,missing', [
+        ({'wins': 2, 'losses': 2}, ['performance']),
+        ({'reviewed_games': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'reviewed_moves': 14, 'good_moves': 4, 'normal_moves': 5, 'mistakes': 3, 'blunders': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'training_attempts': 4}, ['training']),
+    ])
+    def test_gates_are_independent(changes, missing):
+>       profile = ready(**changes)
+                  ^^^^^^^^^^^^^^^^
+
+backend\tests\test_player_skill.py:49:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 2, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+________________ test_gates_are_independent[changes2-missing2] ________________
+
+changes = {'reviewed_moves': 14, 'good_moves': 4, 'normal_moves': 5, 'mistakes': 3, ...}
+missing = ['best_move', 'decision', 'stability', 'mistake_control']
+
+    @pytest.mark.parametrize('changes,missing', [
+        ({'wins': 2, 'losses': 2}, ['performance']),
+        ({'reviewed_games': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'reviewed_moves': 14, 'good_moves': 4, 'normal_moves': 5, 'mistakes': 3, 'blunders': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'training_attempts': 4}, ['training']),
+    ])
+    def test_gates_are_independent(changes, missing):
+>       profile = ready(**changes)
+                  ^^^^^^^^^^^^^^^^
+
+backend\tests\test_player_skill.py:49:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 14, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+________________ test_gates_are_independent[changes3-missing3] ________________
+
+changes = {'training_attempts': 4}, missing = ['training']
+
+    @pytest.mark.parametrize('changes,missing', [
+        ({'wins': 2, 'losses': 2}, ['performance']),
+        ({'reviewed_games': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'reviewed_moves': 14, 'good_moves': 4, 'normal_moves': 5, 'mistakes': 3, 'blunders': 2}, ['best_move', 'decision', 'stability', 'mistake_control']),
+        ({'training_attempts': 4}, ['training']),
+    ])
+    def test_gates_are_independent(changes, missing):
+>       profile = ready(**changes)
+                  ^^^^^^^^^^^^^^^^
+
+backend\tests\test_player_skill.py:49:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+____________ test_exact_minimums_zero_and_hundred_are_real_scores _____________
+
+    def test_exact_minimums_zero_and_hundred_are_real_scores():
+>       zero = ready(wins=0, losses=5, reviewed_moves=15, good_moves=0, normal_moves=0,
+                     mistakes=0, blunders=15, best_equivalent_moves=0, score_loss_sum=6000, training_correct=0)
+
+backend\tests\test_player_skill.py:55:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 0, 'losses': 5, 'reviewed_games': 3, 'reviewed_moves': 15, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______________________ test_half_up_and_blunder_weight _______________________
+
+    def test_half_up_and_blunder_weight():
+>       assert values(ready(wins=1, losses=7, training_attempts=8, training_correct=1))['performance'] == 13
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+backend\tests\test_player_skill.py:65:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 1, 'losses': 7, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+________________ test_grade_boundaries[0-\u5165\u95e8-\u5165] _________________
+
+score = 0, level = '����', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[39-\u5165\u95e8-\u5165] ________________
+
+score = 39, level = '����', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[40-\u8fdb\u9636-\u8fdb] ________________
+
+score = 40, level = '����', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[59-\u8fdb\u9636-\u8fdb] ________________
+
+score = 59, level = '����', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[60-\u719f\u7ec3-\u719f] ________________
+
+score = 60, level = '����', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[74-\u719f\u7ec3-\u719f] ________________
+
+score = 74, level = '����', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[75-\u7cbe\u901a-\u7cbe] ________________
+
+score = 75, level = '��ͨ', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[89-\u7cbe\u901a-\u7cbe] ________________
+
+score = 89, level = '��ͨ', seal = '��'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+________________ test_grade_boundaries[90-\u5353\u8d8a-\u5353] ________________
+
+score = 90, level = '׿Խ', seal = '׿'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+_______________ test_grade_boundaries[100-\u5353\u8d8a-\u5353] ________________
+
+score = 100, level = '׿Խ', seal = '׿'
+
+    @pytest.mark.parametrize('score,level,seal', [(0,'����','��'),(39,'����','��'),(40,'����','��'),(59,'����','��'),(60,'����','��'),(74,'����','��'),(75,'��ͨ','��'),(89,'��ͨ','��'),(90,'׿Խ','׿'),(100,'׿Խ','׿')])
+    def test_grade_boundaries(score, level, seal):
+>       from backend.app.services.player_skill import skill_grade
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:73: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes0] ________
+
+changes = {'wins': -1}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': -1, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes1] ________
+
+changes = {'wins': 1.5}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 1.5, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes2] ________
+
+changes = {'wins': True}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': True, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes3] ________
+
+changes = {'losses': '2'}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': '2', 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes4] ________
+
+changes = {'score_loss_sum': nan}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes5] ________
+
+changes = {'score_loss_sum': inf}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes6] ________
+
+changes = {'score_loss_sum': -1}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes7] ________
+
+changes = {'score_loss_sum': True}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes8] ________
+
+changes = {'score_loss_sum': '1'}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes9] ________
+
+changes = {'training_correct': 6}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes10] _______
+
+changes = {'best_equivalent_moves': 21}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes11] _______
+
+changes = {'good_moves': 6}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes12] _______
+
+changes = {'reviewed_games': 21}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 21, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes13] _______
+
+changes = {'reviewed_games': 6}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 6, 'reviewed_moves': 20, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_______ test_invalid_evidence_cannot_create_plausible_scores[changes14] _______
+
+changes = {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, ...}
+
+    @pytest.mark.parametrize('changes', [
+        {'wins': -1}, {'wins': 1.5}, {'wins': True}, {'losses': '2'},
+        {'score_loss_sum': float('nan')}, {'score_loss_sum': float('inf')}, {'score_loss_sum': -1},
+        {'score_loss_sum': True}, {'score_loss_sum': '1'}, {'training_correct': 6},
+        {'best_equivalent_moves': 21}, {'good_moves': 6}, {'reviewed_games': 21},
+        {'reviewed_games': 6}, {'reviewed_moves': 0, 'good_moves': 0, 'normal_moves': 0, 'mistakes': 0, 'blunders': 0, 'best_equivalent_moves': 0},
+    ])
+    def test_invalid_evidence_cannot_create_plausible_scores(changes):
+        with pytest.raises(ValueError):
+>           ready(**changes)
+
+backend\tests\test_player_skill.py:86:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+backend\tests\test_player_skill.py:15: in ready
+    return calculate(**(evidence | changes))
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'wins': 3, 'losses': 2, 'reviewed_games': 3, 'reviewed_moves': 0, ...}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+_________________ test_positive_loss_without_moves_is_invalid _________________
+
+    def test_positive_loss_without_moves_is_invalid():
+        with pytest.raises(ValueError):
+>           calculate(score_loss_sum=1)
+
+backend\tests\test_player_skill.py:91:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+changes = {'score_loss_sum': 1}
+
+    def calculate(**changes):
+>       from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
+E       ModuleNotFoundError: No module named 'backend.app.services.player_skill'
+
+backend\tests\test_player_skill.py:6: ModuleNotFoundError
+=========================== short test summary info ===========================
+FAILED backend/tests/test_player_skill.py::test_empty_evidence_returns_null_scores_and_complete_gates
+FAILED backend/tests/test_player_skill.py::test_six_formulas_and_overall - Mo...
+FAILED backend/tests/test_player_skill.py::test_gates_are_independent[changes0-missing0]
+FAILED backend/tests/test_player_skill.py::test_gates_are_independent[changes1-missing1]
+FAILED backend/tests/test_player_skill.py::test_gates_are_independent[changes2-missing2]
+FAILED backend/tests/test_player_skill.py::test_gates_are_independent[changes3-missing3]
+FAILED backend/tests/test_player_skill.py::test_exact_minimums_zero_and_hundred_are_real_scores
+FAILED backend/tests/test_player_skill.py::test_half_up_and_blunder_weight - ...
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[0-\u5165\u95e8-\u5165]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[39-\u5165\u95e8-\u5165]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[40-\u8fdb\u9636-\u8fdb]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[59-\u8fdb\u9636-\u8fdb]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[60-\u719f\u7ec3-\u719f]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[74-\u719f\u7ec3-\u719f]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[75-\u7cbe\u901a-\u7cbe]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[89-\u7cbe\u901a-\u7cbe]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[90-\u5353\u8d8a-\u5353]
+FAILED backend/tests/test_player_skill.py::test_grade_boundaries[100-\u5353\u8d8a-\u5353]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes0]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes1]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes2]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes3]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes4]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes5]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes6]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes7]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes8]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes9]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes10]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes11]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes12]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes13]
+FAILED backend/tests/test_player_skill.py::test_invalid_evidence_cannot_create_plausible_scores[changes14]
+FAILED backend/tests/test_player_skill.py::test_positive_loss_without_moves_is_invalid
+34 failed in 0.90s

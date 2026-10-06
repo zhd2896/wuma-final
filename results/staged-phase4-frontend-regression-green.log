@@ -1,0 +1,35 @@
+(node:24908) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/login/login.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ login waits for button and coalesces repeat taps, then restores a deep link (42.1819ms)
+✔ valid session skips login; unsafe next routes fall back to home (0.3825ms)
+✔ failed WeChat login stays on page with a retryable error (0.4886ms)
+✔ business API with no session redirects without automatically logging in (1.5466ms)
+✔ logout clears only login state and preserves local records (0.8571ms)
+✔ app protects cold-start deep links and resumes expired sessions even if launch path was login (5.6821ms)
+✔ guest can open rules and the safe return route recognizes only the registered guide (0.8408ms)
+✔ profile logout returns to login while preserving local history (29.3155ms)
+✔ concurrent login redirects preserve the first return target while navigation is pending (0.5175ms)
+(node:1544) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real page renders zero, hundred, API seal and both review gates (64.2739ms)
+✔ partial readiness keeps true single scores while overall stays pending (0.6196ms)
+✔ latest load wins; errors clear previous account data and retry works (7.9439ms)
+✔ hide and unload invalidate pending profile writes (2.5802ms)
+✔ missing fields and missing review gates produce explicit contract errors (1.3499ms)
+(node:6228) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ profile uses saved device identity and real account totals (64.522ms)
+ℹ tests 15
+ℹ suites 0
+ℹ pass 15
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 386.3015

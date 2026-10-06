@@ -9,10 +9,11 @@ from uuid import uuid4
 from backend.app.core.errors import ApiError
 from backend.app.schemas.game import (
     GameOperationRequest, GameOperationResponse, GameReview, GameState, PositionAnalysis,
-    SearchResult, TurnResult,
+    SearchResult, TurnResult, ReviewConfig,
 )
 from backend.app.schemas.remote import RemoteOperationRequest
 from backend.app.services.remote_accounts import recovery_seat
+from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
@@ -293,6 +294,24 @@ class InMemoryGameStore:
         wins = sum(game.state.winner == ("B" if game.ai_player == "A" else "A")
                    for game in ai_finished)
         losses = sum(game.state.winner == game.ai_player for game in ai_finished)
+        human_reviews = []
+        for game in ai_finished:
+            human = 'B' if game.ai_player == 'A' else 'A'
+            review = self._reviews.get((game.game_id, human, ReviewConfig().version))
+            moves = [move for move in review.moveReviews if move.player == human] if review else []
+            if moves:
+                human_reviews.append(moves)
+        reviewed_moves = [move for moves in human_reviews for move in moves]
+        skill = calculate_skill_profile(SkillEvidence(
+            wins=wins, losses=losses, training_attempts=len(records),
+            training_correct=sum(record.result == 'CORRECT' for record in records),
+            reviewed_games=len(human_reviews), reviewed_moves=len(reviewed_moves),
+            good_moves=sum(move.category == 'GOOD' for move in reviewed_moves),
+            normal_moves=sum(move.category == 'NORMAL' for move in reviewed_moves),
+            mistakes=sum(move.category == 'MISTAKE' for move in reviewed_moves),
+            blunders=sum(move.category == 'BLUNDER' for move in reviewed_moves),
+            best_equivalent_moves=sum(move.bestMoveEquivalent for move in reviewed_moves),
+            score_loss_sum=sum(move.scoreLoss for move in reviewed_moves)))
         remote = [game for game in games if game.mode == "REMOTE"]
         remote_finished = [game for game in remote if game.state.game_status == "FINISHED"]
         return {"remoteGames": len(remote),
@@ -305,7 +324,8 @@ class InMemoryGameStore:
                                       if self._owns_personal(self._games[key[0]], user_id) and (self._games[key[0]].mode != "REMOTE" or key[1] == self._personal_seat(key[0], user_id))}),
                 "training": len({record.trainingId for record in records if record.result == "CORRECT"}),
                 "trainingAttempts": len(records),
-                "correct": sum(record.result == "CORRECT" for record in records)}
+                "correct": sum(record.result == "CORRECT" for record in records),
+                "skillProfile": skill}
 
     async def create(self, state: GameState, mode: str = "LOCAL",
                      ai_player: str | None = None, ai_level: str | None = None,

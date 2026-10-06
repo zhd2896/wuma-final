@@ -144,7 +144,13 @@ test('profile logout returns to login while preserving local history', async () 
   let profile: any;
   (globalThis as any).Page = (value: any) => { profile = value; };
   await import('../miniprogram/pages/profile/profile.ts');
+  profile = { ...profile, requestGeneration: 2,
+    data: { ...profile.data, cloudGames: 5, skillProfile: { seal: '熟' } },
+    setData(patch: Record<string, unknown>) { this.data = { ...this.data, ...patch }; } };
   profile.logout();
+  assert.equal(profile.requestGeneration, 3);
+  assert.equal(profile.data.skillProfile, null);
+  assert.equal(profile.data.cloudGames, 0);
   assert.deepEqual(env.destinations, ['/pages/login/login']);
   assert.equal(env.storage.has(key), false);
   assert.deepEqual(env.storage.get('wuma:history:v1'), ['local-game']);

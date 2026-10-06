@@ -47,6 +47,7 @@ const publicMessages: Readonly<Record<string, string>> = {
   REMOTE_UNDO_PENDING: '已有待处理的悔棋申请',
   OPERATION_NOT_ALLOWED: '无权处理此操作',
   INVALID_GAME_RESPONSE: '棋局数据异常，请刷新重试',
+  INVALID_PROFILE_RESPONSE: '个人棋力数据异常，请刷新重试',
   NODE_NOT_FOUND: '棋盘位置无效',
   INSUFFICIENT_RESERVE: '备用棋不足',
   GAME_NOT_FINISHED: '棋局尚未结束，暂不能生成复盘',

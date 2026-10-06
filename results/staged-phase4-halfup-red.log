@@ -1,0 +1,95 @@
+.........FFFFF..........................                                 [100%]
+================================== FAILURES ===================================
+____ test_half_up_survives_float_subtraction_cancellation[mistake_control] ____
+
+metric = 'mistake_control'
+
+    @pytest.mark.parametrize('metric', ['mistake_control', 'decision'])
+    def test_half_up_survives_float_subtraction_cancellation(metric):
+        profile = ready(reviewed_moves=20, good_moves=3, normal_moves=0, mistakes=17, blunders=0,
+                        best_equivalent_moves=3, score_loss_sum=1700)
+>       assert values(profile)[metric] == 58  # exact 57.5 for both business formulas
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 57 == 58
+
+backend\tests\test_player_skill.py:83: AssertionError
+_______ test_half_up_survives_float_subtraction_cancellation[decision] ________
+
+metric = 'decision'
+
+    @pytest.mark.parametrize('metric', ['mistake_control', 'decision'])
+    def test_half_up_survives_float_subtraction_cancellation(metric):
+        profile = ready(reviewed_moves=20, good_moves=3, normal_moves=0, mistakes=17, blunders=0,
+                        best_equivalent_moves=3, score_loss_sum=1700)
+>       assert values(profile)[metric] == 58  # exact 57.5 for both business formulas
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       assert 57 == 58
+
+backend\tests\test_player_skill.py:83: AssertionError
+________ test_all_half_point_ratios_match_exact_integer_arithmetic[20] ________
+
+moves = 20
+
+    @pytest.mark.parametrize('moves', [20, 40, 100])
+    def test_all_half_point_ratios_match_exact_integer_arithmetic(moves):
+        # Compare independent integer rational oracle across every possible mistake count.
+        for mistakes in range(moves + 1):
+            numerator = 100 * (2 * moves - mistakes)
+            denominator = 2 * moves
+            expected = (2 * numerator + denominator) // (2 * denominator)
+            profile = ready(wins=moves-mistakes, losses=mistakes,
+                            training_attempts=moves, training_correct=moves-mistakes,
+                            reviewed_moves=moves, good_moves=moves-mistakes, normal_moves=0,
+                            mistakes=mistakes, blunders=0, best_equivalent_moves=moves-mistakes,
+                            score_loss_sum=50 * mistakes)
+>           assert values(profile)['mistake_control'] == expected
+E           assert 57 == 58
+
+backend\tests\test_player_skill.py:98: AssertionError
+________ test_all_half_point_ratios_match_exact_integer_arithmetic[40] ________
+
+moves = 40
+
+    @pytest.mark.parametrize('moves', [20, 40, 100])
+    def test_all_half_point_ratios_match_exact_integer_arithmetic(moves):
+        # Compare independent integer rational oracle across every possible mistake count.
+        for mistakes in range(moves + 1):
+            numerator = 100 * (2 * moves - mistakes)
+            denominator = 2 * moves
+            expected = (2 * numerator + denominator) // (2 * denominator)
+            profile = ready(wins=moves-mistakes, losses=mistakes,
+                            training_attempts=moves, training_correct=moves-mistakes,
+                            reviewed_moves=moves, good_moves=moves-mistakes, normal_moves=0,
+                            mistakes=mistakes, blunders=0, best_equivalent_moves=moves-mistakes,
+                            score_loss_sum=50 * mistakes)
+>           assert values(profile)['mistake_control'] == expected
+E           assert 57 == 58
+
+backend\tests\test_player_skill.py:98: AssertionError
+_______ test_all_half_point_ratios_match_exact_integer_arithmetic[100] ________
+
+moves = 100
+
+    @pytest.mark.parametrize('moves', [20, 40, 100])
+    def test_all_half_point_ratios_match_exact_integer_arithmetic(moves):
+        # Compare independent integer rational oracle across every possible mistake count.
+        for mistakes in range(moves + 1):
+            numerator = 100 * (2 * moves - mistakes)
+            denominator = 2 * moves
+            expected = (2 * numerator + denominator) // (2 * denominator)
+            profile = ready(wins=moves-mistakes, losses=mistakes,
+                            training_attempts=moves, training_correct=moves-mistakes,
+                            reviewed_moves=moves, good_moves=moves-mistakes, normal_moves=0,
+                            mistakes=mistakes, blunders=0, best_equivalent_moves=moves-mistakes,
+                            score_loss_sum=50 * mistakes)
+>           assert values(profile)['mistake_control'] == expected
+E           assert 57 == 58
+
+backend\tests\test_player_skill.py:98: AssertionError
+=========================== short test summary info ===========================
+FAILED backend/tests/test_player_skill.py::test_half_up_survives_float_subtraction_cancellation[mistake_control]
+FAILED backend/tests/test_player_skill.py::test_half_up_survives_float_subtraction_cancellation[decision]
+FAILED backend/tests/test_player_skill.py::test_all_half_point_ratios_match_exact_integer_arithmetic[20]
+FAILED backend/tests/test_player_skill.py::test_all_half_point_ratios_match_exact_integer_arithmetic[40]
+FAILED backend/tests/test_player_skill.py::test_all_half_point_ratios_match_exact_integer_arithmetic[100]
+5 failed, 35 passed in 0.66s

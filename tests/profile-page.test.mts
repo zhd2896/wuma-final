@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
+import { skill } from './fixtures/player-skill.mts';
 
 registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
@@ -34,7 +35,8 @@ test('profile uses saved device identity and real account totals', async () => {
       options.success({ statusCode: 200, data: { code: 0, data: path === '/api/v1/auth/wechat'
         ? { token: 'a'.repeat(64), userId: 'user1', expiresAt: '2099-01-01T00:00:00Z' }
         : { id: 'user1', nickname: '本机棋手', games: 2, finishedGames: 1,
-          wins: 1, losses: 0, reviewedGames: 1, training: 2, trainingAttempts: 4, correct: 3 } } });
+          wins: 1, losses: 0, remoteGames: 0, remoteWins: 0, remoteLosses: 0,
+          reviewedGames: 1, training: 2, trainingAttempts: 4, correct: 3, skillProfile: skill() } } });
     },
   };
   await import('../miniprogram/pages/profile/profile.ts');

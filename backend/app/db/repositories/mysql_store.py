@@ -5,7 +5,7 @@ import hashlib
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import create_engine, select, text, func, or_, and_, update
+from sqlalchemy import create_engine, select, text, func, or_, and_, update, case
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError, OperationalError
 from sqlalchemy.orm import sessionmaker
 
@@ -20,7 +20,7 @@ from backend.app.db.repositories.remote import RemoteRepository
 from backend.app.db.repositories.move import MoveRepository
 from backend.app.schemas.game import (
     GameOperationRequest, GameOperationResponse, GameReview, GameState, PositionAnalysis,
-    SearchResult, TurnResult,
+    SearchResult, TurnResult, ReviewConfig,
 )
 from backend.app.schemas.remote import RemoteOperationRequest
 from backend.app.schemas.explanation import ExplanationBundle
@@ -28,6 +28,7 @@ from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
                                           TrainingSource)
 from backend.app.db.repositories.training import TrainingRepository
+from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
 from backend.app.services.game_store import (StoredGame, StoredMove, StoredRemoteRoom,
                                              StoredRemoteUndoRequest,
                                              StoredTerminalEvent)
@@ -195,12 +196,36 @@ class MySQLGameStore:
                 correct = session.scalar(select(func.count()).select_from(TrainingRecordModel).where(
                     TrainingRecordModel.user_id == user_id,
                     TrainingRecordModel.result == "CORRECT")) or 0
-                ai_results = session.execute(select(GameModel.winner, GameModel.ai_player).where(
+                wins, losses = session.execute(select(
+                    func.coalesce(func.sum(case((and_(GameModel.winner.in_(['A', 'B']),
+                        GameModel.winner != GameModel.ai_player), 1), else_=0)), 0),
+                    func.coalesce(func.sum(case((GameModel.winner == GameModel.ai_player, 1), else_=0)), 0)
+                ).where(
                     GameModel.user_id == user_id, GameModel.mode == "AI",
-                    GameModel.status == "FINISHED")).all()
-                wins = sum(winner == ("B" if ai_player == "A" else "A")
-                           for winner, ai_player in ai_results)
-                losses = sum(winner == ai_player for winner, ai_player in ai_results)
+                    GameModel.status == "FINISHED")).one()
+                wins, losses = int(wins), int(losses)
+                categories = ['GOOD', 'NORMAL', 'MISTAKE', 'BLUNDER']
+                # Inner join counts a review only when at least one human move exists.
+                # The game/player/version unique key makes each game contribute once.
+                evidence = session.execute(select(
+                    func.count(func.distinct(GameReviewModel.game_id)), func.count(MoveReviewModel.id),
+                    *(func.coalesce(func.sum(case((MoveReviewModel.category == category, 1), else_=0)), 0)
+                      for category in categories),
+                    func.coalesce(func.sum(case((MoveReviewModel.score_loss == 0, 1), else_=0)), 0),
+                    func.coalesce(func.sum(MoveReviewModel.score_loss), 0))
+                    .select_from(GameModel)
+                    .join(GameReviewModel, GameReviewModel.game_id == GameModel.id)
+                    .join(MoveReviewModel, MoveReviewModel.game_review_id == GameReviewModel.id)
+                    .where(GameModel.user_id == user_id, GameModel.mode == 'AI', GameModel.status == 'FINISHED',
+                           GameModel.ai_player.in_(['A', 'B']),
+                           GameReviewModel.reviewed_player != GameModel.ai_player,
+                           GameReviewModel.review_config_version == ReviewConfig().version,
+                           MoveReviewModel.player == GameReviewModel.reviewed_player)).one()
+                skill = calculate_skill_profile(SkillEvidence(
+                    wins=int(wins), losses=int(losses), training_attempts=training_attempts, training_correct=correct,
+                    reviewed_games=evidence[0], reviewed_moves=evidence[1], good_moves=int(evidence[2]),
+                    normal_moves=int(evidence[3]), mistakes=int(evidence[4]), blunders=int(evidence[5]),
+                    best_equivalent_moves=int(evidence[6]), score_loss_sum=float(evidence[7])))
                 reviewed = session.scalar(select(func.count(func.distinct(GameReviewModel.game_id)))
                     .join(GameModel, GameModel.id == GameReviewModel.game_id)
                     .outerjoin(RemoteRoomModel, RemoteRoomModel.game_id == GameModel.id)
@@ -218,7 +243,8 @@ class MySQLGameStore:
                 return {"remoteGames": len(remote), "remoteWins": remote_wins, "remoteLosses": remote_losses,
                         "id": user_id, "nickname": nickname, "games": games,
                         "finishedGames": finished, "wins": wins, "losses": losses,
-                        "reviewedGames": reviewed, "training": training, "trainingAttempts": training_attempts, "correct": correct}
+                        "reviewedGames": reviewed, "training": training, "trainingAttempts": training_attempts,
+                        "correct": correct, "skillProfile": skill}
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
