@@ -189,7 +189,7 @@ test('local play stops on a P03 lone-piece loss and the page names its winner re
   assert.equal(turn.session.gameState.winner_reason, 'LONE_PIECE_IMMOBILIZED');
   assert.equal(tapLocalGameNode(turn.session, 'P03').session, turn.session);
   const wxml = readFileSync(new URL('../miniprogram/pages/game/game.wxml', import.meta.url), 'utf8');
-  assert.match(wxml, /winner_reason == 'LONE_PIECE_IMMOBILIZED'[^\n]*>对方孤棋无路可走<\/view>/);
+  assert.match(wxml, /localView\.winnerMessage/);
 });
 
 test('stale legal highlighting cannot bypass executeTurn validation', () => {

@@ -1,5 +1,5 @@
 import { NODE_IDS, RuleEngine } from '../../domain/index';
-import type { GameState, Move, NodeId, Player, TurnResult } from '../../domain/index';
+import type { CaptureResult, GameState, Move, NodeId, Player, TurnResult } from '../../domain/index';
 import type { BoardState as BoardView } from '../../types/domain';
 import { mapGameStateToView } from './game-state-mapper';
 
@@ -12,6 +12,8 @@ export interface LocalScore {
 }
 
 export interface LocalGameSession {
+  /** Last live turn only; snapshots without capture metadata never invent it. */
+  readonly lastCapture?: CaptureResult | null;
   /** Absent on legacy snapshot-only saves: a missing prefix is never invented. */
   readonly score?: LocalScore;
   readonly gameState: GameState;
@@ -59,11 +61,12 @@ function copyGameState(state: GameState): GameState {
 }
 
 export function getLocalBoardView(session: LocalGameSession,
-                                  showLegalTargets = true): BoardView {
+                                  showLegalTargets = true, showCaptureNotice = true): BoardView {
   return mapGameStateToView(session.gameState, {
     selectedNode: session.selectedNode,
-    legalTargets: showLegalTargets ? session.legalDestinations : [],
+    legalTargets: session.legalDestinations, showLegalTargets,
     lastMove: copyMove(session.lastMove),
+    lastCapture: showCaptureNotice ? session.lastCapture : null,
   }).board;
 }
 
@@ -131,6 +134,7 @@ export function tapLocalGameNode(session: LocalGameSession, id: string): LocalTa
         selectedNode: null,
         legalDestinations: [],
         lastMove: turn.move,
+        lastCapture: turn.captures,
         undoFrame: {
           gameState: copyGameState(session.gameState),
           lastMove: copyMove(session.lastMove),

@@ -80,8 +80,9 @@ Page({
     remoteState: null as RemoteGameSnapshot | null, remoteView: null as GameViewModel | null,
     remoteReady: false, aiState: null as AiGameSnapshot | null,
     aiView: null as GameViewModel | null, aiReady: false,
-    aiAName: '玩家 A', aiBName: 'AI · B', aiLevelLabel: '',
+    aiAName: '你', aiBName: 'AI', aiLevelLabel: '',
     remoteCaptureText: '', aiCaptureText: '',
+    localView: null as GameViewModel | null, aiGuidanceText: '',
     aiAnalysisView: null as AnalysisViewModel | null,
     mode: 'ai', thinking: false,
     showUndoConfirm: false, showResign: false, showSettings: false,
@@ -156,15 +157,16 @@ Page({
     }
     const view = snapshot.gameState ? mapGameStateToView(snapshot.gameState, {
       selectedNode: snapshot.selectedNode,
-      legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
+      legalTargets: snapshot.legalTargets, showLegalTargets: this.data.settings.showLegalTargets,
       lastMove: snapshot.lastMove,
+      lastCapture: this.data.settings.showCaptureNotice ? snapshot.lastCapture : null,
     }) : null;
     if (previous?.gameId === snapshot.gameId && snapshot.plyCount > previous.plyCount &&
         snapshot.lastMove) vibrateForSuccessfulAction(this.data.settings);
     this.setData({ remoteState: snapshot, remoteView: view,
       operationBusy: snapshot.isOperating,
-      remoteCaptureText: this.data.settings.showCaptureNotice && snapshot.lastCapture?.was_applied
-        ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚`
+      remoteCaptureText: this.data.settings.showCaptureNotice
+        ? view?.captureText ?? ''
         : '',
       remoteReady: view !== null, board: view?.board ?? emptyBoard });
   },
@@ -176,9 +178,9 @@ Page({
     }
     const view = snapshot.gameState ? mapGameStateToView(snapshot.gameState, {
       selectedNode: snapshot.selectedNode,
-      legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
+      legalTargets: snapshot.legalTargets, showLegalTargets: this.data.settings.showLegalTargets,
       lastMove: snapshot.lastMove,
-      lastCapture: snapshot.lastCapture,
+      lastCapture: this.data.settings.showCaptureNotice ? snapshot.lastCapture : null,
     }, snapshot.humanPlayer) : null;
     const analysisView = snapshot.analysis && snapshot.gameState
       ? mapPositionAnalysis(snapshot.gameState, snapshot.analysis) : null;
@@ -187,13 +189,19 @@ Page({
     this.setData({ aiState: snapshot, aiView: view,
       operationBusy: snapshot.isOperating,
       aiAnalysisView: analysisView,
-      aiCaptureText: this.data.settings.showCaptureNotice && snapshot.lastCapture?.was_applied
-        ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚`
+      aiGuidanceText: view?.guidanceText.replace(/对手/g, 'AI') ?? '',
+      aiCaptureText: this.data.settings.showCaptureNotice
+        ? view?.captureText.replace(/对手/g, 'AI') ?? ''
         : '',
       aiLevelLabel: snapshot.aiLevel ? AI_LEVEL_LABELS[snapshot.aiLevel] : '',
-      aiAName: snapshot.aiPlayer === 'A' ? `${AI_LEVEL_LABELS[snapshot.aiLevel ?? 'STANDARD']} AI · A` : '玩家 A',
-      aiBName: snapshot.aiPlayer === 'B' ? `${AI_LEVEL_LABELS[snapshot.aiLevel ?? 'STANDARD']} AI · B` : '玩家 B',
+      aiAName: snapshot.aiPlayer === 'A' ? `${AI_LEVEL_LABELS[snapshot.aiLevel ?? 'STANDARD']} AI` : '你',
+      aiBName: snapshot.aiPlayer === 'B' ? `${AI_LEVEL_LABELS[snapshot.aiLevel ?? 'STANDARD']} AI` : '你',
       aiReady: view !== null, board: view?.board ?? emptyBoard });
+  },
+  localViewFor(session: LocalGameSession): GameViewModel {
+    return mapGameStateToView(session.gameState, { selectedNode: session.selectedNode,
+      legalTargets: session.legalDestinations, showLegalTargets: this.data.settings.showLegalTargets,
+      lastMove: session.lastMove, lastCapture: this.data.settings.showCaptureNotice ? session.lastCapture : null });
   },
   back() { backHome(); },
   onNode(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
@@ -223,7 +231,8 @@ Page({
         this.setData({ localTurns: turns });
       }
       this.setData({ localSession: result.session,
-        board: getLocalBoardView(result.session, this.data.settings.showLegalTargets) });
+        localView: this.localViewFor(result.session),
+        board: getLocalBoardView(result.session, this.data.settings.showLegalTargets, this.data.settings.showCaptureNotice) });
       if (result.turn) {
         if (this.data.settings.showCaptureNotice &&
             result.turn.captures.failure_reason === 'INSUFFICIENT_RESERVE') {
@@ -299,7 +308,8 @@ Page({
           wx.setStorageSync(activeLocalGameIdKey, savedId);
           this.setData({ mode: 'local', localGameId: savedId, localTurns: entry.turns,
             localSession: session, localWinnerMessage: mapGameStateToView(session.gameState).winnerMessage,
-            board: getLocalBoardView(session, this.data.settings.showLegalTargets),
+            localView: this.localViewFor(session),
+            board: getLocalBoardView(session, this.data.settings.showLegalTargets, this.data.settings.showCaptureNotice),
             localErrorMessage: '',
             thinking: false, showUndoConfirm: false,
             showResign: false, showSettings: false, operationBusy: false, resigned: false });
@@ -308,7 +318,7 @@ Page({
       } catch {
         if (requestedId) {
           this.setData({ mode: 'local', localSession: null, localGameId: savedId,
-            localErrorMessage: '本地历史棋局读取失败', board: emptyBoard });
+            localView: null, localErrorMessage: '本地历史棋局读取失败', board: emptyBoard });
           return;
         }
         wx.showToast({ title: '本地记录读取失败', icon: 'none' });
@@ -316,7 +326,7 @@ Page({
     }
     if (requestedId) {
       this.setData({ mode: 'local', localSession: null, localGameId: requestedId,
-        localErrorMessage: '本地历史棋局不存在', board: emptyBoard });
+        localView: null, localErrorMessage: '本地历史棋局不存在', board: emptyBoard });
       return;
     }
     this.restartLocalGame();
@@ -341,7 +351,8 @@ Page({
     this.setData({
       mode: 'local', localGameId: id, localTurns: 0,
       localSession: session, localWinnerMessage: mapGameStateToView(session.gameState).winnerMessage,
-      board: getLocalBoardView(session, this.data.settings.showLegalTargets),
+      localView: this.localViewFor(session),
+      board: getLocalBoardView(session, this.data.settings.showLegalTargets, this.data.settings.showCaptureNotice),
       localErrorMessage: '',
       thinking: false, showUndoConfirm: false,
       showResign: false, showSettings: false, operationBusy: false, resigned: false,
@@ -419,7 +430,8 @@ Page({
     }
     this.setData({
       localSession: undone, localTurns: turns,
-      board: getLocalBoardView(undone, this.data.settings.showLegalTargets),
+      localView: this.localViewFor(undone),
+      board: getLocalBoardView(undone, this.data.settings.showLegalTargets, this.data.settings.showCaptureNotice),
       showUndoConfirm: false, operationBusy: false,
     });
     vibrateForSuccessfulAction(this.data.settings);
@@ -500,7 +512,8 @@ Page({
     }
     this.setData({
       localSession: resigned, localWinnerMessage: mapGameStateToView(resigned.gameState).winnerMessage,
-      board: getLocalBoardView(resigned, this.data.settings.showLegalTargets),
+      localView: this.localViewFor(resigned),
+      board: getLocalBoardView(resigned, this.data.settings.showLegalTargets, this.data.settings.showCaptureNotice),
       showResign: false, operationBusy: false, resigned: true,
     });
     vibrateForSuccessfulAction(this.data.settings);
@@ -515,7 +528,7 @@ Page({
     this.setData({ settings });
     const session = this.data.localSession as LocalGameSession | null;
     if (this.data.mode === 'local' && session) {
-      this.setData({ board: getLocalBoardView(session, settings.showLegalTargets) });
+      this.setData({ localView: this.localViewFor(session), board: getLocalBoardView(session, settings.showLegalTargets, settings.showCaptureNotice) });
     } else if (this.data.mode === 'remote' && this.data.remoteState) {
       this.renderRemote(this.data.remoteState);
     } else if (this.data.mode === 'ai' && this.data.aiState) {

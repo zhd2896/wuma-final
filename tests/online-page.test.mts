@@ -127,7 +127,7 @@ test('online page confirms real operations, uses ply count and settings, and nev
   assert.equal(page.data.captureText, '');
   page.settings(); assert.equal(page.data.showSettings, true);
   page.onSettingsChange({ detail: { ...page.data.settings, showLegalTargets: true, showCaptureNotice: true } });
-  assert.match(page.data.captureText, /吃子 1/);
+  assert.match(page.data.captureText, /你吃掉对手的 1 枚/);
   assert.equal((storage.get('wuma:game-settings:v1') as any).settings.showCaptureNotice, true);
   page.requestUndo();
   assert.equal(page.data.showUndoConfirm, true);

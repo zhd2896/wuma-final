@@ -131,7 +131,7 @@ test('server capture result drives replacement pieces, reserve and terminal disp
   assert.equal(view.board.pieces.find(piece => piece.nodeId === 'P12')?.side, 'black');
   assert.ok(view.reserve.A < position.players.A.reserve_count);
   assert.equal(view.gameOver, true);
-  assert.equal(view.winnerMessage, '对方棋子已全部被吃');
+  assert.equal(view.winnerMessage, '红方棋子已全部被吃');
 });
 
 test('duplicate game creation is blocked while the first request is pending', async () => {

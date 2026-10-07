@@ -22,6 +22,10 @@
         style="left:{{item.x}}%;top:{{item.y}}%">{{item.id}}</view>
       </block>
     </block>
+    <block wx:if="{{showGuidance}}" wx:for="{{board.nodes}}" wx:key="id">
+      <view wx:if="{{item.legalTarget}}" class="guidance-marker legal-marker" style="left:{{item.x}}%;top:{{item.y}}%">可走</view>
+      <view wx:elif="{{item.replacement || item.captured}}" class="guidance-marker capture-marker" style="left:{{item.x}}%;top:{{item.y}}%">{{item.replacement ? '换入' : '吃子'}}</view>
+    </block>
     <view class="board-plaque">五 马 棋</view>
   </view>
   <view class="board-caption"><text>五马棋 · 标准棋盘</text><text>宝顶 · 左右翼</text></view>

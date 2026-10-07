@@ -60,10 +60,10 @@ test('marks captured and replacement nodes from server capture result', () => {
 });
 
 for (const [reason, message] of [
-  ['CAPTURE_ALL', '对方棋子已全部被吃'],
-  ['TEMPLE_TRAP', '对方孤棋被困于庙宇'],
-  ['LONE_PIECE_IMMOBILIZED', '对方孤棋无路可走'],
-  ['RESIGN', '玩家 B 认输'],
+  ['CAPTURE_ALL', '红方棋子已全部被吃'],
+  ['TEMPLE_TRAP', '红方孤棋被困于庙宇'],
+  ['LONE_PIECE_IMMOBILIZED', '红方孤棋无路可走'],
+  ['RESIGN', '红方认输'],
 ] as const) {
   test(`maps ${reason} winner text without inferring board rules`, () => {
     const initial = createInitialGameState();
@@ -84,6 +84,6 @@ for (const winner of ['A', 'B'] as const) {
     const loser = winner === 'A' ? 'B' : 'A';
     assert.equal(mapGameStateToView(state, undefined, winner).winnerMessage, '对方已认输');
     assert.equal(mapGameStateToView(state, undefined, loser).winnerMessage, '你已认输');
-    assert.equal(mapGameStateToView(state).winnerMessage, `玩家 ${loser} 认输`);
+    assert.equal(mapGameStateToView(state).winnerMessage, `${loser === 'A' ? '黑方' : '红方'}认输`);
   });
 }

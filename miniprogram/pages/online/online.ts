@@ -26,7 +26,7 @@ Page({
     showResign: false,
     undoMessage: '预计回退 1 或 2 手，准确手数以服务端申请结果为准。对方同意后生效。',
     operationBusy: false,
-    captureText: '',
+    captureText: '', turnLabel: '', turnGuidance: '',
   },
   controller: null as OnlineGameController | null,
   poller: null as number | null,
@@ -79,7 +79,7 @@ Page({
     }
     const view = room ? mapGameStateToView(room.state, {
       selectedNode: snapshot.selectedNode,
-      legalTargets: this.data.settings.showLegalTargets ? snapshot.legalTargets : [],
+      legalTargets: snapshot.legalTargets, showLegalTargets: this.data.settings.showLegalTargets,
       lastMove: snapshot.lastMove,
       lastCapture: this.data.settings.showCaptureNotice ? snapshot.lastCapture : null,
     }, room.seat) : null;
@@ -87,10 +87,19 @@ Page({
       this.lastSuccessfulAction = snapshot.successfulAction;
       vibrateForSuccessfulAction(this.data.settings);
     }
-    this.setData({ snapshot, view, board: view?.board ?? emptyBoard,
+    const turnLabel = !room || !view ? '' : view.gameOver ? view.turnTitle
+      : room.pending_undo ? '悔棋协商中，棋盘已暂停'
+      : snapshot.busy || snapshot.isOperating ? '正在处理操作'
+      : snapshot.pendingOperation || snapshot.pendingMove ? '等待确认操作结果'
+      : view.turnTitle;
+    const turnGuidance = !room || !view ? '' : view.gameOver ? view.winnerMessage
+      : room.pending_undo ? '等待双方处理悔棋申请，暂时不能落子'
+      : snapshot.busy || snapshot.isOperating ? '正在处理，请稍候…'
+      : snapshot.pendingOperation || snapshot.pendingMove ? '操作结果尚未确认，请重试原请求'
+      : view.guidanceText;
+    this.setData({ snapshot, view, turnLabel, turnGuidance, board: view?.board ?? emptyBoard,
       operationBusy: snapshot.busy || snapshot.isOperating,
-      captureText: this.data.settings.showCaptureNotice && snapshot.lastCapture?.was_applied
-        ? `本步吃子 ${snapshot.lastCapture.captured_nodes.length} 枚，备用棋消耗 ${snapshot.lastCapture.reserve_used} 枚` : '',
+      captureText: this.data.settings.showCaptureNotice ? view?.captureText ?? '' : '',
       ...(!snapshot.canRequestUndo ? { showUndoConfirm: false } : {}),
       ...(!snapshot.canResign ? { showResign: false } : {}),
     });

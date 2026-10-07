@@ -415,7 +415,7 @@ test('AI terminal result updates capture, reserve and blocks further human input
   assert.equal(controller.snapshot.lastCapture?.was_applied, true);
   assert.ok(controller.snapshot.gameState!.players.A.reserve_count < 4);
   assert.equal(mapGameStateToView(controller.snapshot.gameState!).winnerMessage,
-    '对方棋子已全部被吃');
+    '红方棋子已全部被吃');
   const before = f.legalCalls;
   await controller.tapNode('P12');
   assert.equal(f.legalCalls, before);

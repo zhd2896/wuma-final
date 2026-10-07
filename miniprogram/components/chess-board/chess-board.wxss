@@ -41,3 +41,5 @@
 .node-label.label-focus{background:#d8f0ff;color:#145c81;box-shadow:0 0 0 2rpx #2c9cd5}
 .compact .node-label{transform:translate(20rpx,15rpx);font-size:18rpx}
 .node-dot.source{background:#a27021}
+
+.guidance-marker{position:absolute;z-index:7;transform:translate(-50%,-42rpx);padding:1rpx 5rpx;border-radius:5rpx;font-size:17rpx;line-height:21rpx;font-weight:600;pointer-events:none;white-space:nowrap}.legal-marker{background:#e0f3e6;color:#1f6544;border:1rpx solid #267a55}.capture-marker{background:#fff0df;color:#8b3c20;border:1rpx solid #b77940}

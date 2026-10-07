@@ -214,18 +214,18 @@ test('shared local resignation and restored terminal name the actual resigning p
     }
     assert.equal(page.data.localSession.gameState.current_player, loser);
     page.resign(); await page.confirmResign();
-    assert.equal(page.data.localWinnerMessage, `玩家 ${loser} 认输`);
+    assert.equal(page.data.localWinnerMessage, `${loser === 'A' ? '黑方' : '红方'}认输`);
     const restored = makePage();
     restored.onLoad({ mode: 'local', gameId: page.data.localGameId });
-    assert.equal(restored.data.localWinnerMessage, `玩家 ${loser} 认输`);
+    assert.equal(restored.data.localWinnerMessage, `${loser === 'A' ? '黑方' : '红方'}认输`);
     restored.renderRemote({ gameId: `compat-resigned-${loser}`, plyCount: 0, gameVersion: 1,
       gameState: restored.data.localSession.gameState, selectedNode: null,
       legalTargets: [], lastMove: null, lastCapture: null });
-    assert.equal(restored.data.remoteView.winnerMessage, `玩家 ${loser} 认输`);
+    assert.equal(restored.data.remoteView.winnerMessage, `${loser === 'A' ? '黑方' : '红方'}认输`);
     restored.restartLocalGame();
     assert.equal(restored.data.localWinnerMessage, '');
     page.onUnload(); restored.onUnload();
   }
   const markup = readFileSync('miniprogram/pages/game/game.wxml', 'utf8');
-  assert.match(markup, /winner_reason == 'RESIGN'[^>]*>\{\{localWinnerMessage\}\}/);
+  assert.match(markup, /localView\.winnerMessage/);
 });
