@@ -1,0 +1,32 @@
+(node:5600) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ profile growth tasks navigate to actual theme and level and clear on hide (131.5527ms)
+✔ training route synchronizes theme and difficulty pickers and backend filters (53.3533ms)
+✔ growth rejects inconsistent totals and uses raw ratios for borderline practice (2.093ms)
+✔ late growth responses never repopulate a hidden or switched account; old servers stay usable (18.7408ms)
+(node:9748) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/profile/profile.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real page renders zero, hundred, API seal and both review gates (122.378ms)
+✔ partial readiness keeps true single scores while overall stays pending (0.8368ms)
+✔ latest load wins; errors clear previous account data and retry works (6.9398ms)
+✔ hide and unload invalidate pending profile writes (1.2931ms)
+✔ missing fields and missing review gates produce explicit contract errors (1.2052ms)
+✔ chart modes switch the same profile without requests and retain only a display preference (1.1535ms)
+✔ chart preference restores safely; hiding and logout clear scored data (0.7684ms)
+(node:26652) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page route and actual picker handlers send source game and filter requests (120.5105ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 12
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 420.232

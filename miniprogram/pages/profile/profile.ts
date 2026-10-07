@@ -1,3 +1,4 @@
+import { growthPresentation } from './growth-presentation';
 import { logoutWechat, getSavedWechatToken } from '../../services/device-auth';
 import { getApiBaseUrl } from '../../config/api';
 import { PROFILE_AVATARS, isProfileAvatar, validNickname } from '../../services/profile-fields';
@@ -10,6 +11,7 @@ import { isSkillChartMode, SKILL_CHART_MODES } from '../../components/skill-char
 import type { SkillChartMode } from '../../components/skill-chart/chart-model';
 const chartPreferenceKey = 'wuma:skill-chart-mode:v1';
 const emptyProfile = {
+  ...growthPresentation(null),
   name: '', avatar: '', avatarText: '', cloudGames: 0, localGames: 0, finishedGames: 0, training: 0, trainingAttempts: 0,
   wins: 0, losses: 0, reviewedGames: 0, remoteGames: 0, remoteWins: 0, remoteLosses: 0,
   accuracy: '数据不足', skillProfile: null as SkillProfileDto | null,
@@ -48,6 +50,7 @@ Page({
       const localGames = createWxDeviceHistoryStore().list().filter(item =>
         item.mode === 'local' || item.mode === 'online').length;
       this.setData({
+        ...growthPresentation(profile.growth),
         state: 'success', name: profile.nickname, avatar: profile.avatar,
         avatarText: PROFILE_AVATARS.find(avatar => avatar.id === profile.avatar)!.text,
         cloudGames: profile.games, localGames,
@@ -119,6 +122,11 @@ Page({
   },
   retry() { void this.load(); },
   back() { backHome(); },
+  openGrowthTask(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.state !== 'success') return;
+    const task = this.data.growthTasks.find(item => item.theme === event.currentTarget.dataset.theme);
+    if (task) openPage(task.url);
+  },
   openHistory() { openPage('/pages/history/history'); },
   openGame() { openPage('/pages/game/game'); }
 });

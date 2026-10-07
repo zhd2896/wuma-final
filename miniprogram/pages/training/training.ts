@@ -37,15 +37,16 @@ Page({
     questionDifficultyText: '', questionTagsText: '', questionCalibrationText: '',
   },
   controller: null as TrainingController | null,
-  onLoad(options: { source?: string; gameId?: string; player?: string }) {
+  onLoad(options: { source?: string; gameId?: string; player?: string; theme?: string; difficulty?: string }) {
     this.controller = new TrainingController(createTrainingApi(createApiClient()),
       snapshot => this.render(snapshot));
     this.render(this.controller.snapshot);
     const source = options?.source === 'REVIEW' ? 'REVIEW' : 'CURATED';
     const player = source === 'REVIEW' && (options?.player === 'A' || options?.player === 'B') ? options.player : '';
-    this.setData({ sourceIndex: source === 'REVIEW' ? 1 : 0, gameId: source === 'REVIEW' ? options?.gameId || '' : '', player });
-    void this.controller.setFilters({ source, ...(source === 'REVIEW' && options?.gameId
-      ? { source_game_id: options.gameId } : {}), ...(player ? { player } : {}) });
+    const themeIndex = Math.max(0, ['', 'CAPTURE', 'VULNERABILITY', 'LONE_PIECE_RISK'].indexOf(options?.theme ?? ''));
+    const difficultyIndex = Math.max(0, ['', 'EASY', 'NORMAL', 'COMPLEX', 'UNCALIBRATED'].indexOf(options?.difficulty ?? ''));
+    this.setData({ themeIndex, difficultyIndex, sourceIndex: source === 'REVIEW' ? 1 : 0, gameId: source === 'REVIEW' ? options?.gameId || '' : '', player });
+    this.applyFilters();
   },
   onUnload() { this.controller?.dispose(); this.controller = null; },
   render(snapshot: TrainingSnapshot) {

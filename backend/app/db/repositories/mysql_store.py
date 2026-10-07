@@ -28,6 +28,7 @@ from backend.app.schemas.coach import CoachHint
 from backend.app.schemas.training import (TrainingAnswerResult, TrainingItemInternal,
                                           TrainingSource)
 from backend.app.db.repositories.training import TrainingRepository
+from backend.app.services.player_growth import calculate_growth, growth_window_start
 from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
 from backend.app.services.game_store import (StoredGame, StoredMove, StoredRemoteRoom,
                                              StoredRemoteUndoRequest,
@@ -269,11 +270,14 @@ class MySQLGameStore:
                                   for status, winner, host, guest in remote)
                 remote_losses = sum(status == "FINISHED" and winner in ("A", "B") and winner != ("A" if host == user_id else "B")
                                     for status, winner, host, guest in remote)
+                growth_now = datetime.now(timezone.utc)
+                growth = calculate_growth(TrainingRepository(session).growth_rows(user_id,
+                    growth_window_start(growth_now), growth_now.replace(tzinfo=None)), growth_now)
                 return {"remoteGames": len(remote), "remoteWins": remote_wins, "remoteLosses": remote_losses,
                         "id": user_id, "nickname": owner.nickname, "avatar": owner.avatar, "games": games,
                         "finishedGames": finished, "wins": wins, "losses": losses,
                         "reviewedGames": reviewed, "training": training, "trainingAttempts": training_attempts,
-                        "correct": correct, "skillProfile": skill}
+                        "correct": correct, "skillProfile": skill, "growth": growth}
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 

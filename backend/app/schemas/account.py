@@ -65,6 +65,48 @@ class SkillProfileDto(AccountDto):
     disclaimer: str
 
 
+class GrowthThemeDto(AccountDto):
+    theme: Literal['CAPTURE', 'VULNERABILITY', 'LONE_PIECE_RISK']
+    label: str
+    attempts: Count
+    correct: Count
+    accuracy: Score | None
+    completedThisWeek: Count
+    remaining: Count
+    recommendedDifficulty: Literal['EASY', 'NORMAL']
+
+
+class GrowthPeriodDto(AccountDto):
+    start: str
+    end: str
+    completed: Count
+    attempted: Count
+    firstAttempts: Count
+    firstCorrect: Count
+    accuracy: Score | None
+
+
+class GrowthRecentDto(AccountDto):
+    current: GrowthPeriodDto
+    previous: GrowthPeriodDto
+
+
+class GrowthDayDto(AccountDto):
+    date: str
+    completed: Count
+    attempted: Count
+
+
+class GrowthDto(AccountDto):
+    version: Literal['growth_v1']
+    asOf: str
+    goal: Literal[2]
+    minimumSamples: Literal[3]
+    themes: Annotated[list[GrowthThemeDto], Field(min_length=3, max_length=3)]
+    recent: GrowthRecentDto
+    daily: Annotated[list[GrowthDayDto], Field(min_length=14, max_length=14)]
+
+
 class PersonalProfileDto(AccountDto):
     id: str
     nickname: str
@@ -81,3 +123,4 @@ class PersonalProfileDto(AccountDto):
     trainingAttempts: Count
     correct: Count
     skillProfile: SkillProfileDto
+    growth: GrowthDto | None = None

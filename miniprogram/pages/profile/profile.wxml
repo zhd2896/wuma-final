@@ -10,6 +10,29 @@
       <view wx:if="{{saveError}}" class="profile-save-error">{{saveError}}</view>
       <button bindtap="saveProfile" loading="{{saving}}" disabled="{{saving}}">{{saveError ? '重试保存' : '保存'}}</button><button bindtap="cancelEdit">取消</button>
     </view>
+    <section-title title="下一步任务" subtitle="最近7天每个主题完成两道不同题" />
+    <view wx:if="{{growthTasks.length}}" class="growth-tasks">
+      <view wx:for="{{growthTasks}}" wx:key="theme" class="card growth-task {{item.priority ? 'growth-priority' : ''}}">
+        <view class="growth-title">{{item.title}}</view><view class="growth-progress">{{item.progressText}}</view>
+        <view class="growth-reason">{{item.reason}}</view>
+        <button data-theme="{{item.theme}}" bindtap="openGrowthTask">{{item.actionText}}</button>
+      </view>
+      <view class="growth-note">主题正确率依据最近28天作答；可以复习旧题，同一题在7天内只计一次完成。</view>
+    </view>
+    <view wx:else class="card growth-empty">成长记录暂不可用，请升级服务后重试。</view>
+    <section-title title="近期训练趋势" subtitle="最近14天 · 来自当前账号答题记录" />
+    <view wx:if="{{growthTrend}}" class="card growth-trend">
+      <view class="growth-title">{{growthTrend.completionText}}</view>
+      <view class="growth-rate">{{growthTrend.accuracyText}}</view>
+      <view wx:if="{{!growthTrend.hasActivity}}" class="growth-empty">还没有近期训练记录，先从上面的基础任务开始。</view>
+      <view wx:else class="growth-bars">
+        <view wx:for="{{growthTrend.days}}" wx:key="date" class="growth-day">
+          <view class="growth-count">{{item.completed}}</view><view class="growth-bar-track"><view class="growth-bar {{item.recent ? 'growth-bar-recent' : ''}}" style="height:{{item.height}}%"></view></view><text>{{item.label}}</text>
+        </view>
+      </view>
+      <view class="growth-note">柱高表示每日完成的不同题数量；浅色为前7天，深色为最近7天。</view>
+      <view class="growth-note">{{growthTrend.disclaimer}}</view>
+    </view>
     <view class="stat-card card"><view><text>云端对局</text><view>{{cloudGames}}</view></view><view><text>本机对局</text><view>{{localGames}}</view></view><view><text>训练完成</text><view>{{training}}</view></view></view>
     <section-title title="个人统计" subtitle="根据真实对局与答题记录" /><view class="analysis-card card"><view class="profile-metric">已结束云端对局：{{finishedGames}}</view><view class="profile-metric">AI 胜场 / 负场：{{wins}} / {{losses}}</view><view class="profile-metric">联机对局：{{remoteGames}}</view><view class="profile-metric">联机胜场 / 负场：{{remoteWins}} / {{remoteLosses}}</view><view class="profile-metric">已复盘对局：{{reviewedGames}}</view><view class="profile-metric">训练答题次数：{{trainingAttempts}}</view><view class="profile-metric">训练正确率：{{accuracy}}</view></view>
     <section-title title="能力分析" subtitle="单项达标即可评分，综合需六项达标" />

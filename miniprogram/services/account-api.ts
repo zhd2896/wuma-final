@@ -1,3 +1,5 @@
+import { parseGrowth } from './growth-contract';
+import type { GrowthDto } from './growth-contract';
 import type { AiLevel } from './api-contract';
 import type { WinnerReason } from '../domain/index';
 import type { ApiClient } from './api-client';
@@ -55,6 +57,7 @@ export interface PersonalProfileDto {
   readonly trainingAttempts: number;
   readonly correct: number;
   readonly skillProfile: SkillProfileDto;
+  readonly growth?: GrowthDto | null;
 }
 
 const metricKeys: readonly SkillMetricKey[] = ['performance', 'best_move', 'decision', 'stability', 'mistake_control', 'training'];
@@ -96,7 +99,8 @@ function parseProfile(value: unknown): PersonalProfileDto {
   });
   if (s.ready !== metrics.every(metric => (metric as Record<string, unknown>).value !== null) ||
       s.ready !== (s.overall !== null) || (!s.ready && (s.level !== '待评估' || s.seal !== '待'))) invalid();
-  return value as PersonalProfileDto;
+  const growth = parseGrowth(profile.growth);
+  return { ...(value as PersonalProfileDto), growth };
 }
 
 export function createAccountApi(client: ApiClient) {

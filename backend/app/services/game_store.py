@@ -13,6 +13,7 @@ from backend.app.schemas.game import (
 )
 from backend.app.schemas.remote import RemoteOperationRequest
 from backend.app.services.remote_accounts import recovery_seat
+from backend.app.services.player_growth import calculate_growth
 from backend.app.services.player_skill import SkillEvidence, calculate_skill_profile
 from backend.app.schemas.explanation import ExplanationBundle
 from backend.app.schemas.coach import CoachHint
@@ -382,7 +383,10 @@ class InMemoryGameStore:
                 "training": len({record.trainingId for record in records if record.result == "CORRECT"}),
                 "trainingAttempts": len(records),
                 "correct": sum(record.result == "CORRECT" for record in records),
-                "skillProfile": skill}
+                "skillProfile": skill,
+                "growth": calculate_growth([dict(id=r.id, trainingId=r.trainingId,
+                    result=r.result, answeredAt=r.answeredAt, hintLevelUsed=r.hintLevelUsed,
+                    tags=self._training_items[r.trainingId].trainingTags) for r in records])}
 
     async def create(self, state: GameState, mode: str = "LOCAL",
                      ai_player: str | None = None, ai_level: str | None = None,

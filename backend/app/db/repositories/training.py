@@ -17,6 +17,16 @@ class TrainingRepository:
     def __init__(self, session: Session):
         self.session = session
 
+    def growth_rows(self, user_id, since, until):
+        rows = self.session.execute(select(TrainingRecordModel.id, TrainingRecordModel.training_item_id,
+            TrainingRecordModel.result, TrainingRecordModel.answered_at, TrainingRecordModel.hint_level_used,
+            TrainingItemModel.training_tags).join(TrainingItemModel,
+                TrainingItemModel.id == TrainingRecordModel.training_item_id).where(
+                TrainingRecordModel.user_id == user_id, TrainingRecordModel.answered_at >= since,
+                TrainingRecordModel.answered_at <= until)).all()
+        return [dict(id=id, trainingId=question, result=result, answeredAt=at,
+                     hintLevelUsed=hint, tags=tags) for id, question, result, at, hint, tags in rows]
+
     @staticmethod
     def item_from_row(row: TrainingItemModel) -> TrainingItemInternal:
         return TrainingItemInternal(
