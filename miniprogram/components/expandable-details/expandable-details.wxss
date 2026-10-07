@@ -1,0 +1,1 @@
+.details{margin-top:16rpx}.details-toggle{display:block;text-align:left;color:#6c5942;background:#f4ede1;font-size:23rpx;line-height:2.2;padding:8rpx 18rpx;white-space:normal}.details-toggle::after{border:1rpx solid #ded2bc}.details-body{padding:16rpx 4rpx 4rpx;color:#817667;font-size:22rpx;line-height:1.7;overflow-wrap:anywhere}

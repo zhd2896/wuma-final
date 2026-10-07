@@ -15,17 +15,19 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 test('training page route and actual picker handlers send source game and filter requests', async () => {
   let definition: any;
   const urls: URL[] = [];
+  const scrolls: any[] = [];
   (globalThis as any).Page = (page: any) => { definition = page; };
   (globalThis as any).wx = {
     getStorageSync: (key: string) => key.startsWith('wuma:wechat-session:')
       ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : '',
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
+    pageScrollTo: (options: any) => scrolls.push(options),
     request: (options: any) => { urls.push(new URL(options.url));
       options.success({ statusCode: 200, data: { code: 0, data: { items: [], total: 0 } } }); },
   };
   await import('../miniprogram/pages/training/training.ts');
   const page = { ...definition, data: { ...definition.data },
-    setData(patch: any) { Object.assign(this.data, patch); } };
+    setData(patch: any, done?: () => void) { Object.assign(this.data, patch); done?.(); } };
   page.onLoad({ source: 'REVIEW', gameId: 'game/one' });
   for (let i = 0; i < 3; i++) await new Promise(resolve => setImmediate(resolve));
   assert.equal(urls[0].searchParams.get('source'), 'REVIEW');
@@ -72,5 +74,23 @@ test('training page route and actual picker handlers send source game and filter
   assert.match(wxml, /answer.lessonExplanation/);
   assert.match(wxml, /item.tagsText/);
   assert.deepEqual(page.data.difficultyOptions.slice(1, 3), ['入门', '进阶']);
+  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  const q = { ...item, player: 'A', stateSnapshot: createInitialGameState() };
+  const result = { id: 'feedback-1', result: 'SUBOPTIMAL', bestMoveEquivalent: false,
+    submittedMove: { from: 'P11', to: 'P12' }, bestMove: { from: 'P11', to: 'P13' },
+    feedback: '评分损失为 200 分。', lessonExplanation: '比较推荐路线，保留后续活动空间。' };
+  page.render({ ...page.controller.snapshot, question: q, answer: null });
+  assert.equal(page.data.answerReasonText, ''); assert.equal(page.data.bestMoveText, '');
+  page.render({ ...page.controller.snapshot, question: q, answer: result });
+  assert.equal(page.data.resultText, '还有更好的走法');
+  assert.equal(page.data.answerReasonText, result.lessonExplanation);
+  assert.match(page.data.bestMoveText, /P13/);
+  assert.deepEqual(scrolls, [{ selector: '#training-feedback', duration: 250 }]);
+  page.render({ ...page.controller.snapshot, question: q, answer: result });
+  assert.equal(scrolls.length, 1, 'supplementary refresh does not scroll again');
+  page.render({ ...page.controller.snapshot, question: null, answer: null });
+  assert.equal(page.data.answerReasonText, ''); assert.equal(page.data.bestMoveText, '');
+  assert.equal(page.data.recommendationNote, ''); assert.equal(page.data.resultText, '');
+  assert.match(wxml, /wx:if="\{\{answer\}\}" id="training-feedback"/);
   page.onUnload();
 });

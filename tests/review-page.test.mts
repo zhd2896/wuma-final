@@ -71,6 +71,9 @@ test('review page reads or creates review, explains it, and keeps structured fie
   assert.equal(page.data.state, 'success');
   assert.equal(page.data.bestMoveRateText, '100.0%');
   assert.equal(page.data.rows[0].actualText, 'P19 → P13');
+  assert.equal(page.data.rows[0].categoryText, '好棋');
+  assert.deepEqual(page.data.keyMoments, []);
+  assert.doesNotMatch(page.data.terminalText, /CAPTURE_ALL/);
   assert.equal(page.data.selectedTurn, 1);
   assert.equal(page.data.reviewBoard.recommendedTo, 'P13');
   assert.ok(page.data.reviewBoard.pieces.some((piece: any) => piece.nodeId === 'P19'));

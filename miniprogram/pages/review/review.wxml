@@ -9,16 +9,27 @@
         <picker wx:if="{{canSelectPerspective}}" range="{{perspectiveOptions}}" value="{{perspectiveIndex}}" bindchange="changePerspective"><view class="perspective-picker">复盘视角：{{perspectiveOptions[perspectiveIndex]}} ▾</view></picker>
         <view class="match-meta"><text>胜方 {{review.winner}}</text><text>{{terminalText}}</text><text>{{rows.length}} 手已分析</text></view>
       </view>
+      <view class="review-key-summary card">
+        <view class="review-key-title">关键失误</view>
+        <view wx:if="{{!keyMoments.length}}">{{rows.length ? '本局未发现本方关键失误，可继续查看逐步复盘。' : '本方没有可分析的有效落子，暂无走法建议。'}}</view>
+        <view wx:for="{{keyMoments}}" wx:key="turn" class="review-key-moment">
+          <view class="review-key-heading">第 {{item.turn}} 手 · {{item.categoryText}}</view>
+          <view>原因：{{item.reasonText}}</view>
+          <view class="review-recommendation">推荐走法：{{item.bestLocationText}}</view>
+          <button wx:if="{{item.stateBefore}}" size="mini" data-turn="{{item.turn}}" data-kind="best" bindtap="selectReviewMove">在棋盘上看推荐路线</button>
+        </view>
+      </view>
             <view id="review-board-panel" class="review-board-panel">
         <view class="review-mode-actions"><button size="mini" bindtap="showReplay">实际局面回放</button><text>{{boardMode == 'route' ? '走前路线对照' : '实际局面回放'}}</text></view>
         <block wx:if="{{boardMode == 'replay' && replayBoard}}">
           <view class="review-preview-title">{{replayStepText}}</view>
-          <view class="review-preview-note">当前步骤 {{replayIndex}} / {{replayMaxIndex}} · 有效棋步 {{replayPly}} / {{replayTotalPly}} · 保存版本 {{replayVersion}}</view>
+          <view class="review-preview-note">当前步骤 {{replayIndex}} / {{replayMaxIndex}} · 有效棋步 {{replayPly}} / {{replayTotalPly}}</view>
           <chess-board board="{{replayBoard}}" compact="{{true}}" show-node-labels="{{true}}" />
           <view class="review-preview-note">行动方 {{replayCurrentPlayer}} · 备用棋 A {{replayReserveA}} 枚 · B {{replayReserveB}} 枚</view>
           <view class="review-preview-note">{{replayCaptureText}}</view>
           <view class="review-explanation">{{replayExplanation}}</view>
           <view wx:if="{{replayNaturalExplanation}}" class="review-natural-move">{{replayNaturalExplanation}}</view>
+          <expandable-details reset-key="{{review.id + ':' + replayIndex}}"><view>保存版本：{{replayVersion}}</view></expandable-details>
         </block>
         <view class="replay-controls">
           <button size="mini" disabled="{{replayIndex == 0}}" bindtap="startReplay">首局面</button>
@@ -37,9 +48,12 @@
       </view>
       <view wx:if="{{rows.length && !reviewBoard}}" class="review-metric card">本次复盘暂未包含走前棋盘，可重新读取复盘，或先查看点位对照图。<button size="mini" bindtap="openRules">查看点位对照</button></view>
       <section-title title="整体统计" />
-      <view class="review-stats card"><view>GOOD {{review.goodMoves}}</view><view>NORMAL {{review.normalMoves}}</view><view>MISTAKE {{review.mistakes}}</view><view>BLUNDER {{review.blunders}}</view></view>
-      <view class="review-metric card">同分最佳走法比例：{{bestMoveRateText}}</view>
-      <view class="review-metric card">关键转折：{{turningText}}</view>
+      <view class="review-stats card"><view>好棋 {{review.goodMoves}}</view><view>一般 {{review.normalMoves}}</view><view>失误 {{review.mistakes}}</view><view>严重失误 {{review.blunders}}</view></view>
+      <view class="review-metric card"><expandable-details reset-key="{{review.id}}">
+        <view>同分最佳走法比例：{{bestMoveRateText}}</view><view>关键转折：{{turningText}}</view>
+        <view>分析配置版本：{{review.reviewConfigVersion}}</view>
+        <view wx:if="{{review.reviewConfig}}">搜索深度上限：{{review.reviewConfig.max_depth}} · 单手预算：{{review.reviewConfig.time_limit_ms_per_move}} 毫秒</view>
+      </expandable-details></view>
       <button id="generate-training" class="gold-btn" loading="{{isGeneratingTraining}}" disabled="{{isGeneratingTraining}}" bindtap="generateTraining">从本局生成训练题</button>
       <view wx:if="{{trainingError}}" class="review-metric card">{{trainingError}}</view>
       <view wx:if="{{trainingNotice}}" class="review-metric card">{{trainingNotice}}</view>
@@ -47,21 +61,25 @@
       <view wx:elif="{{explanationState == 'error'}}" class="review-metric card">解释暂不可用，复盘数据仍可查看。<button size="mini" bindtap="retryExplanation">重试解释</button></view>
       <view wx:elif="{{explanationState == 'success'}}" class="review-natural card">
         <view class="review-natural-title">整局解释<text wx:if="{{gameExplanation.fallbackUsed}}"> · 规则化解释</text></view>
-        <view>{{gameExplanation.overall_summary}}</view>
-        <view wx:for="{{gameExplanation.strengths}}" wx:for-item="strength" wx:key="*this">值得保留：{{strength}}</view>
-        <view wx:for="{{gameExplanation.main_problems}}" wx:for-item="problem" wx:key="*this">重点：{{problem}}</view>
-        <view wx:for="{{gameExplanation.practice_suggestions}}" wx:for-item="tip" wx:key="*this">建议：{{tip}}</view>
+        <expandable-details title="完整解说" reset-key="{{review.id}}">
+          <view>{{gameExplanation.overall_summary}}</view>
+          <view wx:for="{{gameExplanation.strengths}}" wx:for-item="strength" wx:key="*this">值得保留：{{strength}}</view>
+          <view wx:for="{{gameExplanation.main_problems}}" wx:for-item="problem" wx:key="*this">重点：{{problem}}</view>
+          <view wx:for="{{gameExplanation.practice_suggestions}}" wx:for-item="tip" wx:key="*this">建议：{{tip}}</view>
+        </expandable-details>
       </view>
       <view wx:if="{{rows.length == 0}}" class="review-metric card">本方没有可分析的有效落子，未生成走法评分。</view>
       <section-title title="逐步复盘" subtitle="以实际落子方为评分视角" />
       <view wx:for="{{rows}}" wx:key="turn" class="review-move card">
-        <view class="review-move-head">第 {{item.turn}} 手 · 玩家 {{item.player}}<text class="category">{{item.category}}</text></view>
-        <view>实际：{{item.actualText}}</view><view>最佳：{{item.bestText}}</view>
+        <view class="review-move-head">第 {{item.turn}} 手 · 玩家 {{item.player}}<text class="category">{{item.categoryText}}</text></view>
+        <view>原因：{{item.reasonText}}</view><view class="review-recommendation">推荐走法：{{item.bestLocationText}}</view>
+        <view>实际：{{item.actualText}}</view>
         <view class="review-location">{{item.actualLocationText}}</view>
         <view wx:if="{{item.stateBefore}}" class="review-route-actions">
           <button size="mini" data-turn="{{item.turn}}" data-kind="actual" bindtap="selectReviewMove">看实际路线</button>
           <button size="mini" data-turn="{{item.turn}}" data-kind="best" bindtap="selectReviewMove">看最佳路线</button>
         </view>
+        <expandable-details reset-key="{{review.id + ':' + item.turn}}">
         <view wx:if="{{item.player == review.reviewedPlayer}}">搜索分损失：{{item.scoreLoss}}</view><view wx:else>对手走法 · 没有本人评价</view>
         <view class="review-explanation">{{item.engineExplanation}}</view>
         <view wx:if="{{item.naturalExplanation}}" class="review-natural-move">
@@ -69,6 +87,7 @@
           <view>建议：{{item.naturalSuggestion}}</view>
         </view>
         <view class="review-detail">走前静态分 {{item.scoreBefore}} · 走后静态分 {{item.scoreAfter}} · 搜索深度 {{item.searchDepth}}</view>
+        </expandable-details>
       </view>
       <view class="disclaimer">评分与分类使用固定引擎规则和启发式阈值，不代表胜率或官方棋力等级。</view>
     </block>

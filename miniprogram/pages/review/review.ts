@@ -13,10 +13,12 @@ import type { BoardState } from '../../types/domain';
 import { mapGameStateToView } from '../game/game-state-mapper';
 import { describeMove, highlightBoardMove } from '../../utils/board-guidance';
 import { replayView } from './review-replay';
+import { keyReviewMoments, reviewCategoryText, reviewReason, ruleReasonText, translateFeedback } from '../../services/feedback-presentation';
 
 type ReviewRow = GameReviewDto['moveReviews'][number] & {
   actualText: string; bestText: string; actualLocationText: string; bestLocationText: string;
   naturalExplanation: string; naturalSuggestion: string; explanationFallbackUsed: boolean;
+  categoryText: string; reasonText: string;
 };
 
 Page({
@@ -26,6 +28,7 @@ Page({
     canSelectPerspective: false,
     review: null as GameReviewDto | null, replay: null as GameReplayDto | null,
     bestMoveRateText: '', turningText: '', rows: [] as ReviewRow[],
+    keyMoments: [] as ReviewRow[],
     gameExplanation: null as GameExplanationDto | null,
     boardMode: 'replay', reviewBoard: null as BoardState | null, replayBoard: null as BoardState | null,
     replayIndex: 0, replayPly: 0, replayTotalPly: 0, replayMaxIndex: 0, replayCurrentPlayer: 'A' as Player,
@@ -56,7 +59,7 @@ Page({
       this.generation++; this.explanationGeneration++;
       this.learningApi = null; this.generateOnlineTraining = null;
       this.setData({ state: 'error', errorMessage: '账号或席位已变化，请重新读取复盘', review: null,
-        replay: null, rows: [], gameExplanation: null, reviewBoard: null, replayBoard: null,
+        replay: null, rows: [], keyMoments: [], gameExplanation: null, reviewBoard: null, replayBoard: null,
         explanationState: 'error', isGeneratingExplanation: false, isGeneratingTraining: false,
         canSelectPerspective: false });
       return false;
@@ -71,7 +74,7 @@ Page({
     if (!gameId) { this.setData({ state: 'error', errorMessage: '请从已结束的棋局进入复盘' }); return; }
     this.setData({ gameId, state: 'loading', errorMessage: '', explanationState: 'idle',
       gameExplanation: null, isGeneratingExplanation: false, isGeneratingTraining: false, trainingError: '', trainingNotice: '',
-      review: null, replay: null, rows: [], terminalText: '', canSelectPerspective: false,
+      review: null, replay: null, rows: [], keyMoments: [], terminalText: '', canSelectPerspective: false,
       reviewBoard: null, replayBoard: null, selectedTurn: 0, selectedRoute: 'actual', routeText: '', boardMode: 'replay' });
     try {
       const online = this.data.mode === 'online';
@@ -121,13 +124,15 @@ Page({
         throw new ApiError('INVALID_GAME_RESPONSE', 502);
       const terminalText = review.winnerReason === 'RESIGN'
         ? `${review.winner === player ? '对方已认输' : '你已认输'}（玩家 ${review.winner === 'A' ? 'B' : 'A'} 认输）`
-        : `终局 ${review.winnerReason}`;
-      const rows = review.moveReviews.map(move => ({ ...move,
+        : `终局 · ${ruleReasonText(review.winnerReason)}`;
+      const rows = review.moveReviews.map(move => ({ ...move, engineExplanation: translateFeedback(move.engineExplanation ?? ''),
         actualText: `${move.actualMove.from} → ${move.actualMove.to}`, bestText: `${move.bestMove.from} → ${move.bestMove.to}`,
         actualLocationText: describeMove(move.actualMove), bestLocationText: describeMove(move.bestMove),
         naturalExplanation: '', naturalSuggestion: '', explanationFallbackUsed: false,
+        categoryText: move.player === player ? reviewCategoryText(move.category) : '对手走法',
+        reasonText: move.player === player ? reviewReason(move) : '对手走法，没有本人评价。',
       }));
-      this.setData({ state: 'success', review, replay, rows, terminalText,
+      this.setData({ state: 'success', review, replay, rows, keyMoments: keyReviewMoments(rows, player), terminalText,
         bestMoveRateText: `${(review.bestMoveRate * 100).toFixed(1)}%`,
         turningText: review.turningPoints.length ? review.turningPoints.map(turn => `第 ${turn} 手`).join('、') : '无明显失误转折点',
         ...replayView(replay, review, 0) });
@@ -148,7 +153,8 @@ Page({
     if (!this.active || this.unloaded || !this.data.replay || !this.data.review) return;
     const view = replayView(this.data.replay, this.data.review, index);
     const row = this.data.rows.find(r => r.turn === view.replayRowTurn && r.player === this.data.reviewedPlayer);
-    this.setData({ ...view, boardMode: 'replay', replayNaturalExplanation: row?.naturalExplanation ?? '' });
+    this.setData({ ...view, boardMode: 'replay', replayNaturalExplanation: '',
+      replayExplanation: row?.reasonText ?? view.replayExplanation });
   },
   showReplay() { this.showReplayAt(this.data.replayIndex); },
   previousReplay() { this.showReplayAt(this.data.replayIndex - 1); },
@@ -194,12 +200,18 @@ Page({
       const byTurn = new Map(explained.explanation.moveExplanations.map(item => [item.turn, item]));
       const rows = this.data.rows.map(row => {
         const text = row.player === player ? byTurn.get(row.turn) : undefined;
-        return { ...row, naturalExplanation: text?.explanation ?? '', naturalSuggestion: text?.suggestion ?? '',
+        return { ...row, naturalExplanation: translateFeedback(text?.explanation ?? ''), naturalSuggestion: translateFeedback(text?.suggestion ?? ''),
+          reasonText: row.player === player ? reviewReason({ ...row, naturalExplanation: text?.explanation }) : row.reasonText,
           explanationFallbackUsed: text?.fallbackUsed ?? false };
       });
-      this.setData({ rows, gameExplanation: explained.explanation.gameExplanation,
+      const overall = explained.explanation.gameExplanation;
+      this.setData({ rows, keyMoments: keyReviewMoments(rows, player), gameExplanation: { ...overall,
+        overall_summary: translateFeedback(overall.overall_summary ?? ''),
+        strengths: (overall.strengths ?? []).map(translateFeedback), main_problems: (overall.main_problems ?? []).map(translateFeedback),
+        practice_suggestions: (overall.practice_suggestions ?? []).map(translateFeedback) },
         explanationState: 'success', isGeneratingExplanation: false,
-        replayNaturalExplanation: rows.find(r => r.turn === this.data.replayRowTurn && r.player === player)?.naturalExplanation ?? '' });
+        replayNaturalExplanation: '',
+        replayExplanation: rows.find(r => r.turn === this.data.replayRowTurn && r.player === player)?.reasonText ?? this.data.replayExplanation });
     } catch (_error) {
       if (current()) this.setData({ explanationState: 'error', isGeneratingExplanation: false });
     }

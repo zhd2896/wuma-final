@@ -80,6 +80,8 @@ test('local B perspective travels through review, explain, generate and training
   page.changePerspective({detail:{value:'1'}}); await settle();
   assert.equal(page.data.review.reviewedPlayer,'B'); assert.equal(page.data.review.mistakes,1);
   assert.equal(page.data.gameExplanation.overall_summary,'summary B');
+  assert.ok(page.data.keyMoments.length > 0);
+  assert.ok(page.data.keyMoments.every((row: any) => row.player === 'B' && row.categoryText === '失误'));
   await page.generateTraining();
   assert.ok(requests.some(({u})=>u.pathname.endsWith('/review')&&u.searchParams.get('reviewed_player')==='B'));
   assert.ok(requests.some(({u})=>u.pathname.endsWith('/explain')&&u.searchParams.get('reviewed_player')==='B'));

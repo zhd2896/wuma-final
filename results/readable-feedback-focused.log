@@ -1,0 +1,43 @@
+(node:25048) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/services/feedback-presentation.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review highlights only own mistakes, orders severity and loss, and handles no mistakes honestly (10.6792ms)
+✔ answer feedback prefers lesson reasoning, preserves equivalent-best correctness and has no technical score first (1.5718ms)
+✔ native details are closed by default, toggle locally and reset for a different record (6.6523ms)
+✔ templates lead with key mistakes and hide score depth and version behind details (1.8218ms)
+(node:5816) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ review page reads or creates review, explains it, and keeps structured fields (151.323ms)
+✔ online review verifies its saved seat and only requests room review, including zero move resignation (59.1495ms)
+✔ online review fails clearly for missing, invalid, or mismatched seat credentials without public fallback (79.6146ms)
+(node:10596) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/domain/index.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ real review page replays saved after states and distinct before-route, native navigation and terminal count (133.3743ms)
+✔ local B perspective travels through review, explain, generate and training list route (37.3767ms)
+✔ metadata restricts AI view and room account seat restricts REMOTE view including empty resignation (55.3819ms)
+✔ late A view cannot overwrite B, and hidden or unloaded page rejects pending results (23.3386ms)
+✔ malformed replay and forged LOCAL AI metadata fail rather than inventing frames or perspectives (46.8269ms)
+✔ replay APIs require complete captures and allow saved active revisions preceding an undo header (2.5558ms)
+✔ stored capture maps replaced pieces, reserve consumption and natural terminal without extra event (1.1608ms)
+✔ late explanation and generation never overwrite or navigate for old or hidden views (53.2471ms)
+✔ B missing review and explanation are created with B bodies instead of defaulting to A (26.1375ms)
+✔ source checker accepts native radio controls and still rejects unknown tags (509.3687ms)
+✔ source checker validates subpackage routes, events and image assets (787.6636ms)
+(node:13908) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///E:/C%E7%9B%98Doucment/ChatGPT/wuma%E6%9C%80%E7%BB%88%E7%89%88/miniprogram/pages/training/training.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to \\?\E:\C盘Doucment\ChatGPT\wuma最终版\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ training page route and actual picker handlers send source game and filter requests (121.1071ms)
+ℹ tests 19
+ℹ suites 0
+ℹ pass 19
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1649.464

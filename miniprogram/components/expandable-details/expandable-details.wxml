@@ -1,0 +1,4 @@
+<view class="details">
+  <button class="details-toggle" size="mini" bindtap="toggle">{{expanded ? '收起' : '展开'}}{{title}} {{expanded ? '▴' : '▾'}}</button>
+  <view wx:if="{{expanded}}" class="details-body"><slot /></view>
+</view>

@@ -5,3 +5,4 @@
 .perspective-picker { padding: 16rpx 0; color: #a06b27; }
 .review-mode-actions, .replay-controls { display: flex; flex-wrap: wrap; gap: 12rpx; align-items: center; margin: 16rpx 0; }
 .replay-controls button { margin: 0; }
+.review-key-summary{margin-top:20rpx;padding:24rpx;font-size:25rpx;line-height:1.7}.review-key-title{font-size:31rpx;font-weight:700;color:#5d4630}.review-key-moment{margin-top:18rpx;padding-top:16rpx;border-top:1rpx solid #dfd2bd}.review-key-heading{font-weight:700;color:#a54534}.review-recommendation{color:#35685a;font-weight:600;margin:8rpx 0}.review-key-moment button{margin-top:12rpx}

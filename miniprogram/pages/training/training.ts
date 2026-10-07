@@ -8,6 +8,8 @@ import { TrainingController } from './training-controller';
 import type { TrainingSnapshot } from './training-controller';
 import type { TrainingFilters } from '../../services/training-api';
 import { trainingPresentation } from './training-presentation';
+import { answerFeedback } from '../../services/feedback-presentation';
+import { describeMove } from '../../utils/board-guidance';
 
 const emptyBoard: BoardState = { nodes: boardNodes, lines: boardLines, pieces: [] };
 
@@ -31,6 +33,7 @@ Page({
     isLoadingMore: false,
     errorMessage: null as string | null,
     resultText: '', bestMoveText: '', submittedMoveText: '',
+    answerReasonText: '', recommendationNote: '',
     questionDifficultyText: '', questionTagsText: '', questionCalibrationText: '',
   },
   controller: null as TrainingController | null,
@@ -48,13 +51,15 @@ Page({
   render(snapshot: TrainingSnapshot) {
     const question = snapshot.question;
     const answer = snapshot.answer;
+    const feedback = answerFeedback(answer);
+    const showFeedback = answer && answer.id !== this.data.answer?.id;
     const view = question ? mapGameStateToView(question.stateSnapshot, {
       selectedNode: snapshot.selectedNode, legalTargets: snapshot.legalTargets,
       lastMove: answer?.submittedMove ?? null,
     }) : null;
     this.setData({
       items: snapshot.items.map(item => ({ id: item.id, title: item.title,
-        sourceText: item.sourceKind === 'CURATED' ? `精选残局 · 题库 v${item.catalogVersion}`
+        sourceText: item.sourceKind === 'CURATED' ? '精选残局'
           : `复盘第 ${item.sourceTurn} 手 · ${item.sourceCategory === 'BLUNDER' ? '严重失误' : '失误'}`,
         ...trainingPresentation(item),
         progressText: `${item.progress.completed ? '已完成' : '未完成'} · 已答 ${item.progress.attemptCount} 次` +
@@ -69,10 +74,13 @@ Page({
       isLoading: snapshot.isLoading, isLoadingLegalMoves: snapshot.isLoadingLegalMoves,
       isLoadingMore: snapshot.isLoadingMore,
       isSubmittingAnswer: snapshot.isSubmittingAnswer, errorMessage: snapshot.errorMessage,
-      resultText: answer?.result === 'CORRECT' ? '达到最佳评分' : '还有更优走法',
-      bestMoveText: answer ? `${answer.bestMove.from} → ${answer.bestMove.to}` : '',
+      resultText: feedback.title,
+      answerReasonText: feedback.reason, recommendationNote: feedback.recommendationNote,
+      bestMoveText: answer ? describeMove(answer.bestMove) : '',
       submittedMoveText: answer
-        ? `${answer.submittedMove.from} → ${answer.submittedMove.to}` : '',
+        ? describeMove(answer.submittedMove) : '',
+    }, () => {
+      if (showFeedback && typeof wx.pageScrollTo === 'function') wx.pageScrollTo({ selector: '#training-feedback', duration: 250 });
     });
   },
   changeFilter(event: WechatMiniprogram.CustomEvent<{ value: string }>) {

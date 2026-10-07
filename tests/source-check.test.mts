@@ -48,7 +48,7 @@ test('source checker accepts native radio controls and still rejects unknown tag
     }));
     for (const name of expectedPages) writeUnit(pages, name);
     writeUnit(components, 'native-controls',
-      '<view><radio-group><label><radio value="A" /></label></radio-group></view>');
+      '<view><radio-group><label><radio value="A" /></label></radio-group><slot /></view>');
 
     const nativeResult = runCheck(root);
     assert.equal(nativeResult.status, 0, nativeResult.output);

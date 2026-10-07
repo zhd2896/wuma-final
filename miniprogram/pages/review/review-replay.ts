@@ -1,6 +1,7 @@
 import type { GameReplayDto, GameReviewDto } from '../../services/api-contract';
 import { mapGameStateToView } from '../game/game-state-mapper';
 import { describeMove } from '../../utils/board-guidance';
+import { reviewReason, ruleReasonText } from '../../services/feedback-presentation';
 
 /** Each index selects a saved state; terminal events do not consume a ply. */
 export function replayView(replay: GameReplayDto, review: GameReviewDto, requestedIndex: number) {
@@ -16,7 +17,7 @@ export function replayView(replay: GameReplayDto, review: GameReviewDto, request
   const explanation = !step ? '初始局面，尚未走棋。' : step.kind === 'RESIGN'
     ? `玩家 ${step.player} 认输，终局事件不增加棋步。`
     : step.player !== review.reviewedPlayer ? `对手走法 · 玩家 ${step.player}，没有本人评价。`
-    : row?.engineExplanation ?? '本方走法，本步没有评价。';
+    : row ? reviewReason(row) : '本方走法，本步没有评价。';
   return { replayIndex: index, replayPly: step?.ply ?? 0, replayTotalPly: replay.ply_count,
     replayMaxIndex: replay.steps.length, replayBoard: mapped.board,
     replayCurrentPlayer: mapped.currentPlayer, replayReserveA: mapped.reserve.A, replayReserveB: mapped.reserve.B,
@@ -24,6 +25,6 @@ export function replayView(replay: GameReplayDto, review: GameReviewDto, request
     replayStepText: !step ? '首局面' : step.kind === 'RESIGN' ? `终局 · 玩家 ${step.player} 认输` : `第 ${step.ply} 手 · 玩家 ${step.player} · ${describeMove(step.move)}`,
     replayCaptureText: !capture ? '无吃子事件' : capture.was_applied
       ? `吃子：${capture.captured_nodes.join('、')} · 备用棋使用 ${capture.reserve_used} 枚`
-      : capture.failure_reason === 'NONE' ? '本手没有吃子' : `吃子未生效：${capture.failure_reason}`,
+      : capture.failure_reason === 'NONE' ? '本手没有吃子' : `吃子未生效：${ruleReasonText(capture.failure_reason)}`,
     replayExplanation: explanation, replayNaturalExplanation: '', replayRowTurn: row?.turn ?? 0 };
 }
