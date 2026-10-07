@@ -146,11 +146,26 @@ class TrainingRepository:
             .order_by(TrainingRecordModel.answered_at.desc(), TrainingRecordModel.id.desc()).limit(1))
         return TrainingProgress(attemptCount=count, latestResult=latest, completed=bool(correct))
 
+    @staticmethod
+    def first_attempt_stats_query(training_id):
+        first = select(TrainingRecordModel.result,
+            func.row_number().over(partition_by=TrainingRecordModel.user_id,
+                order_by=(TrainingRecordModel.answered_at, TrainingRecordModel.id)).label('attempt_rank'))\
+            .where(TrainingRecordModel.training_item_id == training_id,
+                TrainingRecordModel.user_id.is_not(None)).subquery()
+        return select(func.count(), func.coalesce(func.sum(
+            case((first.c.result == 'CORRECT', 1), else_=0)), 0)).where(first.c.attempt_rank == 1)
+
+    def first_attempt_stats(self, training_id):
+        count, correct = self.session.execute(self.first_attempt_stats_query(training_id)).one()
+        return int(count), int(correct)
+
     def list_items(self, limit: int, offset: int, category: str | None,
                    training_type: str | None,
                    user_id: str | None = None, source: str = 'REVIEW',
                    difficulty: str | None = None, completed: bool | None = None,
-                   source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                   source_game_id: str | None = None, player: str | None = None,
+                   theme: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         conditions = [TrainingItemModel.source_kind == source]
         if player is not None:
             conditions.append(TrainingItemModel.player == player)
@@ -160,6 +175,8 @@ class TrainingRepository:
             conditions.append(TrainingItemModel.training_type == training_type)
         if difficulty:
             conditions.append(TrainingItemModel.difficulty_tag == difficulty)
+        if theme:
+            conditions.append(func.json_contains(TrainingItemModel.training_tags, '"' + theme + '"') == 1)
         if source_game_id:
             conditions.append(TrainingItemModel.source_game_id == source_game_id)
         if completed is not None:
@@ -176,9 +193,13 @@ class TrainingRepository:
             base = base.join(GameModel, GameModel.id == TrainingItemModel.source_game_id)
             count = count.join(GameModel, GameModel.id == TrainingItemModel.source_game_id)
         total = self.session.scalar(count.where(*conditions)) or 0
+        order = [case((TrainingItemModel.source_category == "BLUNDER", 0), else_=1),
+                 TrainingItemModel.created_at.desc(), TrainingItemModel.id.desc()]
+        if source == 'CURATED':
+            order.insert(0, case({'EASY': 0, 'NORMAL': 1, 'COMPLEX': 2, 'UNCALIBRATED': 3},
+                value=TrainingItemModel.difficulty_tag, else_=3))
         rows = self.session.scalars(base.where(*conditions)
-            .order_by(case((TrainingItemModel.source_category == "BLUNDER", 0), else_=1),
-                      TrainingItemModel.created_at.desc(), TrainingItemModel.id.desc())
+            .order_by(*order)
             .offset(offset).limit(limit)).all()
         return [self.item_from_row(row) for row in rows], total
 

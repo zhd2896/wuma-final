@@ -7,17 +7,18 @@ import { mapGameStateToView } from '../game/game-state-mapper';
 import { TrainingController } from './training-controller';
 import type { TrainingSnapshot } from './training-controller';
 import type { TrainingFilters } from '../../services/training-api';
+import { trainingPresentation } from './training-presentation';
 
 const emptyBoard: BoardState = { nodes: boardNodes, lines: boardLines, pieces: [] };
-const difficultyLabels = { EASY: '简易', NORMAL: '一般', COMPLEX: '复杂', UNCALIBRATED: '待校准' };
 
 Page({
   data: {
     items: [] as { id: string; title: string; sourceText: string; difficultyText: string;
-      progressText: string; tagsText: string }[],
+      progressText: string; tagsText: string; calibrationText: string }[],
     sourceOptions: ['精选残局', '我的复盘'], sourceIndex: 0,
     categoryOptions: ['全部类别', '失误', '严重失误'], categoryIndex: 0,
-    difficultyOptions: ['全部难度', '简易', '一般', '复杂', '待校准'], difficultyIndex: 0,
+    difficultyOptions: ['全部难度', '入门', '进阶', '复杂', '待校准'], difficultyIndex: 0,
+    themeOptions: ['全部主题', '吃子', '防守', '孤棋'], themeIndex: 0,
     completedOptions: ['全部进度', '未完成', '已完成'], completedIndex: 0,
     gameId: '', player: '' as '' | 'A' | 'B', noticeMessage: null as string | null,
     total: 0,
@@ -30,6 +31,7 @@ Page({
     isLoadingMore: false,
     errorMessage: null as string | null,
     resultText: '', bestMoveText: '', submittedMoveText: '',
+    questionDifficultyText: '', questionTagsText: '', questionCalibrationText: '',
   },
   controller: null as TrainingController | null,
   onLoad(options: { source?: string; gameId?: string; player?: string }) {
@@ -54,12 +56,15 @@ Page({
       items: snapshot.items.map(item => ({ id: item.id, title: item.title,
         sourceText: item.sourceKind === 'CURATED' ? `精选残局 · 题库 v${item.catalogVersion}`
           : `复盘第 ${item.sourceTurn} 手 · ${item.sourceCategory === 'BLUNDER' ? '严重失误' : '失误'}`,
-        difficultyText: `${difficultyLabels[item.difficultyTag]}${item.difficultyBasis ? '（引擎估计）' : ''}`,
+        ...trainingPresentation(item),
         progressText: `${item.progress.completed ? '已完成' : '未完成'} · 已答 ${item.progress.attemptCount} 次` +
           (item.progress.latestResult ? ` · 最近${item.progress.latestResult === 'CORRECT' ? '正确' : '尚可改进'}` : ''),
-        tagsText: item.trainingTags.join(' · ') })),
+        })),
       noticeMessage: snapshot.noticeMessage,
       total: snapshot.total, question, answer, board: view?.board ?? emptyBoard,
+      questionDifficultyText: question ? trainingPresentation(question).difficultyText : '',
+      questionTagsText: question ? trainingPresentation(question).tagsText : '',
+      questionCalibrationText: question ? trainingPresentation(question).calibrationText : '',
       selectedNode: snapshot.selectedNode, legalTargets: snapshot.legalTargets,
       isLoading: snapshot.isLoading, isLoadingLegalMoves: snapshot.isLoadingLegalMoves,
       isLoadingMore: snapshot.isLoadingMore,
@@ -71,20 +76,25 @@ Page({
     });
   },
   changeFilter(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
-    const key = event.currentTarget.dataset.filter as 'sourceIndex' | 'categoryIndex' | 'difficultyIndex' | 'completedIndex';
+    const key = event.currentTarget.dataset.filter as 'sourceIndex' | 'categoryIndex' | 'difficultyIndex' | 'completedIndex' | 'themeIndex';
     const value = Number(event.detail.value);
     this.setData({ [key]: value });
-    if (key === 'sourceIndex') this.setData({ categoryIndex: 0, gameId: '', player: '' });
+    if (key === 'sourceIndex') this.setData({ categoryIndex: 0, themeIndex: 0, gameId: '', player: '' });
     this.applyFilters();
   },
   clearGameFilter() { this.setData({ gameId: '', player: '' }); this.applyFilters(); },
+  resetFilters() {
+    this.setData({ categoryIndex: 0, difficultyIndex: 0, completedIndex: 0, themeIndex: 0, gameId: '', player: '' });
+    this.applyFilters();
+  },
   applyFilters() {
     const source = this.data.sourceIndex === 1 ? 'REVIEW' : 'CURATED';
     const category = [undefined, 'MISTAKE', 'BLUNDER'][this.data.categoryIndex] as TrainingFilters['category'];
     const difficulty = [undefined, 'EASY', 'NORMAL', 'COMPLEX', 'UNCALIBRATED'][this.data.difficultyIndex] as TrainingFilters['difficulty'];
     const completed = [undefined, false, true][this.data.completedIndex];
+    const theme = [undefined, 'CAPTURE', 'VULNERABILITY', 'LONE_PIECE_RISK'][this.data.themeIndex] as TrainingFilters['theme'];
     void this.controller?.setFilters({ source, ...(source === 'REVIEW' && category ? { category } : {}),
-      ...(difficulty ? { difficulty } : {}), ...(completed !== undefined ? { completed } : {}),
+      ...(difficulty ? { difficulty } : {}), ...(theme ? { theme } : {}), ...(completed !== undefined ? { completed } : {}),
       ...(source === 'REVIEW' && this.data.gameId ? { source_game_id: this.data.gameId } : {}),
       ...(source === 'REVIEW' && this.data.player ? { player: this.data.player } : {}) });
   },

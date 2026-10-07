@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 from backend.app.main import create_app
 from backend.app.services.game_store import InMemoryGameStore
 import time
+from backend.app.services.training_catalog import POSITIONS
+from backend.app.services.training_lessons import LESSONS
 
 
 def account(client):
@@ -114,7 +116,7 @@ def test_catalog_refuses_partial_engine_validation_and_retries_cleanly():
             response = client.get('/api/v1/training?source=CURATED')
             assert response.status_code == 409 and response.json()['code'] == 'TRAINING_SCORING_INCOMPLETE'
         assert client.app.state.store._training_items == {}
-        assert client.get('/api/v1/training?source=CURATED').json()['data']['total'] == 3
+        assert client.get('/api/v1/training?source=CURATED').json()['data']['total'] == len(POSITIONS) + len(LESSONS)
 
 
 def test_catalog_answer_refuses_timeout_at_the_saved_depth_without_progress():

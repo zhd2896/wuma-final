@@ -9,6 +9,7 @@ export interface TrainingFilters {
   readonly completed?: boolean;
   readonly source_game_id?: string;
   readonly player?: 'A' | 'B';
+  readonly theme?: 'CAPTURE' | 'VULNERABILITY' | 'LONE_PIECE_RISK';
 }
 
 export interface TrainingApi {

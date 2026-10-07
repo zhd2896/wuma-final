@@ -14,6 +14,8 @@ from backend.app.schemas.training import (
 from backend.app.services.game_service import GameService
 from backend.app.services.game_store import GameStore
 from backend.app.services.training_catalog import build_catalog
+from backend.app.services.training_lessons import lesson_for
+from backend.app.services.training_calibration import calibrate_difficulty
 
 
 THREAT_TAGS = {
@@ -42,7 +44,18 @@ class TrainingService:
     async def question(self, item, user_id):
         question = TrainingQuestion.from_item(item)
         question.progress = await self.store.training_progress(item.id, user_id)
+        lesson = lesson_for(item.id)
+        if lesson:
+            question.learningGoal = lesson.goal
+        if item.sourceKind == 'CURATED':
+            samples, correct = await self.store.training_first_attempt_stats(item.id)
+            question.difficultyCalibration = calibrate_difficulty(samples, correct)
         return question
+
+    @staticmethod
+    def with_lesson(result):
+        lesson = lesson_for(result.trainingId)
+        return result.model_copy(update={'lessonExplanation': lesson.explanation if lesson else None})
 
     async def generate(self, game_id: str, reviewed_player: str | None = None,
                        user_id: str | None = None, *, remote_token_hash: str | None = None,
@@ -98,11 +111,12 @@ class TrainingService:
                    training_type: str | None,
                    user_id: str | None = None, source: str = 'REVIEW',
                    difficulty: str | None = None, completed: bool | None = None,
-                   source_game_id: str | None = None, player: str | None = None) -> TrainingList:
+                   source_game_id: str | None = None, player: str | None = None,
+                   theme: str | None = None) -> TrainingList:
         if source == 'CURATED':
             await self.ensure_catalog()
         items, total = await self.store.list_training_items(limit, offset, category, training_type,
-            user_id, source, difficulty, completed, source_game_id, player)
+            user_id, source, difficulty, completed, source_game_id, player, theme)
         public = [await self.question(item, user_id) for item in items]
         await self.store.validate_active_user(user_id)
         for item in items:
@@ -134,7 +148,7 @@ class TrainingService:
         if existing is not None:
             if existing.trainingId != training_id or existing.submittedMove != submitted:
                 raise ApiError("TRAINING_ATTEMPT_CONFLICT", "Attempt ID already used for another answer")
-            return await self.store.commit_training_record(existing, user_id)
+            return self.with_lesson(await self.store.commit_training_record(existing, user_id))
         try:
             turn = await self.games.adapter.execute_turn(item.stateSnapshot, submitted)
         except ApiError as exc:
@@ -164,4 +178,4 @@ class TrainingService:
             searchDepth=score.searchDepth, timedOut=score.timedOut,
             answeredAt=datetime.now(timezone.utc),
         )
-        return await self.store.commit_training_record(result, user_id)
+        return self.with_lesson(await self.store.commit_training_record(result, user_id))

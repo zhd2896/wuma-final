@@ -128,13 +128,15 @@ def verify_training_catalog_upgrade_retains_review_rows(config, engine, database
                 'original_move,best_move,best_score,scoring_config FROM training_items ORDER BY id')).all() == before
             assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='REVIEW'")) == len(ids)
         curated = client.get('/api/v1/training?source=CURATED').json()['data']
-        assert curated['total'] == 3
+        from backend.app.services.training_catalog import POSITIONS
+        from backend.app.services.training_lessons import LESSONS
+        assert curated['total'] == len(POSITIONS) + len(LESSONS)
         with pytest.raises(RuntimeError, match='拒绝有损降级'):
             command.downgrade(config, '0015_remote_participants')
         with engine.connect() as connection:
             assert connection.scalar(text('SELECT version_num FROM alembic_version')) == '0016_training_catalog'
-            assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='CURATED' AND source_game_id IS NULL")) == 3
-            assert connection.scalar(text('SELECT COUNT(*) FROM training_items')) == len(ids) + 3
+            assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='CURATED' AND source_game_id IS NULL")) == len(POSITIONS) + len(LESSONS)
+            assert connection.scalar(text('SELECT COUNT(*) FROM training_items')) == len(ids) + len(POSITIONS) + len(LESSONS)
         client.app.state.store.close()
 
 

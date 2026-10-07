@@ -183,10 +183,21 @@ export class TrainingController {
       }
       this.publish({ answer, question: updatedQuestion, items, total,
         selectedNode: null, legalTargets: [], isSubmittingAnswer: false });
+      if (question.difficultyCalibration) void this.refreshCalibration(question.id, generation);
     } catch (error) {
       if (this.disposed || generation !== this.generation) return;
       this.publish({ isSubmittingAnswer: false, errorMessage: messageForApiError(error) });
     }
+  }
+
+  private async refreshCalibration(id: string, generation: number): Promise<void> {
+    try {
+      const fresh = await this.api.get(id);
+      if (this.disposed || generation !== this.generation || this.state.question?.id !== id) return;
+      const question = { ...this.state.question, difficultyCalibration: fresh.difficultyCalibration };
+      this.publish({ question, items: this.state.items.map(item => item.id === id
+        ? { ...item, difficultyCalibration: fresh.difficultyCalibration } : item) });
+    } catch { /* A supplementary read never invalidates a successfully graded answer. */ }
   }
 
   async retryQuestion(): Promise<void> {

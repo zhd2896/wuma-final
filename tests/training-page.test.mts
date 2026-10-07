@@ -38,11 +38,39 @@ test('training page route and actual picker handlers send source game and filter
   for (let i = 0; i < 3; i++) await new Promise(resolve => setImmediate(resolve));
   assert.equal(urls.at(-1)!.searchParams.get('completed'), 'false');
   assert.equal(urls.at(-1)!.searchParams.get('offset'), '0');
+  page.changeFilter({ currentTarget: { dataset: { filter: 'themeIndex' } }, detail: { value: '1' } });
+  for (let i = 0; i < 3; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(urls.at(-1)!.searchParams.get('theme'), 'CAPTURE');
+  page.changeFilter({ currentTarget: { dataset: { filter: 'difficultyIndex' } }, detail: { value: '1' } });
+  for (let i = 0; i < 3; i++) await new Promise(resolve => setImmediate(resolve));
+  assert.equal(urls.at(-1)!.searchParams.get('difficulty'), 'EASY');
+  assert.equal(urls.at(-1)!.searchParams.get('theme'), 'CAPTURE');
+  assert.equal(urls.at(-1)!.searchParams.get('completed'), 'false');
+  assert.equal(urls.at(-1)!.searchParams.get('offset'), '0');
   const wxml = readFileSync('miniprogram/pages/training/training.wxml', 'utf8');
-  for (const filter of ['sourceIndex', 'categoryIndex', 'difficultyIndex', 'completedIndex']) {
+  for (const filter of ['sourceIndex', 'categoryIndex', 'difficultyIndex', 'completedIndex', 'themeIndex']) {
     assert.ok(wxml.includes(`data-filter="${filter}" bindchange="changeFilter"`));
   }
   assert.match(readFileSync('miniprogram/mock/game.ts', 'utf8'), /training\/training\?source=CURATED/);
   assert.match(readFileSync('miniprogram/pages/review/review.ts', 'utf8'), /source=REVIEW&gameId=/);
+  const item = { id: 'intro-1', title: '夹吃', sourceKind: 'CURATED', catalogVersion: 2,
+    trainingTags: ['CAPTURE', 'ENDGAME'], difficultyTag: 'EASY',
+    difficultyBasis: { kind: 'LESSON_DESIGN', legalCandidateCount: 18, scoringDepth: 2 },
+    progress: { completed: false, attemptCount: 0, latestResult: null },
+    learningGoal: '找到夹吃机会',
+    difficultyCalibration: { sampleCount: 2, firstTryCorrectCount: 1, minimumSamples: 20,
+      status: 'COLLECTING', suggestedDifficulty: null } };
+  page.render({ ...page.controller.snapshot, items: [item] });
+  assert.equal(page.data.items[0].tagsText, '吃子 · 残局');
+  assert.equal(page.data.items[0].difficultyText, '入门（教学分级）');
+  assert.match(page.data.items[0].calibrationText, /待试玩校准.*2\/20/);
+  page.render({ ...page.controller.snapshot, items: [{ ...item,
+    difficultyCalibration: { ...item.difficultyCalibration, sampleCount: 20, firstTryCorrectCount: 10,
+      status: 'CALIBRATED', suggestedDifficulty: 'NORMAL' } }] });
+  assert.match(page.data.items[0].calibrationText, /试玩建议：进阶.*50%/);
+  assert.match(wxml, /question.learningGoal/);
+  assert.match(wxml, /answer.lessonExplanation/);
+  assert.match(wxml, /item.tagsText/);
+  assert.deepEqual(page.data.difficultyOptions.slice(1, 3), ['入门', '进阶']);
   page.onUnload();
 });

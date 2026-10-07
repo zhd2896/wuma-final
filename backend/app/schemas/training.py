@@ -20,10 +20,19 @@ class TrainingProgress(StrictModel):
 
 
 class TrainingDifficultyBasis(StrictModel):
-    kind: Literal["ENGINE_ESTIMATE"] = "ENGINE_ESTIMATE"
+    kind: Literal["ENGINE_ESTIMATE", "LESSON_DESIGN"] = "ENGINE_ESTIMATE"
     legalCandidateCount: int
     scoringDepth: int
     configVersion: int
+    methodVersion: int = 1
+
+
+class TrainingCalibration(StrictModel):
+    sampleCount: int = Field(ge=0)
+    firstTryCorrectCount: int = Field(ge=0)
+    minimumSamples: int = Field(ge=1)
+    status: Literal['COLLECTING', 'CALIBRATED']
+    suggestedDifficulty: Literal['EASY', 'NORMAL', 'COMPLEX'] | None = None
     methodVersion: int = 1
 
 
@@ -78,6 +87,8 @@ class TrainingQuestion(StrictModel):
     difficultyTag: DifficultyTag
     difficultyBasis: TrainingDifficultyBasis | None
     progress: TrainingProgress = Field(default_factory=TrainingProgress)
+    learningGoal: str | None = None
+    difficultyCalibration: TrainingCalibration | None = None
 
     @classmethod
     def from_item(cls, item: TrainingItemInternal) -> "TrainingQuestion":
@@ -116,3 +127,4 @@ class TrainingAnswerResult(StrictModel):
     timedOut: bool
     hintLevelUsed: int | None = None
     answeredAt: datetime
+    lessonExplanation: str | None = None

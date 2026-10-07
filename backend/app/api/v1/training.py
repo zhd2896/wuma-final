@@ -21,10 +21,11 @@ async def list_training(request: Request, limit: int = Query(20, ge=1, le=100),
                         difficulty: Literal['EASY', 'NORMAL', 'COMPLEX', 'UNCALIBRATED'] | None = Query(None),
                         completed: bool | None = Query(None),
                         source_game_id: str | None = Query(None),
-                        player: Player | None = Query(None)) -> ApiResponse[TrainingList]:
+                        player: Player | None = Query(None),
+                        theme: Literal['CAPTURE', 'VULNERABILITY', 'LONE_PIECE_RISK'] | None = Query(None)) -> ApiResponse[TrainingList]:
     user_id = await require_account(request)
     return ApiResponse(data=await request.app.state.training_service.list(
-        limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id, player))
+        limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id, player, theme))
 
 
 @router.get("/{training_id}", response_model=ApiResponse[TrainingQuestion])

@@ -1327,23 +1327,35 @@ class MySQLGameStore:
                                   training_type: str | None,
                                   user_id: str | None = None, source: str = 'REVIEW',
                                   difficulty: str | None = None, completed: bool | None = None,
-                                  source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                                  source_game_id: str | None = None, player: str | None = None,
+                                  theme: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         return await asyncio.to_thread(self._list_training_items, limit, offset,
-                                       category, training_type, user_id, source, difficulty, completed, source_game_id, player)
+                                       category, training_type, user_id, source, difficulty, completed, source_game_id, player, theme)
 
     def _list_training_items(self, limit: int, offset: int, category: str | None,
                              training_type: str | None,
                              user_id: str | None, source: str = 'REVIEW',
                              difficulty: str | None = None, completed: bool | None = None,
-                             source_game_id: str | None = None, player: str | None = None) -> tuple[list[TrainingItemInternal], int]:
+                             source_game_id: str | None = None, player: str | None = None,
+                             theme: str | None = None) -> tuple[list[TrainingItemInternal], int]:
         try:
             with self.sessions() as session:
-                return TrainingRepository(session).list_items(limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id, player)
+                return TrainingRepository(session).list_items(limit, offset, category, training_type, user_id, source, difficulty, completed, source_game_id, player, theme)
         except SQLAlchemyError as exc:
             raise ApiError("DATABASE_UNAVAILABLE", "Database operation failed") from exc
 
     async def commit_curated_items(self, items: list[TrainingItemInternal]) -> None:
         return await asyncio.to_thread(self._commit_curated_items, items)
+
+    async def training_first_attempt_stats(self, training_id: str) -> tuple[int, int]:
+        return await asyncio.to_thread(self._training_first_attempt_stats, training_id)
+
+    def _training_first_attempt_stats(self, training_id: str) -> tuple[int, int]:
+        try:
+            with self.sessions() as session:
+                return TrainingRepository(session).first_attempt_stats(training_id)
+        except SQLAlchemyError as exc:
+            raise ApiError('DATABASE_UNAVAILABLE', 'Database operation failed') from exc
 
     def _commit_curated_items(self, items):
         try:

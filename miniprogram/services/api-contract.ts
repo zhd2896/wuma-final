@@ -99,8 +99,12 @@ export interface TrainingQuestionDto {
   readonly trainingType: 'BEST_MOVE';
   readonly trainingTags: readonly string[];
   readonly difficultyTag: 'UNCALIBRATED' | 'EASY' | 'NORMAL' | 'COMPLEX';
-  readonly difficultyBasis: { readonly kind: 'ENGINE_ESTIMATE'; readonly legalCandidateCount: number;
+  readonly difficultyBasis: { readonly kind: 'ENGINE_ESTIMATE' | 'LESSON_DESIGN'; readonly legalCandidateCount: number;
     readonly scoringDepth: number; readonly configVersion: number; readonly methodVersion: number } | null;
+  readonly learningGoal?: string | null;
+  readonly difficultyCalibration?: { readonly sampleCount: number; readonly firstTryCorrectCount: number;
+    readonly minimumSamples: number; readonly status: 'COLLECTING' | 'CALIBRATED';
+    readonly suggestedDifficulty: 'EASY' | 'NORMAL' | 'COMPLEX' | null; readonly methodVersion: number } | null;
   readonly progress: { readonly attemptCount: number; readonly latestResult: 'CORRECT' | 'SUBOPTIMAL' | null;
     readonly completed: boolean };
 }
@@ -111,6 +115,7 @@ export interface TrainingListDto {
 }
 
 export interface TrainingAnswerDto {
+  readonly lessonExplanation?: string | null;
   readonly id: string;
   readonly trainingId: string;
   readonly clientAttemptId: string;

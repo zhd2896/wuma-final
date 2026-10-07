@@ -1,0 +1,123 @@
+.....F..........                                                         [100%]
+================================== FAILURES ===================================
+______ test_fresh_mysql_upgrade_preserves_string_foreign_key_collations _______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001C6B1773DA0>
+
+    def test_fresh_mysql_upgrade_preserves_string_foreign_key_collations(monkeypatch):
+        database_url = os.getenv("WUMA_TEST_MIGRATION_DATABASE_URL")
+        if not database_url:
+            pytest.skip("empty isolated MySQL migration test database not configured")
+        parsed_url = make_url(database_url)
+        allowed_query_options = {"charset", "connect_timeout", "read_timeout", "write_timeout"}
+        if (
+            not parsed_url.drivername.startswith("mysql")
+            or not (parsed_url.database or "").endswith("_test")
+            or set(parsed_url.query) - allowed_query_options
+        ):
+            raise RuntimeError(
+                "WUMA_TEST_MIGRATION_DATABASE_URL must name an isolated MySQL *_test database "
+                "with only charset and timeout query options"
+            )
+
+        engine = create_engine(database_url)
+        try:
+            with engine.connect() as connection:
+                if connection.scalar(text("SELECT DATABASE()")) != parsed_url.database:
+                    raise RuntimeError("migration connected database differs from the isolated test database")
+                assert not inspect(connection).get_table_names(), "migration test requires an empty database"
+                collation = connection.scalar(text(
+                    "SELECT DEFAULT_COLLATION_NAME FROM information_schema.SCHEMATA "
+                    "WHERE SCHEMA_NAME = DATABASE()"
+                ))
+                assert collation == "utf8mb4_unicode_ci"
+
+            monkeypatch.setenv("DATABASE_URL", database_url)
+            config = Config(str(Path(__file__).parents[1] / "alembic.ini"))
+            command.upgrade(config, "head")
+
+            with engine.connect() as connection:
+                assert connection.scalar(text("SELECT version_num FROM alembic_version")) == (
+                    ScriptDirectory.from_config(config).get_current_head()
+                )
+                foreign_keys = connection.execute(text(
+                    "SELECT fk.TABLE_NAME, fk.COLUMN_NAME, child.COLLATION_NAME, "
+                    "parent.COLLATION_NAME AS referenced_collation "
+                    "FROM information_schema.KEY_COLUMN_USAGE AS fk "
+                    "JOIN information_schema.COLUMNS AS child "
+                    "ON child.TABLE_SCHEMA = fk.TABLE_SCHEMA "
+                    "AND child.TABLE_NAME = fk.TABLE_NAME AND child.COLUMN_NAME = fk.COLUMN_NAME "
+                    "JOIN information_schema.COLUMNS AS parent "
+                    "ON parent.TABLE_SCHEMA = fk.REFERENCED_TABLE_SCHEMA "
+                    "AND parent.TABLE_NAME = fk.REFERENCED_TABLE_NAME "
+                    "AND parent.COLUMN_NAME = fk.REFERENCED_COLUMN_NAME "
+                    "WHERE fk.TABLE_SCHEMA = DATABASE() "
+                    "AND fk.REFERENCED_TABLE_NAME IS NOT NULL AND child.COLLATION_NAME IS NOT NULL"
+                )).all()
+                assert foreign_keys, "migration must create string foreign keys"
+                assert all(child == parent for _, _, child, parent in foreign_keys), foreign_keys
+>           verify_training_catalog_upgrade_retains_review_rows(config, engine, database_url)
+
+backend\tests\test_mysql_migrations.py:72:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+config = <alembic.config.Config object at 0x000001C6B14FB1A0>
+engine = Engine(mysql+pymysql://root@127.0.0.1:34365/training_content_migration_20261007_test?charset=utf8mb4)
+database_url = 'mysql+pymysql://root@127.0.0.1:34365/training_content_migration_20261007_test?charset=utf8mb4'
+
+    def verify_training_catalog_upgrade_retains_review_rows(config, engine, database_url):
+        """��ʵ�ɸ��̼�¼����������������������ѡ��¼�ܾ����𽵼���"""
+        from fastapi.testclient import TestClient
+        from backend.app.main import create_app
+        from backend.app.core.config import Settings
+        from backend.tests.test_training import finished_review
+        with TestClient(create_app(Settings(database_url=database_url), require_auth=False)) as client:
+            game_id, _ = finished_review(client)
+            generated = client.post(f'/api/v1/game/{game_id}/training', json={})
+            assert generated.status_code == 200, generated.text
+            ids = [q['id'] for q in generated.json()['data']['items']]
+            assert ids
+            with engine.connect() as connection:
+                before = connection.execute(text('SELECT id,source_game_id,source_move_id,source_move_review_id,'
+                    'original_move,best_move,best_score,scoring_config FROM training_items ORDER BY id')).all()
+            command.downgrade(config, '0015_remote_participants')
+            with engine.connect() as connection:
+                assert connection.execute(text('SELECT id,source_game_id,source_move_id,source_move_review_id,'
+                    'original_move,best_move,best_score,scoring_config FROM training_items ORDER BY id')).all() == before
+            command.upgrade(config, 'head')
+            with engine.connect() as connection:
+                assert connection.execute(text('SELECT id,source_game_id,source_move_id,source_move_review_id,'
+                    'original_move,best_move,best_score,scoring_config FROM training_items ORDER BY id')).all() == before
+                assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='REVIEW'")) == len(ids)
+            curated = client.get('/api/v1/training?source=CURATED').json()['data']
+            from backend.app.services.training_catalog import POSITIONS
+            from backend.app.services.training_lessons import LESSONS
+            assert curated['total'] == len(POSITIONS) + len(LESSONS)
+            with pytest.raises(RuntimeError, match='�ܾ����𽵼�'):
+                command.downgrade(config, '0015_remote_participants')
+            with engine.connect() as connection:
+                assert connection.scalar(text('SELECT version_num FROM alembic_version')) == '0016_training_catalog'
+>               assert connection.scalar(text("SELECT COUNT(*) FROM training_items WHERE source_kind='CURATED' AND source_game_id IS NULL")) == 3
+E               assert 15 == 3
+E                +  where 15 = scalar(<sqlalchemy.sql.elements.TextClause object at 0x000001C6B08818B0>)
+E                +    where scalar = <sqlalchemy.engine.base.Connection object at 0x000001C6B17F49B0>.scalar
+E                +    and   <sqlalchemy.sql.elements.TextClause object at 0x000001C6B08818B0> = text("SELECT COUNT(*) FROM training_items WHERE source_kind='CURATED' AND source_game_id IS NULL")
+
+backend\tests\test_mysql_migrations.py:138: AssertionError
+============================== warnings summary ===============================
+backend\.venv\Lib\site-packages\fastapi\testclient.py:1
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+  E:\C��Doucment\ChatGPT\wuma���հ�\backend\.venv\Lib\site-packages\alembic\config.py:604: DeprecationWarning: No path_separator found in configuration; falling back to legacy splitting on spaces, commas, and colons for prepend_sys_path.  Consider adding path_separator=os to Alembic config.
+    util.warn_deprecated(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED backend/tests/test_mysql_migrations.py::test_fresh_mysql_upgrade_preserves_string_foreign_key_collations
+1 failed, 15 passed, 6 warnings in 203.00s (0:03:22)

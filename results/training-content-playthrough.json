@@ -1,0 +1,331 @@
+{
+  "evidence": "CANONICAL_ENGINE_AND_HTTP_PLAYTHROUGH_NOT_HUMAN",
+  "catalogInitializationMs": 9877,
+  "total": 15,
+  "questions": [
+    {
+      "id": "ecde4b2297132a3dec393aebfd72c6b6",
+      "title": "入门孤棋：寻找庙区出口",
+      "level": "EASY",
+      "topics": [
+        "LONE_PIECE_RISK",
+        "ENDGAME"
+      ],
+      "legalMoves": 2,
+      "best": {
+        "from": "P29",
+        "to": "P27"
+      },
+      "captures": [],
+      "bestScore": -134.66666666666666,
+      "worseScore": -141.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "cf358a0b04098c5ae82cd56dc8a59f9a",
+      "title": "入门孤棋：避开封锁边翼",
+      "level": "EASY",
+      "topics": [
+        "LONE_PIECE_RISK",
+        "ENDGAME"
+      ],
+      "legalMoves": 2,
+      "best": {
+        "from": "P28",
+        "to": "P27"
+      },
+      "captures": [],
+      "bestScore": -132.0,
+      "worseScore": -141.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "b1352dc2f3d47038dcfb617873f99bf3",
+      "title": "入门防守：撤离夹击线",
+      "level": "EASY",
+      "topics": [
+        "VULNERABILITY",
+        "ENDGAME"
+      ],
+      "legalMoves": 16,
+      "best": {
+        "from": "P02",
+        "to": "P22"
+      },
+      "captures": [],
+      "bestScore": -136.0,
+      "worseScore": -366.0,
+      "bestAnswers": 2,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "870318e6798db5ec9588b93e5375ae6a",
+      "title": "入门防守：保护侧翼棋子",
+      "level": "EASY",
+      "topics": [
+        "VULNERABILITY",
+        "ENDGAME"
+      ],
+      "legalMoves": 16,
+      "best": {
+        "from": "P06",
+        "to": "P10"
+      },
+      "captures": [],
+      "bestScore": -136.0,
+      "worseScore": -366.0,
+      "bestAnswers": 2,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "22a43cfa02e8efe1e2a2930e8213c2b8",
+      "title": "入门吃子：完成挑吃",
+      "level": "EASY",
+      "topics": [
+        "CAPTURE",
+        "ENDGAME"
+      ],
+      "legalMoves": 20,
+      "best": {
+        "from": "P08",
+        "to": "P13"
+      },
+      "captures": [
+        "P12",
+        "P14"
+      ],
+      "bestScore": 168.0,
+      "worseScore": -453.3333333333333,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "13a39ea0eec0a5a4027818ba2ac15a26",
+      "title": "入门吃子：完成夹吃",
+      "level": "EASY",
+      "topics": [
+        "CAPTURE",
+        "ENDGAME"
+      ],
+      "legalMoves": 18,
+      "best": {
+        "from": "P08",
+        "to": "P13"
+      },
+      "captures": [
+        "P12"
+      ],
+      "bestScore": -36.0,
+      "worseScore": -456.22222222222223,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "da14f5a367863725e0bfe4291630bb77",
+      "title": "进阶孤棋：扩大可用通路",
+      "level": "NORMAL",
+      "topics": [
+        "LONE_PIECE_RISK",
+        "ENDGAME"
+      ],
+      "legalMoves": 16,
+      "best": {
+        "from": "P03",
+        "to": "P13"
+      },
+      "captures": [],
+      "bestScore": -227.33333333333334,
+      "worseScore": -260.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "adb8456bdcd2be779e3bd6f965ee2be3",
+      "title": "进阶吃子：转换夹击方向",
+      "level": "NORMAL",
+      "topics": [
+        "CAPTURE",
+        "ENDGAME"
+      ],
+      "legalMoves": 19,
+      "best": {
+        "from": "P09",
+        "to": "P03"
+      },
+      "captures": [
+        "P02"
+      ],
+      "bestScore": 84.0,
+      "worseScore": -356.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "a3460a0739617f7479cb167dfcb47978",
+      "title": "进阶孤棋：选择撤退方向",
+      "level": "NORMAL",
+      "topics": [
+        "LONE_PIECE_RISK",
+        "ENDGAME"
+      ],
+      "legalMoves": 14,
+      "best": {
+        "from": "P13",
+        "to": "P03"
+      },
+      "captures": [],
+      "bestScore": -349.42857142857144,
+      "worseScore": -379.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "3d095f16b9ba9da77ee3c063865a5418",
+      "title": "进阶吃子：看清边线挑吃",
+      "level": "NORMAL",
+      "topics": [
+        "CAPTURE",
+        "ENDGAME"
+      ],
+      "legalMoves": 21,
+      "best": {
+        "from": "P08",
+        "to": "P03"
+      },
+      "captures": [
+        "P02",
+        "P04"
+      ],
+      "bestScore": 305.3333333333333,
+      "worseScore": -176.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "06ba1d073c4f8614498568eced991617",
+      "title": "进阶防守：保子并打开空间",
+      "level": "NORMAL",
+      "topics": [
+        "VULNERABILITY",
+        "ENDGAME"
+      ],
+      "legalMoves": 18,
+      "best": {
+        "from": "P12",
+        "to": "P15"
+      },
+      "captures": [],
+      "bestScore": -132.0,
+      "worseScore": -999998.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "0461a062eb0acc7f976a4af9683d509e",
+      "title": "进阶防守：拆开挑吃目标",
+      "level": "NORMAL",
+      "topics": [
+        "VULNERABILITY",
+        "ENDGAME"
+      ],
+      "legalMoves": 22,
+      "best": {
+        "from": "P14",
+        "to": "P09"
+      },
+      "captures": [],
+      "bestScore": -22.0,
+      "worseScore": -999998.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "8a518ff40ae52edbab716f326b2b3f96",
+      "title": "化解夹击",
+      "level": "COMPLEX",
+      "topics": [
+        "ENDGAME"
+      ],
+      "legalMoves": 13,
+      "best": {
+        "from": "P29",
+        "to": "P03"
+      },
+      "captures": [],
+      "bestScore": -12.0,
+      "worseScore": -235.0,
+      "bestAnswers": 2,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "4a84ed7aed90902c05070a1ae9701833",
+      "title": "夹击与调度",
+      "level": "COMPLEX",
+      "topics": [
+        "ENDGAME"
+      ],
+      "legalMoves": 14,
+      "best": {
+        "from": "P04",
+        "to": "P03"
+      },
+      "captures": [
+        "P02"
+      ],
+      "bestScore": 233.0,
+      "worseScore": -24.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    },
+    {
+      "id": "41905710af0cb1a0ea74518ab6f4d3f7",
+      "title": "独子脱困",
+      "level": "COMPLEX",
+      "topics": [
+        "ENDGAME"
+      ],
+      "legalMoves": 16,
+      "best": {
+        "from": "P03",
+        "to": "P13"
+      },
+      "captures": [],
+      "bestScore": -111.25,
+      "worseScore": -146.0,
+      "bestAnswers": 1,
+      "bestResult": "CORRECT",
+      "worseResult": "SUBOPTIMAL",
+      "humanCalibrated": false
+    }
+  ]
+}

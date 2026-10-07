@@ -2,30 +2,32 @@
   <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>{{question ? '训练答题' : '残局与复盘训练'}}<text class="topbar-tag">引擎验证</text></view>
   <view class="page-inner">
     <view wx:if="{{!question}}">
-      <view class="training-banner ink-card"><view class="banner-kicker">以局为题 · 步步为营</view><view class="banner-title">残局与复盘训练</view><view class="banner-copy">精选残局随时练习，个人复盘题帮助改进真实棋局失误。</view><view class="banner-art">◇</view></view>
+      <view class="training-banner ink-card"><view class="banner-kicker">以局为题 · 步步为营</view><view class="banner-title">残局与复盘训练</view><view class="banner-copy">从入门吃子、防守、孤棋开始，再练进阶题；个人复盘题帮助改进真实棋局失误。</view><view class="banner-art">◇</view></view>
       <view class="training-filters card">
         <picker range="{{sourceOptions}}" value="{{sourceIndex}}" data-filter="sourceIndex" bindchange="changeFilter" disabled="{{isSubmittingAnswer}}"><view>题源：{{sourceOptions[sourceIndex]}} ▾</view></picker>
         <picker wx:if="{{sourceIndex === 1}}" range="{{categoryOptions}}" value="{{categoryIndex}}" data-filter="categoryIndex" bindchange="changeFilter"><view>类别：{{categoryOptions[categoryIndex]}} ▾</view></picker>
         <picker range="{{difficultyOptions}}" value="{{difficultyIndex}}" data-filter="difficultyIndex" bindchange="changeFilter"><view>难度：{{difficultyOptions[difficultyIndex]}} ▾</view></picker>
+        <picker range="{{themeOptions}}" value="{{themeIndex}}" data-filter="themeIndex" bindchange="changeFilter"><view>主题：{{themeOptions[themeIndex]}} ▾</view></picker>
         <picker range="{{completedOptions}}" value="{{completedIndex}}" data-filter="completedIndex" bindchange="changeFilter"><view>进度：{{completedOptions[completedIndex]}} ▾</view></picker>
         <view wx:if="{{gameId}}">仅当前来源棋局 <button size="mini" bindtap="clearGameFilter">查看全部复盘题</button></view>
-        <text>难度为合法候选数与固定深度计算的引擎估计，非玩家实测。</text>
+        <text>入门、进阶为教学分级，建议先练入门。试玩建议独立显示，每题满 20 个账号首次答题才校准；旧题的引擎估计不代表真人难度。</text>
       </view>
       <view wx:if="{{noticeMessage}}" class="training-status card">{{noticeMessage}}</view>
       <view wx:if="{{isLoading}}" class="training-status card">正在读取训练题…</view>
       <view wx:elif="{{errorMessage}}" class="training-status card">{{errorMessage}}<button size="mini" bindtap="retry">重试</button></view>
-      <view wx:elif="{{!items.length}}" class="training-status card">当前筛选暂无题目，可调整筛选；复盘题需先在复盘页生成。</view>
+      <view wx:elif="{{!items.length}}" class="training-status card">当前筛选暂无题目，可调整筛选；复盘题需先在复盘页生成。<button size="mini" bindtap="resetFilters">清除筛选</button></view>
       <block wx:else>
         <section-title title="训练题" subtitle="选择题目，寻找最佳走法" />
         <view wx:for="{{items}}" wx:key="id" class="training-item card" data-id="{{item.id}}" bindtap="openQuestion">
           <view>{{item.title}}<text class="category">{{item.difficultyText}}</text></view>
           <view>{{item.sourceText}}</view><view>{{item.progressText}}</view>
+          <view>{{item.tagsText}}</view><view wx:if="{{item.calibrationText}}">{{item.calibrationText}}</view>
         </view>
         <button wx:if="{{items.length < total}}" class="load-more" loading="{{isLoadingMore}}" disabled="{{isLoadingMore}}" bindtap="loadMore">加载更多（{{items.length}} / {{total}}）</button>
       </block>
     </view>
     <view wx:else class="challenge">
-      <view class="challenge-heading card"><view>{{question.title}} · 玩家 {{question.player}}</view><text>{{question.sourceKind === 'CURATED' ? '精选残局' : '个人复盘'}} · 请在棋盘上选择最佳走法</text><view wx:if="{{question.difficultyBasis}}">引擎估计：{{question.difficultyBasis.legalCandidateCount}} 个合法候选 · 深度 {{question.difficultyBasis.scoringDepth}}</view></view>
+      <view class="challenge-heading card"><view>{{question.title}} · 玩家 {{question.player}}</view><text>{{question.sourceKind === 'CURATED' ? '精选残局' : '个人复盘'}} · 请在棋盘上选择最佳走法</text><view>{{questionDifficultyText}} · {{questionTagsText}}</view><view wx:if="{{question.learningGoal}}">训练目标：{{question.learningGoal}}</view><view wx:if="{{questionCalibrationText}}">{{questionCalibrationText}}</view></view>
       <view class="training-reserve card">备用棋：玩家 A {{question.stateSnapshot.players.A.reserve_count}} 枚 · 玩家 B {{question.stateSnapshot.players.B.reserve_count}} 枚</view>
       <view class="challenge-board"><chess-board board="{{board}}" bind:node="onNode" /></view>
       <view wx:if="{{isLoadingLegalMoves}}" class="training-status card">正在读取合法走法…</view>
@@ -37,6 +39,7 @@
         <view>最佳评分：{{answer.bestScore}} · 本次评分：{{answer.submittedMoveScore}}</view>
         <view>评分损失：{{answer.scoreLoss}} · 搜索深度：{{answer.searchDepth}}</view>
         <view>{{answer.feedback}}</view>
+        <view wx:if="{{answer.lessonExplanation}}">解题要点：{{answer.lessonExplanation}}</view>
       </view>
       <view wx:else class="training-status card">{{selectedNode ? '选择高亮的合法落点' : '点击己方棋子，再选择落点'}}</view>
       <view wx:if="{{answer}}" class="training-actions"><button class="gold-btn" bindtap="retryQuestion">再试一次</button><button class="gold-btn" bindtap="nextQuestion">下一题</button></view>
