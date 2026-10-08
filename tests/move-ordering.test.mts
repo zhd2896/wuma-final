@@ -64,7 +64,7 @@ const neutralConfig = {
   ...DEFAULT_EVALUATION_CONFIG,
   materialWeight: 0, reserveWeight: 0, mobilityWeight: 0,
   templeControlWeight: 0, captureOpportunityWeight: 0,
-  vulnerabilityWeight: 0, trapRiskWeight: 0,
+  vulnerabilityWeight: 0, trapRiskWeight: 0, blockadeWeight: 0,
 };
 
 test('ordering preserves every real legal move and puts a GameEngine win first', () => {
@@ -317,7 +317,7 @@ test('ordered search retains terminal and ambiguity behavior', () => {
     RuleAmbiguityError);
 });
 
-test('ordered search reports a real no-move child when it is visited', () => {
+test('ordered search recognizes a real multi-piece blockade as a win', () => {
   const state = withPieces({
     P03: 'B', P13: 'B', P02: 'A', P04: 'A', P29: 'A', P08: 'A',
     P09: 'A', P07: 'A', P26: 'A', P28: 'A', P12: 'A', P14: 'A',
@@ -325,9 +325,11 @@ test('ordered search reports a real no-move child when it is visited', () => {
   });
   const snapshot = structuredClone(state);
   const child = RuleEngine.executeTurn(state, { from: 'P29', to: 'P27' }).state;
-  assert.equal(child.game_status, 'PLAYING');
+  assert.equal(child.game_status, 'FINISHED');
+  assert.equal(child.winner_reason, 'ALL_PIECES_IMMOBILIZED');
   assert.deepEqual(RuleEngine.getAllLegalMoves(child), []);
-  assert.throws(() => new AlphaBetaAI({ depth: 2, useMoveOrdering: true }).search(state),
-    RuleAmbiguityError);
+  const result = new AlphaBetaAI({ depth: 2, useMoveOrdering: true }).search(state);
+  assert.equal(RuleEngine.executeTurn(state, result.bestMove!).winner, 'A');
+  assert.equal(RuleEngine.executeTurn(state, result.bestMove!).winner_reason, 'ALL_PIECES_IMMOBILIZED');
   assert.deepEqual(state, snapshot);
 });

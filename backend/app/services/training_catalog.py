@@ -9,7 +9,8 @@ from backend.app.schemas.training import TrainingDifficultyBasis, TrainingItemIn
 from backend.app.services.training_lessons import LESSONS
 
 CATALOG_VERSION = 1
-SCORING_CONFIG = ReviewConfig(max_depth=2, time_limit_ms_per_move=10000, candidate_limit=29)
+# Published v1 items are immutable, including their scoring policy.
+SCORING_CONFIG = ReviewConfig(version=1, max_depth=2, time_limit_ms_per_move=10000, candidate_limit=29)
 # Each position contains legal alternatives. No game/review is fabricated.
 POSITIONS = (
     ('capture-choice', '夹击与调度', {'P01': 'A', 'P02': 'B', 'P04': 'A', 'P29': 'B'}, 'A'),
@@ -31,7 +32,7 @@ async def build_catalog(adapter) -> list[TrainingItemInternal]:
         state.board.occupancy = {node: pieces.get(node) for node in state.board.occupancy}
         legal = await adapter.legal_moves(state)
         analysis = await adapter.analyze_position(state, SCORING_CONFIG.max_depth,
-            SCORING_CONFIG.time_limit_ms_per_move, len(legal))
+            SCORING_CONFIG.time_limit_ms_per_move, len(legal), SCORING_CONFIG.version)
         if (len(legal) < 2 or analysis.terminal or analysis.timedOut or
                 analysis.searchDepth != SCORING_CONFIG.max_depth or
                 analysis.bestMove not in legal or not math.isfinite(analysis.bestScore) or

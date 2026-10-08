@@ -5,9 +5,11 @@ import type { EvaluationBreakdown, EvaluationResult } from './evaluation';
 import { IterativeDeepeningAI } from './iterative-deepening';
 import type { IterativeDeepeningOptions } from './iterative-deepening';
 import { MoveOrderCategory, orderMoves } from './move-ordering';
+import { proveBlockadeMove } from './blockade';
+import { getPlayerNodes, TEMPLE_NODES } from '../domain/index';
 
 export interface AnalyzePositionOptions extends Pick<IterativeDeepeningOptions,
-  'maxDepth' | 'timeLimitMs' | 'now'> {
+  'maxDepth' | 'timeLimitMs' | 'now' | 'evaluationConfig' | 'useBlockadeExtension'> {
   readonly candidateLimit?: number;
 }
 
@@ -20,7 +22,7 @@ export interface CandidateAnalysis {
 }
 
 export type ThreatType = 'IMMEDIATE_WIN_AVAILABLE' | 'CAPTURE_AVAILABLE' |
-  'CAPTURE_THREAT' | 'VULNERABILITY' | 'LONE_PIECE_MOBILITY_RISK';
+  'CAPTURE_THREAT' | 'VULNERABILITY' | 'LONE_PIECE_MOBILITY_RISK' | 'FORCED_BLOCKADE_AVAILABLE';
 
 export interface ThreatInfo {
   readonly type: ThreatType;
@@ -51,7 +53,7 @@ export interface PositionAnalysis {
 }
 
 function collectThreats(state: GameState, player: Player,
-                        evaluation: EvaluationResult): ThreatInfo[] {
+                        evaluation: EvaluationResult, bestMove: Move | null): ThreatInfo[] {
   const threats: ThreatInfo[] = [];
   for (const info of orderMoves(state)) {
     if (info.category === MoveOrderCategory.IMMEDIATE_WIN) {
@@ -74,6 +76,15 @@ function collectThreats(state: GameState, player: Player,
     threats.push({ type: 'LONE_PIECE_MOBILITY_RISK', player,
       evidence: { relativeLonePieceRisk: evaluation.breakdown.trapRisk.rawValue } });
   }
+  const proof = bestMove ? proveBlockadeMove(state, bestMove) : null;
+  if (proof && proof.maxPlies > 1) {
+    const defender = player === 'A' ? 'B' : 'A';
+    const seals = TEMPLE_NODES.filter(node => state.board.occupancy[node] === player);
+    threats.unshift({ type: 'FORCED_BLOCKADE_AVAILABLE', player, relatedMove: bestMove!,
+      relatedNodes: [...getPlayerNodes(state.board, defender), ...seals],
+      evidence: { maxPlies: proof.maxPlies, replyCount: proof.lines.length,
+        winnerReason: proof.winnerReasons.join('、') } });
+  }
   return threats;
 }
 
@@ -87,7 +98,7 @@ export function analyzePosition(state: GameState,
     throw new RangeError('candidateLimit must be a positive safe integer');
   }
   const analyzedPlayer = state.current_player;
-  const evaluationBefore = evaluatePosition(state, analyzedPlayer);
+  const evaluationBefore = evaluatePosition(state, analyzedPlayer, options.evaluationConfig);
   const common = { analyzedPlayer, scorePerspective: analyzedPlayer, evaluationBefore,
     evaluationBreakdown: evaluationBefore.breakdown,
     winner: state.winner, winnerReason: state.winner_reason };
@@ -97,7 +108,7 @@ export function analyzePosition(state: GameState,
       algorithm: 'ITERATIVE_DEEPENING_ALPHA_BETA', ttHits: 0, timedOut: false,
       threats: [], terminal: true };
   }
-  const search = new IterativeDeepeningAI(options).search(state, analyzedPlayer);
+  const search = new IterativeDeepeningAI({ ...options, retainProvedWin: false }).search(state, analyzedPlayer);
   const ranked = search.candidateMoves.map((candidate, index) => ({ ...candidate, index }))
     .sort((left, right) => right.score - left.score || left.index - right.index)
     .map(({ move, score }, index): CandidateAnalysis => ({ move, score, rank: index + 1,
@@ -108,5 +119,6 @@ export function analyzePosition(state: GameState,
     searchDepth: search.searchDepth, nodesSearched: search.nodesSearched,
     thinkingTimeMs: search.thinkingTimeMs, algorithm: search.algorithm,
     ttHits: search.ttHits, timedOut: search.timedOut,
-    threats: collectThreats(state, analyzedPlayer, evaluationBefore), terminal: false };
+    threats: collectThreats(state, analyzedPlayer, evaluationBefore,
+      options.useBlockadeExtension === false ? null : search.bestMove), terminal: false };
 }

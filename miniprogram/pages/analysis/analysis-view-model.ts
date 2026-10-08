@@ -6,6 +6,7 @@ import { mapGameStateToView } from '../game/game-state-mapper';
 import { describeMove, highlightBoardMove } from '../../utils/board-guidance';
 
 export const threatLabels: Readonly<Record<ThreatType, string>> = {
+  FORCED_BLOCKADE_AVAILABLE: '存在已验证的强制围堵路线',
   IMMEDIATE_WIN_AVAILABLE: '存在直接获胜走法',
   CAPTURE_AVAILABLE: '存在直接捕获机会',
   CAPTURE_THREAT: '存在后续捕获威胁',
@@ -102,7 +103,8 @@ export function mapPositionAnalysis(state: GameState,
     : null;
   const threats = analysis.threats.map((threat, index): AnalysisThreatRow => ({
     id: `${threat.type}-${index}`,
-    label: threatLabels[threat.type],
+    label: threatLabels[threat.type] + (threat.type === 'FORCED_BLOCKADE_AVAILABLE'
+      ? ` · 最多 ${threat.evidence.maxPlies} 手，覆盖全部合法应手` : ''),
     move: threat.relatedMove
       ? `${threat.relatedMove.from} → ${threat.relatedMove.to}` : '',
     nodes: threat.relatedNodes?.join('、') ?? '',
@@ -130,9 +132,13 @@ export function mapPositionAnalysis(state: GameState,
     perspective: analysis.analyzedPlayer,
     score: analysis.evaluationBefore.score,
     bestScore: analysis.bestScore,
-    breakdown: breakdownLabels.map(({ key, label }) => ({ key, label,
-      rawValue: analysis.evaluationBreakdown[key].rawValue,
-      weightedScore: analysis.evaluationBreakdown[key].weightedScore })),
+    breakdown: [...breakdownLabels.filter(({ key }) => analysis.evaluationBreakdown[key] !== undefined)
+      .map(({ key, label }) => ({ key, label,
+        rawValue: analysis.evaluationBreakdown[key]!.rawValue,
+        weightedScore: analysis.evaluationBreakdown[key]!.weightedScore })),
+      ...(analysis.evaluationBreakdown.blockade?.rawValue ? [{ key: 'blockade' as const, label: '围堵进度（启发式）',
+        rawValue: analysis.evaluationBreakdown.blockade.rawValue,
+        weightedScore: analysis.evaluationBreakdown.blockade.weightedScore }] : [])],
     threats,
     keyPieces,
     bestMove: bestCandidate,

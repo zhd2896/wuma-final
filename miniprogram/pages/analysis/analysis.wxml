@@ -38,6 +38,7 @@
           <view wx:if="{{view.winnerReason == 'CAPTURE_ALL'}}">胜因：对方棋子已全部被吃</view>
           <view wx:elif="{{view.winnerReason == 'TEMPLE_TRAP'}}">胜因：对方孤棋被困于庙宇</view>
           <view wx:elif="{{view.winnerReason == 'LONE_PIECE_IMMOBILIZED'}}">胜因：对方孤棋无路可走</view>
+          <view wx:elif="{{view.winnerReason == 'ALL_PIECES_IMMOBILIZED'}}">胜因：对方所有棋子均无合法走法</view>
         </view>
         <view wx:else class="empty-inline card">当前没有合法推荐走法</view>
         <view class="board-preview"><chess-board board="{{previewBoard}}" compact="{{true}}" show-node-labels="{{true}}" /></view>

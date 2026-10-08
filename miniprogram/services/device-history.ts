@@ -86,6 +86,7 @@ function validGameState(value: unknown): value is GameState {
   const validWinner = state.winner === null || state.winner === 'A' || state.winner === 'B';
   const validReason = state.winner_reason === null || state.winner_reason === 'CAPTURE_ALL' ||
     state.winner_reason === 'TEMPLE_TRAP' || state.winner_reason === 'LONE_PIECE_IMMOBILIZED' ||
+    state.winner_reason === 'ALL_PIECES_IMMOBILIZED' ||
     state.winner_reason === 'RESIGN';
   const validOutcome = state.game_status === 'PLAYING'
     ? state.winner === null && state.winner_reason === null
@@ -170,6 +171,7 @@ function validEntry(value: unknown): value is DeviceHistoryEntry {
   const validWinner = row.winner === null || row.winner === 'A' || row.winner === 'B';
   const validReason = row.winnerReason === null || row.winnerReason === 'CAPTURE_ALL' ||
     row.winnerReason === 'TEMPLE_TRAP' || row.winnerReason === 'LONE_PIECE_IMMOBILIZED' ||
+    row.winnerReason === 'ALL_PIECES_IMMOBILIZED' ||
     row.winnerReason === 'RESIGN';
   const validState = row.mode !== 'local' || (!!row.localState &&
     validGameState(row.localState) && row.localState.game_status === row.status &&

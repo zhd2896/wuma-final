@@ -29,6 +29,7 @@ const reasonMessages: Readonly<Record<NonNullable<GameState['winner_reason']>, s
   CAPTURE_ALL: '棋子已全部被吃',
   TEMPLE_TRAP: '孤棋被困于庙宇',
   LONE_PIECE_IMMOBILIZED: '孤棋无路可走',
+  ALL_PIECES_IMMOBILIZED: '所有棋子均无合法走法',
   RESIGN: '认输',
 };
 
@@ -43,7 +44,11 @@ export function mapGameStateToView(
   const turnTitle = gameOver ? state.winner ? `${playerNames[state.winner]}获胜` : '对局结束'
     : currentName === '你' ? '你的回合' : `${currentName}回合`;
   const selectedLocation = interaction.selectedNode ? describeNode(interaction.selectedNode).replace(/^P\d+（|）$/g, '') : '';
-  const guidanceText = gameOver ? '对局已结束，可查看棋局记录'
+  const blockedEnd = state.winner_reason === 'TEMPLE_TRAP' || state.winner_reason === 'LONE_PIECE_IMMOBILIZED' ||
+    state.winner_reason === 'ALL_PIECES_IMMOBILIZED';
+  const guidanceText = gameOver ? blockedEnd
+    ? '换手后，败方所有在场棋子均无合法走法，已判负；可查看复盘'
+    : '对局已结束，可查看棋局记录'
     : viewer && viewer !== state.current_player ? '等待对手落子，你暂时不能移动棋子'
     : interaction.selectedNode ? interaction.showLegalTargets === false ? '可走标记已关闭，可在设置中开启；仍可按规则选点落子' : interaction.legalTargets.length
       ? `已选${selectedLocation}的棋子 · ${interaction.legalTargets.length} 个可走位置，点击绿色标记落子`

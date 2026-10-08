@@ -22,6 +22,7 @@ const { NODE_IDS, RuleEngine } = await import('../miniprogram/domain/index.ts');
 const { IterativeDeepeningAI } = await import('../miniprogram/ai/iterative-deepening.ts');
 const { analyzePosition } = await import('../miniprogram/ai/position-analysis.ts');
 const { analyzeReviewMove } = await import('../miniprogram/ai/review-analysis.ts');
+const { DEFAULT_EVALUATION_CONFIG } = await import('../miniprogram/ai/evaluation.ts');
 
 class EngineCommandError extends Error {
   constructor(code, message) {
@@ -84,12 +85,22 @@ function dispatch(command, payload) {
     }
     case 'analyze_position':
       return analyzePosition(payload.state, {
+        ...(payload.scoring_config_version === 1 ? {
+          useBlockadeExtension: false,
+          evaluationConfig: { ...DEFAULT_EVALUATION_CONFIG, blockadeWeight: 0, loneMobilityScale: 1 },
+        } : {}),
         maxDepth: payload.max_depth,
         timeLimitMs: payload.time_limit_ms,
         candidateLimit: payload.candidate_limit,
       });
     case 'review_move':
       return analyzeReviewMove(payload.state_before, payload.state_after, payload.actual_move, {
+        // Saved training items keep their original scoring policy. New reviews
+        // use v2, so old bestScore and answer equivalence are never silently mixed.
+        ...(payload.config.version === 1 ? {
+          useBlockadeExtension: false,
+          evaluationConfig: { ...DEFAULT_EVALUATION_CONFIG, blockadeWeight: 0, loneMobilityScale: 1 },
+        } : {}),
         maxDepth: payload.config.max_depth,
         timeLimitMs: payload.config.time_limit_ms_per_move,
         candidateLimit: payload.config.candidate_limit,

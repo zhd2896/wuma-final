@@ -2,6 +2,8 @@
 
 日期：2026-10-05
 
+> 2026-10-08 规则更新：本文件保留当时的设计与生成提示词。胜负规则现已扩展为：移动及吃子结算后换手，下一方所有在场棋子无合法走法即判负，与棋子数量无关。页面新增文字讲解；下方旧提示词中“不增加多子全堵判负”已被本次规则取代。详见 [本阶段记录](../reviews/2026-10-08-all-pieces-immobilized-acceptance.md)。
+
 ## 设计与依据
 
 使用内置 image_gen 生成静态长页设计图，沿用项目宣纸、墨色、朱红与金色风格。内容依据 miniprogram/domain/index.ts，棋盘依据 miniprogram/mock/game.ts，参考 tests/capture-pattern.test.mts 与 tests/capture-resolution.test.mts。适用当前《弈智五马》项目规则。

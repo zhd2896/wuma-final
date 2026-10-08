@@ -43,7 +43,7 @@ const neutralConfig = {
   ...DEFAULT_EVALUATION_CONFIG,
   materialWeight: 0, reserveWeight: 0, mobilityWeight: 0,
   templeControlWeight: 0, captureOpportunityWeight: 0,
-  vulnerabilityWeight: 0, trapRiskWeight: 0,
+  vulnerabilityWeight: 0, trapRiskWeight: 0, blockadeWeight: 0,
 };
 
 test('TT search computes a full Zobrist hash only for the root', () => {

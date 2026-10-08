@@ -45,7 +45,9 @@ def test_real_review_generates_hidden_questions_and_scores_repeatable_attempts()
         assert client.post(path, json={}).json()["data"]["items"] == questions
         listed = client.get("/api/v1/training?limit=20&category=BLUNDER&training_type=BEST_MOVE")
         assert listed.status_code == 200
-        assert listed.json()["data"]["total"] == len(questions)
+        expected_blunders = {item["id"] for item in questions if item["sourceCategory"] == "BLUNDER"}
+        assert listed.json()["data"]["total"] == len(expected_blunders)
+        assert {item["id"] for item in listed.json()["data"]["items"]} == expected_blunders
         assert "bestMove" not in listed.text and "bestScore" not in listed.text
         question = questions[0]
         detail = client.get(f'/api/v1/training/{question["id"]}')

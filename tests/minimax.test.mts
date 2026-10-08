@@ -54,6 +54,7 @@ const neutralConfig = {
   captureOpportunityWeight: 0,
   vulnerabilityWeight: 0,
   trapRiskWeight: 0,
+  blockadeWeight: 0,
 };
 
 test('depth zero evaluates the unchanged root from the requested perspective', () => {
@@ -203,13 +204,13 @@ test('an immediate real win outranks nonwinning moves at depth one', () => {
   assert.equal(result.evaluationScore, DEFAULT_EVALUATION_CONFIG.mateScore - 1);
 });
 
-test('depth two avoids a tempting move that allows the opponent to win immediately', () => {
+test('blockade extension avoids the tempting immediate loss even at depth one', () => {
   const state = withPieces({ P27: 'B', P08: 'A', P26: 'A', P28: 'A' },
     { currentPlayer: 'B' });
   const config = { ...neutralConfig, templeControlWeight: 10 };
   const shallow = new MinimaxAI({ depth: 1, evaluationConfig: config }).search(state);
   const deep = new MinimaxAI({ depth: 2, evaluationConfig: config }).search(state);
-  assert.deepEqual(shallow.bestMove, { from: 'P27', to: 'P29' });
+  assert.deepEqual(shallow.bestMove, { from: 'P27', to: 'P03' });
   assert.deepEqual(deep.bestMove, { from: 'P27', to: 'P03' });
   assert.deepEqual(deep.candidateMoves, [
     { move: { from: 'P27', to: 'P03' }, score: -20 },

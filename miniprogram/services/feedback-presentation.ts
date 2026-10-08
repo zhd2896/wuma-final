@@ -3,14 +3,14 @@ import type { Player } from '../domain/index';
 
 const categories: Readonly<Record<string, string>> = { GOOD: '好棋', NORMAL: '一般', MISTAKE: '失误', BLUNDER: '严重失误' };
 const reasons: Readonly<Record<string, string>> = { CAPTURE_ALL: '棋子被吃尽', TEMPLE_TRAP: '庙区困局',
-  LONE_PIECE_IMMOBILIZED: '孤棋无路可走', RESIGN: '认输', INSUFFICIENT_RESERVE: '备用棋不足',
+  LONE_PIECE_IMMOBILIZED: '孤棋无路可走', ALL_PIECES_IMMOBILIZED: '所有棋子均无合法走法', RESIGN: '认输', INSUFFICIENT_RESERVE: '备用棋不足',
   TWO_PIECES_CANNOT_CARRY: '对方只剩两子，不能挑吃', LAST_PIECE_CANNOT_CLAMP: '对方只剩一子，不能夹吃',
   NOT_NEW_PATTERN: '没有形成新的吃子结构', LINE_HAS_EXTRA_PIECES: '同一直线上有其他棋子', NONE: '没有吃子' };
 
 export function reviewCategoryText(category: string): string { return categories[category] ?? '未评价'; }
 export function ruleReasonText(reason: string | null): string { return reason ? reasons[reason] ?? '原因暂不可用' : '尚未结束'; }
 export function translateFeedback(text: string): string {
-  return text.replace(/\b(GOOD|NORMAL|MISTAKE|BLUNDER|CAPTURE_ALL|TEMPLE_TRAP|LONE_PIECE_IMMOBILIZED|RESIGN)\b/g,
+  return text.replace(/\b(GOOD|NORMAL|MISTAKE|BLUNDER|CAPTURE_ALL|TEMPLE_TRAP|LONE_PIECE_IMMOBILIZED|ALL_PIECES_IMMOBILIZED|RESIGN)\b/g,
     key => categories[key] ?? reasons[key]);
 }
 export function readableReason(text: string | undefined, fallback: string): string {
@@ -20,7 +20,11 @@ export function readableReason(text: string | undefined, fallback: string): stri
 }
 export function reviewReason(move: MoveReviewDto & { naturalExplanation?: string }): string {
   const types = new Set((move.threatsBefore ?? []).map(threat => threat.type));
-  const fallback = move.bestMoveEquivalent || move.category === 'GOOD'
+  const fallback = types.has('FORCED_BLOCKADE_AVAILABLE')
+    ? move.bestMoveEquivalent || move.category === 'GOOD'
+      ? '这步保留了封锁通路，已验证可强制完成围堵；仍需根据对手应手继续收口。'
+      : '走前存在可强制完成的围堵路线；保留封口棋，调入另一枚棋收紧通路。'
+    : move.bestMoveEquivalent || move.category === 'GOOD'
     ? '这步是当前分析下的好选择；不同路线也可能同样有效。'
     : types.has('IMMEDIATE_WIN_AVAILABLE') ? '走前存在直接获胜的机会，应重点比较是否及时抓住。'
     : types.has('CAPTURE_AVAILABLE') ? '走前存在吃子机会，需要比较吃子后能否应对对手反击。'

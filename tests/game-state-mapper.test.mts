@@ -63,6 +63,7 @@ for (const [reason, message] of [
   ['CAPTURE_ALL', '红方棋子已全部被吃'],
   ['TEMPLE_TRAP', '红方孤棋被困于庙宇'],
   ['LONE_PIECE_IMMOBILIZED', '红方孤棋无路可走'],
+  ['ALL_PIECES_IMMOBILIZED', '红方所有棋子均无合法走法'],
   ['RESIGN', '红方认输'],
 ] as const) {
   test(`maps ${reason} winner text without inferring board rules`, () => {

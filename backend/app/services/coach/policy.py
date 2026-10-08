@@ -6,6 +6,7 @@ from backend.app.schemas.game import Move, NodeId, PositionAnalysis
 
 
 THREAT_TOPICS = {
+    "FORCED_BLOCKADE_AVAILABLE": "围堵与封锁通路",
     "IMMEDIATE_WIN_AVAILABLE": "直接终局机会",
     "CAPTURE_AVAILABLE": "捕获机会",
     "CAPTURE_THREAT": "捕获威胁",
@@ -20,6 +21,7 @@ EVALUATION_TOPICS = {
     "captureOpportunity": "捕获机会",
     "vulnerability": "受攻击风险",
     "trapRisk": "孤棋风险",
+    "blockade": "围堵进度",
 }
 
 

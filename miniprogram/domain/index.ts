@@ -101,7 +101,7 @@ export interface PlayerState {
   readonly reserve_count: number;
 }
 
-export type WinnerReason = 'CAPTURE_ALL' | 'TEMPLE_TRAP' | 'LONE_PIECE_IMMOBILIZED' | 'RESIGN';
+export type WinnerReason = 'CAPTURE_ALL' | 'TEMPLE_TRAP' | 'LONE_PIECE_IMMOBILIZED' | 'ALL_PIECES_IMMOBILIZED' | 'RESIGN';
 export type GameStatus = 'PLAYING' | 'FINISHED';
 
 export interface GameState {
@@ -409,16 +409,23 @@ export function checkCaptureAll(state: GameState, attacker: Player): WinnerResul
     : null;
 }
 
-/** Only the player whose turn has begun can lose for an immobilized lone piece. */
-export function checkLonePieceImmobilized(state: GameState): WinnerResult | null {
+/** Adjudicate after capture resolution and switching to the next player. */
+export function checkPlayerImmobilized(state: GameState): WinnerResult | null {
   if (state.game_status !== 'PLAYING') return null;
   const trappedPlayer = state.current_player;
   const nodes = getPlayerNodes(state.board, trappedPlayer);
-  if (nodes.length !== 1 || getLegalMoves(state).length !== 0) return null;
+  if (nodes.length === 0 || getLegalMoves(state).length !== 0) return null;
   return {
     winner: trappedPlayer === 'A' ? 'B' : 'A',
-    reason: TEMPLE_NODES.includes(nodes[0]) ? 'TEMPLE_TRAP' : 'LONE_PIECE_IMMOBILIZED',
+    reason: nodes.length > 1 ? 'ALL_PIECES_IMMOBILIZED'
+      : TEMPLE_NODES.includes(nodes[0]) ? 'TEMPLE_TRAP' : 'LONE_PIECE_IMMOBILIZED',
   };
+}
+
+/** Preserve the lone-piece query for existing callers and historical reason names. */
+export function checkLonePieceImmobilized(state: GameState): WinnerResult | null {
+  return getPlayerNodes(state.board, state.current_player).length === 1
+    ? checkPlayerImmobilized(state) : null;
 }
 
 export function isTempleTrapped(state: GameState, player: Player): boolean {
@@ -499,7 +506,7 @@ function executeTurnWithPatterns(
   } else {
     const nextPlayer: Player = attacker === 'A' ? 'B' : 'A';
     const afterSwitch: GameState = { ...resolution.state, current_player: nextPlayer };
-    const immobilized = checkLonePieceImmobilized(afterSwitch);
+    const immobilized = checkPlayerImmobilized(afterSwitch);
     finalState = immobilized
       ? {
         ...afterSwitch,
@@ -564,6 +571,7 @@ export const RuleEngine = {
   checkCaptureAll,
   checkTempleTrap,
   checkLonePieceImmobilized,
+  checkPlayerImmobilized,
   checkWinner: (state: GameState): WinnerResult | null =>
     state.game_status === 'FINISHED' && state.winner !== null && state.winner_reason !== null
       ? { winner: state.winner, reason: state.winner_reason }

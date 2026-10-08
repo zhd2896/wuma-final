@@ -275,8 +275,10 @@ def test_capture_turn_result_and_capture_all_winner_are_serialized(client: TestC
     ({"P27": "B", "P26": "A", "P28": "A", "P29": "A", "P03": "A", "P21": "A"}, "TEMPLE_TRAP"),
     ({"P03": "B", "P02": "A", "P04": "A", "P27": "A", "P08": "A", "P09": "A",
       "P07": "A", "P26": "A", "P28": "A", "P21": "A"}, "LONE_PIECE_IMMOBILIZED"),
+    ({"P26": "B", "P29": "B", "P27": "A", "P28": "A", "P03": "A", "P21": "A",
+      "P05": "A", "P10": "A", "P15": "A", "P20": "A"}, "ALL_PIECES_IMMOBILIZED"),
 ])
-def test_lone_piece_winner_reasons_round_trip(client: TestClient, pieces: dict, reason: str):
+def test_blockade_winner_reasons_round_trip(client: TestClient, pieces: dict, reason: str):
     game_id = seed_position(client, pieces)
     response = client.post(f"/api/v1/game/{game_id}/move", json={"from_node": "P21", "to_node": "P22"})
     assert response.status_code == 200, response.text

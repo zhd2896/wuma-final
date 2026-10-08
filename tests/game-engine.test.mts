@@ -386,7 +386,7 @@ test('capture that leaves one blocked survivor checks immobilization after captu
   assert.equal(turn.winner_reason, 'LONE_PIECE_IMMOBILIZED');
 });
 
-test('two immobilized pieces do not lose after the turn switches to them', () => {
+test('two immobilized pieces lose after the turn switches to them', () => {
   const before = withPieces({
     P03: 'B', P13: 'B', P02: 'A', P04: 'A', P27: 'A', P08: 'A',
     P09: 'A', P07: 'A', P26: 'A', P28: 'A', P12: 'A', P14: 'A',
@@ -396,9 +396,9 @@ test('two immobilized pieces do not lose after the turn switches to them', () =>
   assert.deepEqual(turn.captures.captured_nodes, []);
   assert.deepEqual(RuleEngine.getAllLegalMoves(turn.state), []);
   assert.equal(turn.state.current_player, 'B');
-  assert.equal(turn.winner_reason, null);
-  assert.equal(turn.game_over, false);
-  assert.equal(turn.winner, null);
+  assert.equal(turn.winner_reason, 'ALL_PIECES_IMMOBILIZED');
+  assert.equal(turn.game_over, true);
+  assert.equal(turn.winner, 'A');
 });
 
 test('invalid and finished turns reject moves without mutating the input state', () => {

@@ -1,7 +1,7 @@
 import { NODE_IDS, RuleEngine } from '../domain/index';
 import type { GameState, Move, Player } from '../domain/index';
 import { evaluatePosition } from './evaluation';
-import type { EvaluationResult } from './evaluation';
+import type { EvaluationConfig, EvaluationResult } from './evaluation';
 import { analyzePosition } from './position-analysis';
 import type { CandidateAnalysis, ThreatInfo } from './position-analysis';
 
@@ -14,6 +14,8 @@ export interface ReviewSearchConfig {
   readonly normalMaxLoss: number;
   readonly mistakeMaxLoss: number;
   readonly now?: () => number;
+  readonly evaluationConfig?: EvaluationConfig;
+  readonly useBlockadeExtension?: boolean;
 }
 
 export type MoveCategory = 'GOOD' | 'NORMAL' | 'MISTAKE' | 'BLUNDER';
@@ -64,15 +66,20 @@ export function analyzeReviewMove(stateBefore: GameState, stateAfter: GameState,
         Number.isFinite(config.mistakeMaxLoss))) {
     throw new RangeError('Invalid review thresholds');
   }
-  if (stateBefore.game_status !== 'PLAYING' ||
-      !RuleEngine.validateMove(stateBefore, actualMove) ||
-      !sameState(RuleEngine.executeTurn(stateBefore, actualMove).state, stateAfter)) {
+  const replayed = stateBefore.game_status === 'PLAYING' && RuleEngine.validateMove(stateBefore, actualMove)
+    ? RuleEngine.executeTurn(stateBefore, actualMove).state : null;
+  // Older snapshots kept a multi-piece blockade PLAYING. Only this adjudication
+  // difference is compatible; occupancy, reserves and the next player stay exact.
+  const legacyBlockade = replayed?.winner_reason === 'ALL_PIECES_IMMOBILIZED' &&
+    sameState({ ...replayed, game_status: 'PLAYING', winner: null, winner_reason: null }, stateAfter);
+  if (!replayed || (!sameState(replayed, stateAfter) && !legacyBlockade)) {
     throw new ReviewAnalysisError('REPLAY_INTEGRITY_ERROR', 'Stored move and snapshots disagree');
   }
   const player = stateBefore.current_player;
   // candidateLimit only limits the public result. Request all exact root scores here.
   const analysis = analyzePosition(stateBefore, { maxDepth: config.maxDepth,
-    timeLimitMs: config.timeLimitMs, candidateLimit: Number.MAX_SAFE_INTEGER, now: config.now });
+    timeLimitMs: config.timeLimitMs, candidateLimit: Number.MAX_SAFE_INTEGER, now: config.now,
+    evaluationConfig: config.evaluationConfig, useBlockadeExtension: config.useBlockadeExtension });
   if (analysis.searchDepth === 0 || !analysis.bestMove) {
     throw new ReviewAnalysisError('REVIEW_INCOMPLETE', 'No complete search depth for this move');
   }
@@ -87,16 +94,23 @@ export function analyzeReviewMove(stateBefore: GameState, stateAfter: GameState,
   const category: MoveCategory = scoreLoss <= config.goodMaxLoss ? 'GOOD'
     : scoreLoss <= config.normalMaxLoss ? 'NORMAL'
       : scoreLoss <= config.mistakeMaxLoss ? 'MISTAKE' : 'BLUNDER';
-  const evaluationAfter = evaluatePosition(stateAfter, player);
+  const evaluationAfter = evaluatePosition(stateAfter, player, config.evaluationConfig);
   const bestMoveEquivalent = scoreLoss === 0;
   const missedWin = analysis.threats.some(threat =>
     threat.type === 'IMMEDIATE_WIN_AVAILABLE' &&
     threat.relatedMove?.from === analysis.bestMove?.from &&
     threat.relatedMove?.to === analysis.bestMove?.to) && !stateAfter.winner;
-  const engineExplanation = bestMoveEquivalent
+  const searchExplanation = bestMoveEquivalent
     ? '实际走法与最佳方案搜索同分。'
     : missedWin ? `该走法错过了直接获胜机会，搜索评分损失 ${scoreLoss}。`
       : `该走法比最佳方案的搜索评分低 ${scoreLoss}。`;
+  const forcedBlockade = analysis.threats.find(threat => threat.type === 'FORCED_BLOCKADE_AVAILABLE');
+  const blockadeExplanation = forcedBlockade ? bestMoveEquivalent
+    ? '这步保留封锁通路，已验证对手任意合法应手后均可完成围堵。'
+    : '这步错过了可强制完成的围堵；应保留封口棋，调入另一枚棋收紧通路。' : '';
+  const engineExplanation = legacyBlockade
+    ? `历史棋谱按原记录保留，评价使用现行规则。${blockadeExplanation}${searchExplanation}`
+    : blockadeExplanation + searchExplanation;
   return { actualMove, bestMove: analysis.bestMove, scorePerspective: player,
     scoreBefore: analysis.evaluationBefore.score, scoreAfter: evaluationAfter.score,
     bestScore: analysis.bestScore, actualMoveScore: actual.score, scoreLoss,

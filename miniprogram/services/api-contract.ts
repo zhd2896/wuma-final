@@ -82,7 +82,7 @@ export interface CoachHintDto {
   readonly fallbackUsed: boolean;
   readonly provider: string;
   readonly model: string | null;
-  readonly promptVersion: 'coach_hint_v1';
+  readonly promptVersion: 'coach_hint_v1' | 'coach_hint_v2';
   readonly generatedAt: string;
 }
 

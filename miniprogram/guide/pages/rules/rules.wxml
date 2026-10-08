@@ -16,6 +16,20 @@
     <view class="rules-tip">点击编号图可放大查看。</view>
     <view class="number-key"><text>P13：中央</text><text>P03：庙宇入口，属于主盘</text><text>庙内四点：P26 左翼 · P27 中间 · P28 右翼 · P29 宝顶</text></view>
   </view>
+  <view class="number-guide" id="immobilization-rule">
+    <view class="rules-heading">胜负规则：全方无路可走即判负</view>
+    <view class="rules-tip">本手移动和吃子结算完成后换手。轮到己方时，无论剩一枚还是多枚，只要所有在场棋子都没有合法走法，己方判负、对方获胜。</view>
+    <view class="rules-tip">只有部分棋子被堵、其他棋子仍能移动时，继续对局。备用棋不能额外摆入棋盘解围；进入庙宇本身不算输。</view>
+  </view>
+  <view class="number-guide" id="blockade-strategy">
+    <view class="rules-heading">怎样围堵孤棋：保留封口，再调棋收网</view>
+    <view class="rules-tip">孤棋进入庙内仍可继续移动。应保留已经占住的关键通路，调入另一枚棋逐步收紧封锁，避免反复挪开封口棋。</view>
+    <view class="number-key"><text>示例：对方孤棋在 P28，己方占 P26、P27；P03、P04、P29 为空，己方 P05 可调入。</text></view>
+    <view class="rules-tip">① 己方 P05→P03，保留 P26、P27 的封锁。</view>
+    <view class="rules-tip">② 对方只剩 P28→P29 这一合法应手。</view>
+    <view class="rules-tip">③ 己方 P03→P28；换手后，对方 P29 的通路均被堵，判为庙困。</view>
+    <view class="rules-tip">每一步都要检查对手全部合法走法和吃子后的棋盘。仍有逃路就不能判胜；围堵也不需要消耗备用棋。</view>
+  </view>
   <image id="rules-diagram" class="rules-diagram" src="../../assets/wuma-rules.png"
     mode="widthFix" show-menu-by-longpress="{{true}}"
     bindtap="preview" bindload="imageLoaded" binderror="imageError" />

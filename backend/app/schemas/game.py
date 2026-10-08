@@ -10,7 +10,7 @@ Player = Literal["A", "B"]
 NodeId = Annotated[str, StringConstraints(pattern=r"^P(?:0[1-9]|1[0-9]|2[0-9])$")]
 ClientRequestId = Annotated[str, StringConstraints(
     min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")]
-WinnerReason = Literal["CAPTURE_ALL", "TEMPLE_TRAP", "LONE_PIECE_IMMOBILIZED", "RESIGN"]
+WinnerReason = Literal["CAPTURE_ALL", "TEMPLE_TRAP", "LONE_PIECE_IMMOBILIZED", "ALL_PIECES_IMMOBILIZED", "RESIGN"]
 
 
 class StrictModel(BaseModel):
@@ -114,6 +114,8 @@ class EvaluationBreakdown(StrictModel):
     captureOpportunity: FeatureContribution
     vulnerability: FeatureContribution
     trapRisk: FeatureContribution
+    blockade: FeatureContribution = Field(default_factory=lambda: FeatureContribution(
+        rawValue=0, weight=24, weightedScore=0))
     terminal: FeatureContribution
 
 
@@ -134,7 +136,7 @@ class CandidateAnalysis(StrictModel):
 
 class ThreatInfo(StrictModel):
     type: Literal["IMMEDIATE_WIN_AVAILABLE", "CAPTURE_AVAILABLE", "CAPTURE_THREAT",
-                  "VULNERABILITY", "LONE_PIECE_MOBILITY_RISK"]
+                  "VULNERABILITY", "LONE_PIECE_MOBILITY_RISK", "FORCED_BLOCKADE_AVAILABLE"]
     player: Player
     relatedMove: Move | None = None
     relatedNodes: list[NodeId] | None = None
@@ -172,7 +174,7 @@ class AnalyzeResponse(PositionAnalysis):
 
 
 class ReviewConfig(StrictModel):
-    version: int = 1
+    version: int = 2
     max_depth: int = 2
     time_limit_ms_per_move: int = 1000
     candidate_limit: int = 3

@@ -18,6 +18,8 @@ export interface IterativeDeepeningOptions extends Omit<AlphaBetaOptions, 'depth
   readonly maxDepth: number;
   readonly timeLimitMs: number;
   readonly now?: () => number;
+  /** Play may retain a proven win from an interrupted layer; review needs complete scores. */
+  readonly retainProvedWin?: boolean;
 }
 
 export interface IterativeDeepeningSearchResult extends Omit<AlphaBetaSearchResult,
@@ -69,6 +71,7 @@ export class IterativeDeepeningAI implements MoveChooser {
     let cutoffs = 0;
     let completed: AlphaBetaSearchResult | null = null;
     let timedOut = false;
+    const provedWin: { value: { move: Move; score: number } | null } = { value: null };
 
     // This check precedes the budget check so a rules ambiguity never becomes a fallback.
     const legalMoves = state.game_status === 'FINISHED' ? [] : RuleEngine.getAllLegalMoves(state);
@@ -86,6 +89,7 @@ export class IterativeDeepeningAI implements MoveChooser {
           completed = new AlphaBetaAI({
             depth,
             evaluationConfig: config,
+            useBlockadeExtension: this.options.useBlockadeExtension,
             useMoveOrdering: this.options.useMoveOrdering ?? true,
             useTranspositionTable: table !== null,
           }).search(state, rootPlayer, {
@@ -93,6 +97,14 @@ export class IterativeDeepeningAI implements MoveChooser {
             checkTimeout,
             onNodeVisited: () => { nodesSearched++; },
             onCutoff: () => { cutoffs++; },
+            onRootCandidate: (move, score, isMate) => {
+              // Keep only a terminally proved win. Partial heuristic candidates
+              // remain private and cannot become comparable review scores.
+              if (isMate && config.mateScore > this.options.maxDepth + 2 &&
+                  (state.current_player === rootPlayer ? score > 0 : score < 0) &&
+                  (!provedWin.value || (state.current_player === rootPlayer
+                    ? score > provedWin.value.score : score < provedWin.value.score))) provedWin.value = { move, score };
+            },
           });
         } catch (error) {
           if (!(error instanceof SearchTimeoutError)) throw error;
@@ -106,14 +118,19 @@ export class IterativeDeepeningAI implements MoveChooser {
       ? scoreTerminalPosition(state, rootPlayer, config, 0)
       : completed === null ? evaluatePosition(state, rootPlayer, config).score : 0;
     const elapsed = Math.max(0, this.now() - started);
+    const proof = provedWin.value;
+    const useProof = this.options.retainProvedWin !== false && proof !== null && (completed === null || (state.current_player === rootPlayer
+      ? proof.score > completed.evaluationScore : proof.score < completed.evaluationScore));
     return {
-      bestMove: completed?.bestMove ?? legalMoves[0] ?? null,
-      evaluationScore: completed?.evaluationScore ?? fallbackScore,
+      bestMove: useProof ? proof!.move : completed?.bestMove ?? legalMoves[0] ?? null,
+      evaluationScore: useProof ? proof!.score : completed?.evaluationScore ?? fallbackScore,
       scorePerspective: rootPlayer,
       searchDepth: completed?.searchDepth ?? 0,
       nodesSearched,
       algorithm: 'ITERATIVE_DEEPENING_ALPHA_BETA',
-      candidateMoves: completed?.candidateMoves ?? [],
+      // A better proved move from an interrupted layer is usable for play, but
+      // its score must not be mixed with an older layer's review candidates.
+      candidateMoves: useProof ? [] : completed?.candidateMoves ?? [],
       cutoffs,
       thinkingTimeMs: elapsed,
       ttProbes: table?.probes ?? 0,

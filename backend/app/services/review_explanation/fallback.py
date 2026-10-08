@@ -12,8 +12,9 @@ _MOVE_TEXT = {
 }
 _WINNER_REASON = {
     "CAPTURE_ALL": "对方棋子全部被吃尽",
-    "TEMPLE_TRAP": "庙宇困局",
+    "TEMPLE_TRAP": "换手后，对方孤棋在庙内无合法走法",
     "LONE_PIECE_IMMOBILIZED": "对方仅剩棋子无法合法移动",
+    "ALL_PIECES_IMMOBILIZED": "对方所有棋子均无合法走法",
     "RESIGN": "对方认输",
 }
 
@@ -23,10 +24,15 @@ def fallback_move(move: MoveReview) -> MoveExplanationText:
         detail = "虽然走法不同，但搜索评分与最佳方案相同，属于等价最佳选择。"
     else:
         detail = _MOVE_TEXT[move.category]
+    blockade = any(threat.type == "FORCED_BLOCKADE_AVAILABLE" for threat in move.threatsBefore)
+    if blockade:
+        detail += ("这步保留了可强制完成的围堵路线。" if move.bestMoveEquivalent else
+                   "走前存在可强制完成的围堵路线，这步没有及时利用。")
     return MoveExplanationText(
         headline=f"第 {move.turn} 手复盘",
         explanation=f"{detail}相对最佳方案的评分损失为 {move.scoreLoss:g} 分。",
-        suggestion="比较页面列出的实际走法与最佳走法，观察评分差异。",
+        suggestion=("保留已有封口，调入另一枚棋收紧通路，再检查对手全部合法应手。"
+                    if blockade else "比较页面列出的实际走法与最佳走法，观察评分差异。"),
     )
 
 

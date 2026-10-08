@@ -398,6 +398,9 @@ def test_ai_capture_terminal_persists_real_search_and_winner(client, db):
     ({"P03": "B", "P02": "A", "P04": "A", "P27": "A", "P08": "A", "P09": "A",
       "P07": "A", "P26": "A", "P28": "A", "P21": "A"},
      ("P21", "P22"), "LONE_PIECE_IMMOBILIZED"),
+    ({"P26": "B", "P29": "B", "P27": "A", "P28": "A", "P08": "A", "P05": "A",
+      "P10": "A", "P15": "A", "P20": "A", "P25": "A"},
+     ("P08", "P03"), "ALL_PIECES_IMMOBILIZED"),
 ])
 def test_terminal_reasons_and_replay(client, db, pieces, move, reason):
     game_id = seed_position(client, db, pieces)
@@ -413,6 +416,13 @@ def test_terminal_reasons_and_replay(client, db, pieces, move, reason):
     assert client.portal.call(client.app.state.service.replay_game, game_id)[-1].model_dump() == row.current_state
     assert client.post(f"/api/v1/game/{game_id}/move",
                        json={"from_node": move[1], "to_node": move[0]}).status_code == 409
+    if reason == "ALL_PIECES_IMMOBILIZED":
+        history = client.get("/api/v1/me/games?status=FINISHED").json()["data"]["items"]
+        assert history[0]["gameId"] == game_id
+        assert history[0]["winnerReason"] == reason
+        replay = client.get(f"/api/v1/game/{game_id}/replay")
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["data"]["steps"][-1]["state"] == row.current_state
     if reason == "CAPTURE_ALL":
         assert moves[0].capture_result["was_applied"] is True
         assert moves[0].reserve_a_after < moves[0].reserve_a_before
@@ -954,7 +964,7 @@ def test_review_persists_atomic_ordered_rows_and_reuses_same_config(client, db):
     assert created.status_code == 200, created.text
     review = created.json()["data"]
     assert [item["turn"] for item in review["moveReviews"]] == [1, 3]
-    assert review["reviewConfigVersion"] == 1
+    assert review["reviewConfigVersion"] == 2
     assert review["winnerReason"] == "CAPTURE_ALL"
     assert client.post(f"/api/v1/game/{game_id}/review", json={}).json()["data"] == review
     assert client.get(f"/api/v1/game/{game_id}/review").json()["data"] == review
@@ -1047,7 +1057,7 @@ def test_coach_persists_three_levels_and_keeps_game_immutable(client, db):
         rows = session.scalars(select(CoachHintModel).where(
             CoachHintModel.game_id == game_id).order_by(CoachHintModel.hint_level)).all()
         assert [row.hint_level for row in rows] == [1, 2, 3]
-        assert all(row.game_version == 0 and row.prompt_version == "coach_hint_v1"
+        assert all(row.game_version == 0 and row.prompt_version == "coach_hint_v2"
                    for row in rows)
         assert all(row.fallback_used and row.provider == "fallback" for row in rows)
     with pytest.raises(IntegrityError):
@@ -1079,13 +1089,19 @@ def test_training_real_history_answer_records_and_source_game_unchanged(client, 
     generated = client.post(f"/api/v1/game/{game_id}/training", json={})
     assert generated.status_code == 200, generated.text
     public = generated.json()["data"]["items"]
-    assert len(public) == 7 and "bestMove" not in generated.text
+    expected_turns = {move["turn"] for move in review["moveReviews"]
+                      if move["player"] == review["reviewedPlayer"]
+                      and move["category"] in ("MISTAKE", "BLUNDER")}
+    assert expected_turns
+    assert len(public) == len(expected_turns) and "bestMove" not in generated.text
+    assert {item["sourceTurn"] for item in public} == expected_turns
     assert "bestScore" not in generated.text and "originalMove" not in generated.text
     assert client.post(f"/api/v1/game/{game_id}/training", json={}).json()["data"]["items"] == public
     with Session(db) as session:
         rows = session.scalars(select(TrainingItemModel).where(
             TrainingItemModel.source_game_id == game_id)).all()
-        assert len(rows) == 7
+        assert len(rows) == len(expected_turns)
+        assert {row.source_turn for row in rows} == expected_turns
         for row in rows:
             move = session.get(GameMoveModel, row.source_move_id)
             source = session.get(MoveReviewModel, row.source_move_review_id)
@@ -1096,10 +1112,12 @@ def test_training_real_history_answer_records_and_source_game_unchanged(client, 
             assert row.best_move == source.best_move
             assert row.best_score == source.best_score
             assert row.player == move.player
-            assert row.review_config_version == 1 and row.generation_version == 1
+            assert row.review_config_version == review["reviewConfigVersion"] and row.generation_version == 1
             assert row.scoring_depth == source.search_depth
         chosen = next(row for row in rows if row.source_turn == 1)
         training_id = chosen.id
+        scoring_depth = chosen.scoring_depth
+        assert scoring_depth >= 1
     best = review["moveReviews"][0]["bestMove"]
     actual = review["moveReviews"][0]["actualMove"]
     path = f"/api/v1/training/{training_id}/answer"
@@ -1108,6 +1126,7 @@ def test_training_real_history_answer_records_and_source_game_unchanged(client, 
     correct = client.post(path, json=first_body)
     assert correct.status_code == 200, correct.text
     assert correct.json()["data"]["result"] == "CORRECT"
+    assert correct.json()["data"]["searchDepth"] == scoring_depth
     assert client.post(path, json=first_body).json()["data"] == correct.json()["data"]
     worse = client.post(path, json={"from_node": actual["from"], "to_node": actual["to"],
                                     "client_attempt_id": "mysql-training-worse-0001"})
@@ -1123,7 +1142,7 @@ def test_training_real_history_answer_records_and_source_game_unchanged(client, 
         assert len(records) == 2
         assert {row.result for row in records} == {"CORRECT", "SUBOPTIMAL"}
         assert all(row.user_id == before.user_id and row.legal for row in records)
-        assert all(row.submitted_move and row.search_depth == 2 for row in records)
+        assert all(row.submitted_move and row.search_depth == scoring_depth for row in records)
     own_auth = client.headers["Authorization"]
     second_token = client.post("/api/v1/auth/device").json()["data"]["token"]
     client.headers["Authorization"] = "Bearer " + second_token

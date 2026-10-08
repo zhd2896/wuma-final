@@ -139,10 +139,12 @@ class NodeEngineAdapter:
         return self._parse(SearchResult, data["search"]), self._parse(TurnResult, data["turn"])
 
     async def analyze_position(self, state: GameState, max_depth: int,
-                               time_limit_ms: int, candidate_limit: int) -> PositionAnalysis:
+                               time_limit_ms: int, candidate_limit: int,
+                               scoring_config_version: int = 2) -> PositionAnalysis:
         data = await self.request("analyze_position", {
             "state": state.model_dump(by_alias=True), "max_depth": max_depth,
             "time_limit_ms": time_limit_ms, "candidate_limit": candidate_limit,
+            "scoring_config_version": scoring_config_version,
         })
         return self._parse(PositionAnalysis, data)
 

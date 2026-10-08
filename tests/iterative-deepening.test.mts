@@ -40,7 +40,7 @@ const neutralConfig = {
   ...DEFAULT_EVALUATION_CONFIG,
   materialWeight: 0, reserveWeight: 0, mobilityWeight: 0,
   templeControlWeight: 0, captureOpportunityWeight: 0,
-  vulnerabilityWeight: 0, trapRiskWeight: 0,
+  vulnerabilityWeight: 0, trapRiskWeight: 0, blockadeWeight: 0,
 };
 
 test('completed depths 1–3 match fixed ordered Alpha-Beta with TT for both perspectives', t => {
@@ -174,13 +174,14 @@ test('one TT instance spans iterations but a new search gets another table', () 
   }
 });
 
-test('deadline crossed during the final leaf evaluation does not complete that depth', () => {
+test('deadline crossed during the final leaf score or proof does not complete that depth', () => {
   const state = withPieces({ P27: 'B', P26: 'A', P28: 'A', P03: 'A' }, 'B');
   assert.equal(RuleEngine.getAllLegalMoves(state).length, 1);
   let late = false;
   const config = {
     ...DEFAULT_EVALUATION_CONFIG,
     get materialWeight() { late = true; return DEFAULT_EVALUATION_CONFIG.materialWeight; },
+    get mateScore() { late = true; return DEFAULT_EVALUATION_CONFIG.mateScore; },
   };
   const result = new IterativeDeepeningAI({ maxDepth: 1, timeLimitMs: 100,
     evaluationConfig: config, now: () => late ? 100 : 0 }).search(state);
@@ -238,7 +239,7 @@ test('RULE_AMBIGUITY propagates through the iterative loop', () => {
     timeLimitMs: 0, now: () => 0 }).search(state), RuleAmbiguityError);
 });
 
-test('a deeper RULE_AMBIGUITY is not mistaken for timeout after depth one completes', () => {
+test('a multi-piece blockade remains a terminal win across completed search depths', () => {
   const state = withPieces({
     P03: 'B', P13: 'B', P02: 'A', P04: 'A', P29: 'A', P08: 'A',
     P09: 'A', P07: 'A', P26: 'A', P28: 'A', P12: 'A', P14: 'A',
@@ -247,8 +248,11 @@ test('a deeper RULE_AMBIGUITY is not mistaken for timeout after depth one comple
   const first = new AlphaBetaAI({ depth: 1, useMoveOrdering: true,
     useTranspositionTable: true }).search(state);
   assert.equal(first.searchDepth, 1);
-  assert.throws(() => new IterativeDeepeningAI({ maxDepth: 2,
-    timeLimitMs: 100, now: () => 0 }).search(state), RuleAmbiguityError);
+  const result = new IterativeDeepeningAI({ maxDepth: 2,
+    timeLimitMs: 100, now: () => 0 }).search(state);
+  assert.equal(result.searchDepth, 2);
+  assert.equal(result.evaluationScore, first.evaluationScore);
+  assert.equal(RuleEngine.executeTurn(state, result.bestMove!).winner_reason, 'ALL_PIECES_IMMOBILIZED');
 });
 
 test('immediate win, defensive reply, faster win and slower loss match fixed search', () => {

@@ -8,7 +8,7 @@ from pydantic import Field
 from backend.app.schemas.game import Move, NodeId, Player, StrictModel
 
 
-PROMPT_VERSION = "coach_hint_v1"
+PROMPT_VERSION = "coach_hint_v2"
 HintLevel = Literal[1, 2, 3]
 
 

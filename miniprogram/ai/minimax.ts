@@ -3,10 +3,12 @@ import type { GameState, Move, Player } from '../domain/index';
 import { DEFAULT_EVALUATION_CONFIG, evaluatePosition } from './evaluation';
 import type { EvaluationConfig } from './evaluation';
 import type { MoveChooser } from './random-ai';
+import { extendBlockade } from './blockade';
 
 export interface MinimaxOptions {
   readonly depth: number;
   readonly evaluationConfig?: EvaluationConfig;
+  readonly useBlockadeExtension?: boolean;
 }
 
 export interface CandidateMoveScore {
@@ -26,12 +28,12 @@ export interface SearchResult {
   readonly candidateMoves: readonly CandidateMoveScore[];
 }
 
-/** The rules currently leave this nonterminal position without a defined outcome. */
+/** Guard inconsistent PLAYING input that bypassed end-of-turn adjudication. */
 export class RuleAmbiguityError extends Error {
   readonly code = 'RULE_AMBIGUITY' as const;
 
   constructor() {
-    super('Nonterminal player has no legal moves; the rules do not define an outcome');
+    super('Playing position has no legal moves; end-of-turn adjudication is missing');
     this.name = 'RuleAmbiguityError';
   }
 }
@@ -51,6 +53,7 @@ export function scoreTerminalPosition(
 export class MinimaxAI implements MoveChooser {
   private readonly depth: number;
   private readonly evaluationConfig: EvaluationConfig;
+  private readonly useBlockadeExtension: boolean;
 
   constructor(options: MinimaxOptions) {
     if (!Number.isSafeInteger(options.depth) || options.depth < 0) {
@@ -58,6 +61,7 @@ export class MinimaxAI implements MoveChooser {
     }
     this.depth = options.depth;
     this.evaluationConfig = options.evaluationConfig ?? DEFAULT_EVALUATION_CONFIG;
+    this.useBlockadeExtension = options.useBlockadeExtension ?? true;
   }
 
   chooseMove(state: GameState): Move | null {
@@ -76,6 +80,12 @@ export class MinimaxAI implements MoveChooser {
         return scoreTerminalPosition(position, rootPlayer, this.evaluationConfig, ply);
       }
       if (remainingDepth === 0) {
+        const proof = ply > 0 && this.useBlockadeExtension ? extendBlockade(position, {
+          onNodeVisited: () => { nodesSearched++; },
+        }) : null;
+        if (proof) return proof.winner === rootPlayer
+          ? this.evaluationConfig.mateScore - ply - proof.maxPlies
+          : -this.evaluationConfig.mateScore + ply + proof.maxPlies;
         return evaluatePosition(position, rootPlayer, this.evaluationConfig).score;
       }
 

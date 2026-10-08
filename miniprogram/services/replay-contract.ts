@@ -15,7 +15,7 @@ export function validSavedState(s: GameState): boolean {
     player(s.first_player) && player(s.current_player) &&
     (s.game_status === 'PLAYING' ? s.winner === null && s.winner_reason === null :
       s.game_status === 'FINISHED' && player(s.winner) &&
-      ['CAPTURE_ALL', 'TEMPLE_TRAP', 'LONE_PIECE_IMMOBILIZED', 'RESIGN'].includes(s.winner_reason ?? ''));
+      ['CAPTURE_ALL', 'TEMPLE_TRAP', 'LONE_PIECE_IMMOBILIZED', 'ALL_PIECES_IMMOBILIZED', 'RESIGN'].includes(s.winner_reason ?? ''));
 }
 function validCapture(c: CaptureResult): boolean {
   return !!c && Array.isArray(c.patterns) && c.patterns.every(p => !!p &&

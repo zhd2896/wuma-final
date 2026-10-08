@@ -40,7 +40,7 @@ const neutralConfig = {
   ...DEFAULT_EVALUATION_CONFIG,
   materialWeight: 0, reserveWeight: 0, mobilityWeight: 0,
   templeControlWeight: 0, captureOpportunityWeight: 0,
-  vulnerabilityWeight: 0, trapRiskWeight: 0,
+  vulnerabilityWeight: 0, trapRiskWeight: 0, blockadeWeight: 0,
 };
 
 function assertEquivalent(
@@ -88,9 +88,10 @@ test('depths one and two preserve every exact candidate score for both root pers
   for (const state of states) {
     for (const depth of [1, 2]) {
       for (const rootPlayer of ['A', 'B'] as const) {
-        const { alphaBeta } = assertEquivalent(state, depth, rootPlayer);
+        const { alphaBeta, minimax } = assertEquivalent(state, depth, rootPlayer);
         if (depth === 1) {
-          assert.equal(alphaBeta.nodesSearched, 1 + RuleEngine.getAllLegalMoves(state).length);
+          assert.ok(alphaBeta.nodesSearched >= 1 + RuleEngine.getAllLegalMoves(state).length);
+          assert.equal(alphaBeta.nodesSearched, minimax.nodesSearched);
           assert.equal(alphaBeta.cutoffs, 0);
         }
       }
@@ -238,7 +239,7 @@ test('nonterminal no-move ambiguity and invalid depth match Minimax', () => {
   }
 });
 
-test('both searches report ambiguity when a real turn reaches a nonterminal no-move child', () => {
+test('both searches score a real multi-piece no-move child as a terminal win', () => {
   const state = withPieces({
     P03: 'B', P13: 'B', P02: 'A', P04: 'A', P29: 'A', P08: 'A',
     P09: 'A', P07: 'A', P26: 'A', P28: 'A', P12: 'A', P14: 'A',
@@ -247,11 +248,15 @@ test('both searches report ambiguity when a real turn reaches a nonterminal no-m
   const move = { from: 'P29', to: 'P27' } as const;
   assert.equal(RuleEngine.validateMove(state, move), true);
   const child = RuleEngine.executeTurn(state, move).state;
-  assert.equal(child.game_status, 'PLAYING');
+  assert.equal(child.game_status, 'FINISHED');
+  assert.equal(child.winner_reason, 'ALL_PIECES_IMMOBILIZED');
   assert.equal(child.current_player, 'B');
   assert.deepEqual(RuleEngine.getAllLegalMoves(child), []);
   const snapshot = structuredClone(state);
-  assert.throws(() => new MinimaxAI({ depth: 2 }).search(state), RuleAmbiguityError);
-  assert.throws(() => new AlphaBetaAI({ depth: 2 }).search(state), RuleAmbiguityError);
+  for (const ai of [new MinimaxAI({ depth: 2 }), new AlphaBetaAI({ depth: 2 })]) {
+    const result = ai.search(state);
+    assert.equal(result.evaluationScore, DEFAULT_EVALUATION_CONFIG.mateScore - 1);
+    assert.equal(RuleEngine.executeTurn(state, result.bestMove!).winner_reason, 'ALL_PIECES_IMMOBILIZED');
+  }
   assert.deepEqual(state, snapshot);
 });

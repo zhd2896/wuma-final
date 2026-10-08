@@ -58,6 +58,22 @@ def validate_coach_text(text: str, evidence: AllowedCoachEvidence) -> bool:
         if evidence.level == 3 and re.search(r"这(?:一)?步|该步|推荐走法|最佳走法", text):
             if "IMMEDIATE_WIN_AVAILABLE" not in evidence.bestMoveThreatTypes:
                 return False
+    if re.search(r"强制完成围堵|强制围堵|(?:可|能|一定|保证).*(?:完成围堵|封锁获胜|封死)", text):
+        if "FORCED_BLOCKADE_AVAILABLE" not in evidence.threatTypes:
+            return False
+        if evidence.level == 3 and "FORCED_BLOCKADE_AVAILABLE" not in evidence.bestMoveThreatTypes:
+            return False
+    guaranteed_result = re.search(r"(?:一定|必然|必定|保证|肯定|必胜|稳赢|强制).*(?:获胜|胜利|成功|庙困|封死)", text)
+    if guaranteed_result:
+        proved_types = {"FORCED_BLOCKADE_AVAILABLE", "IMMEDIATE_WIN_AVAILABLE"}
+        if not proved_types.intersection(evidence.threatTypes):
+            return False
+        if evidence.level == 3 and not proved_types.intersection(evidence.bestMoveThreatTypes):
+            return False
+        # The filtered policy provides no terminal-reason evidence. A guaranteed
+        # specific temple result would exceed the facts supplied to the model.
+        if "庙困" in text:
+            return False
     # Scores and counts are structured facts; arbitrary digits in prose are unsupported.
     if re.search(r"\d", NODE.sub("", text)):
         return False

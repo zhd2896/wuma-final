@@ -10,6 +10,7 @@ import { classifyTTFlag, normalizeScoreForTT, TranspositionTable } from './trans
 import { formatZobristWords, hashGameState, parseZobristHash,
   stateSignature, updateZobristWords } from './zobrist';
 import type { ZobristWords } from './zobrist';
+import { extendBlockade } from './blockade';
 
 interface SearchValue {
   readonly score: number;
@@ -41,6 +42,7 @@ export interface AlphaBetaSearchControl {
   readonly onNodeVisited?: () => void;
   readonly onCutoff?: () => void;
   readonly onFullHashComputed?: () => void;
+  readonly onRootCandidate?: (move: Move, score: number, isMate: boolean) => void;
 }
 
 /** Alpha-Beta with exact, independently searched root candidate scores. */
@@ -49,6 +51,7 @@ export class AlphaBetaAI implements MoveChooser {
   private readonly evaluationConfig: EvaluationConfig;
   private readonly useMoveOrdering: boolean;
   private readonly useTranspositionTable: boolean;
+  private readonly useBlockadeExtension: boolean;
 
   constructor(options: AlphaBetaOptions) {
     if (!Number.isSafeInteger(options.depth) || options.depth < 0) {
@@ -58,6 +61,7 @@ export class AlphaBetaAI implements MoveChooser {
     this.evaluationConfig = options.evaluationConfig ?? DEFAULT_EVALUATION_CONFIG;
     this.useMoveOrdering = options.useMoveOrdering ?? false;
     this.useTranspositionTable = options.useTranspositionTable ?? false;
+    this.useBlockadeExtension = options.useBlockadeExtension ?? true;
   }
 
   chooseMove(state: GameState): Move | null {
@@ -128,6 +132,11 @@ export class AlphaBetaAI implements MoveChooser {
         }, null);
       }
       if (remainingDepth === 0) {
+        const proof = this.useBlockadeExtension ? extendBlockade(position, { checkTimeout: control.checkTimeout,
+          onNodeVisited: visitNode }) : null;
+        if (proof) return save({ score: proof.winner === rootPlayer
+          ? this.evaluationConfig.mateScore - ply - proof.maxPlies
+          : -this.evaluationConfig.mateScore + ply + proof.maxPlies, isMate: true }, null);
         return save({
           score: evaluatePosition(position, rootPlayer, this.evaluationConfig).score,
           isMate: false,
@@ -196,8 +205,10 @@ export class AlphaBetaAI implements MoveChooser {
         const childHashWords = table && rootHashWords
           ? updateZobristWords(rootHashWords, turn) : null;
         // An independent full window makes each public candidate score exact.
-        const score = visit(turn.state, this.depth - 1, 1,
-          -Infinity, Infinity, childHashWords).score;
+        const value = visit(turn.state, this.depth - 1, 1,
+          -Infinity, Infinity, childHashWords);
+        const score = value.score;
+        control.onRootCandidate?.(move, score, value.isMate);
         candidateMoves.push({ move, score });
         if (bestMove === null || (maximizing ? score > evaluationScore : score < evaluationScore)) {
           evaluationScore = score;

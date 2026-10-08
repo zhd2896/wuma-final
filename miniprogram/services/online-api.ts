@@ -83,7 +83,7 @@ export function requireOnlineRoom(value: OnlineRoom, expected?: { game_id: strin
       !validPlayer(state.first_player) ||
       (state.game_status === 'PLAYING'
         ? state.winner !== null || state.winner_reason !== null
-        : !validPlayer(state.winner) || !['CAPTURE_ALL', 'TEMPLE_TRAP', 'LONE_PIECE_IMMOBILIZED', 'RESIGN'].includes(state.winner_reason ?? '')) ||
+        : !validPlayer(state.winner) || !['CAPTURE_ALL', 'TEMPLE_TRAP', 'LONE_PIECE_IMMOBILIZED', 'ALL_PIECES_IMMOBILIZED', 'RESIGN'].includes(state.winner_reason ?? '')) ||
       (value.room_status === 'FINISHED') !== (state.game_status === 'FINISHED')) {
     throw new ApiError('INVALID_GAME_RESPONSE', 502);
   }
