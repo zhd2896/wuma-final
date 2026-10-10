@@ -6,7 +6,7 @@ from typing import Annotated, Literal
 from pydantic import Field, StringConstraints
 
 from backend.app.schemas.game import (
-    ClientRequestId, GameState, NodeId, Player, StrictModel, TurnResult,
+    CaptureResult, ClientRequestId, GameState, Move, NodeId, Player, StrictModel, TurnResult,
 )
 
 
@@ -58,7 +58,15 @@ class PendingUndoResponse(StrictModel):
     status: UndoStatus
 
 
+class LastTurnResponse(StrictModel):
+    version: int = Field(ge=1)
+    ply: int = Field(ge=1)
+    move: Move
+    captures: CaptureResult
+
+
 class RemoteRoomResponse(StrictModel):
+    last_turn: LastTurnResponse | None = None
     account_bound: bool = False
     game_id: str
     seat: Player

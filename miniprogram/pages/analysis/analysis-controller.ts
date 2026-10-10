@@ -152,7 +152,8 @@ export class IndependentAnalysisController {
         return;
       }
       this.publish({ state: 'success', gameId, gameVersion: game.version,
-        view: mapPositionAnalysis(game.state, result), errorMessage: '' });
+        view: mapPositionAnalysis(game.state, result,
+          game.mode === 'AI' ? game.human_player ?? undefined : undefined), errorMessage: '' });
     } catch (error) {
       if (!requestCurrent()) return;
       if (error instanceof ApiError && error.code === 'GAME_STATE_CONFLICT') {

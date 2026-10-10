@@ -15,7 +15,7 @@ Page({
   data: { board: { nodes: [], lines: [], pieces: [] } as BoardState,
     turns: 0, blackReserve: 4, redReserve: 4, message: '', result: '',
     finished: false, ready: false, saving: false, saved: false, locked: false,
-    errorMessage: '', draftWarning: '' },
+    errorMessage: '', draftWarning: '', showRestart: false, showResign: false },
   controller: null as TrialController | null,
   disposed: false,
   onLoad(options: { save?: string } = {}) {
@@ -59,10 +59,35 @@ Page({
   },
   resign() {
     this.refreshLock();
-    if (!this.controller || this.data.saving || this.data.locked) return;
+    if (!this.controller || this.data.saving || this.data.locked || this.data.finished) return;
+    this.setData({ showResign: true });
+  },
+  cancelResign() { this.setData({ showResign: false }); },
+  confirmResign() {
+    if (!this.data.showResign) return;
+    this.setData({ showResign: false });
+    this.refreshLock();
+    if (!this.controller || this.data.saving || this.data.locked || this.data.finished) return;
     this.controller.resign(); this.persistDraft(); this.render();
   },
   restart() {
+    if (this.data.saving) return;
+    if (this.controller && this.data.turns > 0 && !this.data.saved && !this.data.finished) {
+      this.setData({ showRestart: true }); return;
+    }
+    this.resetTrial();
+  },
+  cancelRestart() { this.setData({ showRestart: false }); },
+  confirmRestart() {
+    if (!this.data.showRestart) return;
+    this.setData({ showRestart: false }); this.resetTrial();
+  },
+  async saveBeforeRestart() {
+    this.setData({ showRestart: false });
+    await this.save();
+    if (!this.disposed && this.data.saved) this.resetTrial();
+  },
+  resetTrial() {
     if (this.data.saving) return;
     if (this.controller) {
       try {
@@ -72,7 +97,7 @@ Page({
       } catch { this.setData({ errorMessage: '本机记录读取失败，暂不能重新开始。' }); return; }
     }
     this.controller = new TrialController();
-    this.setData({ locked: false, saved: false, errorMessage: '' });
+    this.setData({ locked: false, saved: false, errorMessage: '', showResign: false, showRestart: false });
     this.persistDraft(); this.render();
   },
   async save() {
@@ -107,6 +132,7 @@ Page({
     }
   },
   openHistory() { openPage('/pages/history/history'); },
+  startAi() { openPage('/pages/game/game?mode=ai&level=BEGINNER&first=human&new=1'); },
   online() { openPage('/pages/online/online'); },
   openTutorial() { openPage('/guide/pages/tutorial/tutorial'); },
   back() { backHome(); },

@@ -17,7 +17,7 @@ const { createGameSettingsStore, DEFAULT_GAME_SETTINGS } = await import('../mini
 test('legacy preferences keep all choices and gain STANDARD; all levels persist', () => {
     let saved: any = { version: 1, settings: { showNodeLabels: true, showLegalTargets: false, showCaptureNotice: false, vibrateOnAction: false, aiFirstPlayer: 'B' } };
     const store = createGameSettingsStore({ get: () => saved, set: (_k, v) => saved = v });
-    assert.deepEqual(store.read(), { ...saved.settings, defaultAiLevel: 'STANDARD' });
+    assert.deepEqual(store.read(), { ...saved.settings, defaultAiLevel: 'STANDARD', highContrastBoard: false, largeBoardText: false });
     for (const defaultAiLevel of ['BEGINNER', 'STANDARD', 'ADVANCED'] as const) {
         store.write({ ...store.read(), defaultAiLevel });
         assert.equal(store.read().defaultAiLevel, defaultAiLevel);

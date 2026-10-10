@@ -31,7 +31,14 @@
     <view wx:if="{{mode == 'local' && localView.captureText}}" class="capture-notice">{{localView.captureText}}</view>
     <view wx:if="{{mode == 'remote' && remoteCaptureText}}" class="capture-notice">{{remoteCaptureText}}</view>
     <view wx:if="{{mode == 'ai' && aiCaptureText}}" class="capture-notice">{{aiCaptureText}}</view>
-    <view wx:if="{{mode == 'local' && localSession || mode == 'remote' && remoteReady || mode == 'ai' && aiReady}}" class="board-area"><chess-board board="{{board}}" show-node-labels="{{settings.showNodeLabels}}" show-guidance="{{true}}" bind:node="onNode" /></view>
+    <view wx:if="{{mode == 'local' && localSession || mode == 'remote' && remoteReady || mode == 'ai' && aiReady}}" id="game-board-preview" class="board-area">
+      <view wx:if="{{analysisPreviewId}}" class="preview-notice">
+        <view class="preview-heading"><text>{{analysisPreviewText}}</text><button size="mini" bindtap="clearAnalysisPreview">清除预览</button></view>
+        <view class="preview-purpose">{{analysisPreviewPurpose}}</view>
+        <view class="preview-note">路线仅供查看；落子请点选棋盘。</view>
+      </view>
+      <chess-board high-contrast="{{settings.highContrastBoard}}" large-text="{{settings.largeBoardText}}" board="{{board}}" show-node-labels="{{settings.showNodeLabels}}" show-guidance="{{true}}" bind:node="onNode" />
+    </view>
     <view wx:if="{{mode == 'local' && localErrorMessage}}" class="remote-info remote-error"><text>{{localErrorMessage}}</text><button size="mini" bindtap="restartLocalGame">重试新局</button></view>
     <view wx:if="{{mode == 'remote' && remoteState.isLoadingGame}}" class="remote-info">正在读取云端棋局…</view>
     <view wx:if="{{mode == 'remote' && remoteState.errorMessage}}" class="remote-info remote-error"><text>{{remoteState.errorMessage}}</text><button size="mini" bindtap="retryRemoteGame">重试</button></view>
@@ -51,31 +58,22 @@
     </view>
     <view wx:if="{{mode == 'ai' && aiState.isAnalyzing}}" class="analysis-status">正在分析局面...</view>
     <view wx:if="{{mode == 'ai' && aiState.analysisErrorMessage}}" class="analysis-status analysis-error">{{aiState.analysisErrorMessage}}</view>
-    <view wx:if="{{mode == 'ai' && aiAnalysisView}}" class="analysis-card">
-      <view class="analysis-title">当前局面分析 · {{aiAnalysisView.perspective}} 视角</view>
-      <view class="analysis-line">推荐走法：<text wx:if="{{aiAnalysisView.bestMove}}">{{aiAnalysisView.bestMove.notation}}</text><text wx:else>终局，无可走棋步</text></view>
-      <view class="analysis-line">局面评分：{{aiAnalysisView.bestScore}} · 当前静态评分：{{aiAnalysisView.score}}</view>
-      <view class="analysis-line">搜索深度：{{aiAnalysisView.searchDepth}} · 思考时间：{{aiAnalysisView.thinkingTimeMs}} ms</view>
-      <view class="analysis-subtitle">候选走法</view>
-      <view wx:for="{{aiAnalysisView.candidates}}" wx:key="id" class="analysis-line">{{item.rank}}. {{item.notation}} · 评分 {{item.score}}</view>
-      <view class="analysis-subtitle">评分分项</view>
-      <view wx:for="{{aiAnalysisView.breakdown}}" wx:key="key" class="analysis-line">{{item.label}}：{{item.weightedScore}}</view>
-      <view wx:if="{{aiAnalysisView.threats.length}}" class="analysis-subtitle">局面信号</view>
-      <view wx:for="{{aiAnalysisView.threats}}" wx:key="id" class="analysis-line">{{item.label}} {{item.move}}</view>
+    <view wx:if="{{mode == 'ai' && aiAnalysisView}}" class="analysis-summary">
+      <evaluation-panel analysis="{{aiAnalysisView}}" reset-key="{{aiState.gameId + ':' + aiState.gameVersion}}" bind:select="selectAnalysisMove" />
     </view>
     <button wx:if="{{mode == 'ai' && aiReady && aiView.gameOver || mode == 'remote' && remoteReady && remoteView.gameOver}}" class="review-button" data-action="review" bindtap="onAction">查看复盘</button>
     <view wx:if="{{showSettings}}" class="settings-area"><view class="settings-title">{{mode == 'local' ? '本地对局设置' : mode == 'remote' ? '远程对局设置' : 'AI 对弈设置'}}</view><game-settings settings="{{settings}}" showAiFirstPlayer="{{mode == 'ai'}}" bind:change="onSettingsChange" /></view>
     <view class="operation-heading">辅助操作<text>落子请直接点选棋盘</text></view>
     <view class="actions">
-      <view id="action-undo" class="{{operationBusy || mode == 'local' && (!localSession || localSession.gameState.game_status != 'PLAYING' || !localSession.undoFrame) || mode == 'ai' && (!aiReady || aiState.gameState.game_status != 'PLAYING' || aiState.plyCount == 0) || mode == 'remote' && (!remoteReady || remoteState.gameState.game_status != 'PLAYING' || remoteState.plyCount == 0) ? 'action-disabled' : ''}}" data-action="undo" bindtap="onAction"><text>↶</text><view>悔棋</view></view>
+      <view id="action-undo" class="{{operationBusy || mode == 'local' && (!localSession || localSession.gameState.game_status != 'PLAYING' || !localSession.undoFrame) || mode == 'ai' && (!aiReady || aiState.gameState.game_status != 'PLAYING' || aiUndoPlies == 0) || mode == 'remote' && (!remoteReady || remoteState.gameState.game_status != 'PLAYING' || remoteState.plyCount == 0) ? 'action-disabled' : ''}}" data-action="undo" bindtap="onAction"><text>↶</text><view>悔棋</view></view>
       <view id="action-resign" class="{{operationBusy || mode == 'local' && (!localSession || localSession.gameState.game_status != 'PLAYING') || mode == 'ai' && (!aiReady || aiState.gameState.game_status != 'PLAYING') || mode == 'remote' && (!remoteReady || remoteState.gameState.game_status != 'PLAYING') ? 'action-disabled' : ''}}" data-action="resign" bindtap="onAction"><text>旗</text><view>认输</view></view>
       <view wx:if="{{mode == 'ai'}}" id="action-hint" class="{{mode == 'ai' && (!aiReady || aiState.gameState.game_status != 'PLAYING' || aiState.gameState.current_player != aiState.humanPlayer || aiState.isAiThinking || aiState.isSubmittingMove || aiState.isCoachLoading || aiState.needsResync) ? 'action-disabled' : ''}}" data-action="hint" bindtap="onAction"><text>✦</text><view>走棋提示</view></view>
       <view id="action-analysis" data-action="analysis" bindtap="onAction"><text>▥</text><view>{{mode == 'ai' ? '局面分析' : '分析'}}</view></view>
-      <view id="action-restart" data-action="restart" bindtap="onAction"><text>↻</text><view>重新开始</view></view>
+      <view id="action-restart" data-action="restart" bindtap="onAction"><text>↻</text><view>{{(mode == 'local' && localSession.gameState.game_status == 'FINISHED') || (mode == 'ai' && aiState.gameState.game_status == 'FINISHED') || (mode == 'remote' && remoteState.gameState.game_status == 'FINISHED') ? '再来一局' : '新开一局'}}</view></view>
       <view id="action-settings" data-action="settings" bindtap="onAction"><text>⚙</text><view>设置</view></view>
     </view>
   </view>
-  <confirm-dialog visible="{{showUndoConfirm}}" title="确认悔棋？" message="将撤销最近一手。" bind:cancel="cancelUndo" bind:confirm="confirmUndo" />
-  <confirm-dialog visible="{{showResign}}" title="确认结束对局？" message="当前行棋方将认输，对方获得胜利。" bind:cancel="cancelResign" bind:confirm="confirmResign" />
-  <bottom-nav current="game" />
+  <confirm-dialog visible="{{showUndoConfirm}}" title="确认悔棋？" message="{{undoMessage}}" bind:cancel="cancelUndo" bind:confirm="confirmUndo" />
+  <confirm-dialog visible="{{showResign}}" title="确认结束对局？" message="{{resignMessage}}" bind:cancel="cancelResign" bind:confirm="confirmResign" />
+  <confirm-dialog visible="{{showRestart}}" title="新开一局？" message="{{restartMessage}}" bind:cancel="cancelRestart" bind:confirm="confirmRestart" /><bottom-nav current="game" />
 </view>

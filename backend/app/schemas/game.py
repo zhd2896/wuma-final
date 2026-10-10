@@ -174,7 +174,7 @@ class AnalyzeResponse(PositionAnalysis):
 
 
 class ReviewConfig(StrictModel):
-    version: int = 2
+    version: int = 3
     max_depth: int = 2
     time_limit_ms_per_move: int = 1000
     candidate_limit: int = 3

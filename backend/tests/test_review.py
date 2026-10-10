@@ -74,7 +74,7 @@ def test_finished_review_is_idempotent_and_never_changes_the_game(client):
     review = response.json()["data"]
     assert review["reviewedPlayer"] == "A"
     assert review["winner"] == "A" and review["winnerReason"] == "CAPTURE_ALL"
-    assert review["reviewConfigVersion"] == 2
+    assert review["reviewConfigVersion"] == 3
     assert review["overallScore"] is None
     assert len(review["moveReviews"]) == 1
     item = review["moveReviews"][0]

@@ -4,6 +4,8 @@ import type { Player } from '../domain/index';
 export const GAME_SETTINGS_STORAGE_KEY = 'wuma:game-settings:v1';
 
 export interface GameSettings {
+  readonly highContrastBoard: boolean;
+  readonly largeBoardText: boolean;
   readonly showNodeLabels: boolean;
   readonly showLegalTargets: boolean;
   readonly showCaptureNotice: boolean;
@@ -13,6 +15,8 @@ export interface GameSettings {
 }
 
 export const DEFAULT_GAME_SETTINGS: GameSettings = Object.freeze({
+  highContrastBoard: false,
+  largeBoardText: false,
   showNodeLabels: false,
   showLegalTargets: true,
   showCaptureNotice: true,
@@ -38,6 +42,8 @@ interface StoredGameSettings {
 
 function copySettings(settings: GameSettings): GameSettings {
   return {
+    highContrastBoard: settings.highContrastBoard ?? false,
+    largeBoardText: settings.largeBoardText ?? false,
     showNodeLabels: settings.showNodeLabels ?? false,
     showLegalTargets: settings.showLegalTargets,
     showCaptureNotice: settings.showCaptureNotice,
@@ -51,6 +57,8 @@ function isGameSettings(value: unknown): value is GameSettings {
   if (!value || typeof value !== 'object') return false;
   const settings = value as Partial<GameSettings>;
   return (settings.defaultAiLevel === undefined || isAiLevel(settings.defaultAiLevel)) && typeof settings.showLegalTargets === 'boolean' &&
+    (settings.highContrastBoard === undefined || typeof settings.highContrastBoard === 'boolean') &&
+    (settings.largeBoardText === undefined || typeof settings.largeBoardText === 'boolean') &&
     (settings.showNodeLabels === undefined || typeof settings.showNodeLabels === 'boolean') &&
     typeof settings.showCaptureNotice === 'boolean' &&
     typeof settings.vibrateOnAction === 'boolean' &&

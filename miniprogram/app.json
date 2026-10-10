@@ -9,7 +9,9 @@
     "pages/training/training",
     "pages/history/history",
     "pages/profile/profile",
-    "pages/online/online"
+    "pages/online/online",
+    "pages/learning/learning",
+    "pages/record/record"
   ],
   "subPackages": [
     {

@@ -30,6 +30,7 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   let version = 0;
   let plyCount = 0;
   let waitForAi: (() => void) | null = null;
+  const scrolls: string[] = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
@@ -39,6 +40,7 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
     setStorageSync: (_key: string, value: string) => { stored = value; },
     removeStorageSync: () => { stored = null; },
     showToast: () => {},
+    pageScrollTo: (options: any) => { scrolls.push(options.selector); },
     request: (options: any) => {
       const url = new URL(options.url);
       const reply = (data: unknown) => options.success({ statusCode: 200,
@@ -100,7 +102,8 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   await import('../miniprogram/pages/game/game.ts');
   const definition = pageDefinition!;
   const page = { ...definition, data: { ...definition.data },
-    setData(patch: Record<string, unknown>) { this.data = { ...this.data, ...patch }; } };
+    setData(patch: Record<string, unknown>, callback?: () => void) {
+      this.data = { ...this.data, ...patch }; callback?.(); } };
   const flush = async () => { for (let i = 0; i < 8; i++) await new Promise(resolve => setImmediate(resolve)); };
   page.onLoad({ mode: 'ai' });
   await flush();
@@ -131,14 +134,30 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   assert.deepEqual(page.data.aiState.gameState, beforeAnalysis);
   assert.ok(page.data.aiState.analysis.candidateMoves.length);
   assert.deepEqual(page.data.aiAnalysisView,
-    mapPositionAnalysis(page.data.aiState.gameState, page.data.aiState.analysis));
+    mapPositionAnalysis(page.data.aiState.gameState, page.data.aiState.analysis, 'A'));
   assert.equal(page.data.board.recommendedFrom, page.data.aiState.lastMove.from);
   assert.equal(page.data.board.recommendedTo, page.data.aiState.lastMove.to);
+  const recommendation = page.data.aiAnalysisView.candidates[0];
+  page.selectAnalysisMove({ detail: { id: recommendation.id } });
+  assert.equal(page.data.board.recommendedFrom, recommendation.move.from);
+  assert.equal(page.data.board.recommendedTo, recommendation.move.to);
+  assert.equal(page.data.analysisPreviewId, recommendation.id);
+  assert.match(page.data.analysisPreviewText, /正在预览/);
+  assert.equal(scrolls.at(-1), '#game-board-preview');
+  assert.deepEqual(page.data.aiState.gameState, beforeAnalysis, 'preview must not play the move');
+  const preview = page.data.board;
+  page.selectAnalysisMove({ detail: { id: 'unknown' } });
+  assert.equal(page.data.board, preview);
+  page.clearAnalysisPreview();
+  assert.equal(page.data.analysisPreviewId, '');
+  assert.deepEqual(page.data.board, page.data.aiView.board);
+  page.selectAnalysisMove({ detail: { id: recommendation.id } });
   page.onAction({ currentTarget: { dataset: { action: 'undo' } } });
   assert.equal(page.data.showUndoConfirm, true);
   page.confirmUndo();
   await flush();
   assert.equal(page.data.aiState.plyCount, 0);
+  assert.equal(page.data.analysisPreviewId, '');
   assert.equal(page.data.operationBusy, false);
   page.onAction({ currentTarget: { dataset: { action: 'resign' } } });
   assert.equal(page.data.showResign, true);
@@ -156,7 +175,7 @@ test('existing AI page displays server game, thinking, AI move and AI-first rest
   assert.match(wxml, /<chess-board\b[^>]*board="{{board}}"[^>]*bind:node="onNode"/);
   assert.match(wxml, /<ai-thinking \/>/);
   assert.match(wxml, /正在分析局面/);
-  assert.match(wxml, /aiAnalysisView\.candidates/);
+  assert.match(wxml, /<evaluation-panel[^>]*analysis="{{aiAnalysisView}}"[^>]*bind:select="selectAnalysisMove"/);
   assert.match(wxml, /side="{{mode == 'ai' && aiState\.aiPlayer == 'A' \? 'ai' : 'human'}}"/);
   assert.match(wxml, /side="{{mode == 'ai' && aiState\.aiPlayer == 'B' \? 'ai' : 'human'}}"/);
   const thinking = readFileSync(new URL('../miniprogram/components/ai-thinking/ai-thinking.wxml', import.meta.url), 'utf8');

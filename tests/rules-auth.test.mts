@@ -12,6 +12,8 @@ registerHooks({ resolve(specifier, context, next) {
     throw error;
   }
 } });
+const { getApiBaseUrl } = await import('../miniprogram/config/api.ts');
+const beginnerRoute = '/pages/game/game?mode=ai&level=BEGINNER&first=human&new=1';
 
 let definition: any;
 (globalThis as any).Page = (value: any) => { definition = value; };
@@ -27,7 +29,7 @@ function environment() {
     reLaunch: ({ url, complete }: any) => { destinations.push(url); complete?.(); },
   };
   return { storage, destinations, login() {
-    storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000',
+    storage.set(`wuma:wechat-session:v1:${getApiBaseUrl()}`,
       { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   } };
 }
@@ -54,9 +56,18 @@ test('rules retains ordinary back navigation and signed-in home fallback', () =>
 test('rules starts AI directly only with a session, otherwise preserves the target through login', () => {
   const env = environment();
   definition.startGame();
-  assert.deepEqual(env.destinations, ['/pages/login/login?next=/pages/game/game']);
+  assert.equal(new URL(`https://local${env.destinations[0]}`).searchParams.get('next'), beginnerRoute);
   env.destinations.length = 0;
   env.login();
   definition.startGame();
-  assert.deepEqual(env.destinations, ['/pages/game/game']);
+  assert.deepEqual(env.destinations, [beginnerRoute]);
+});
+test('rules shows a separate continue entry only for a known authenticated playable computer game',()=>{
+  const env=environment();env.login();const id='d'.repeat(32);
+  env.storage.set('activeAiGameId',id);
+  env.storage.set('wuma:history:v1',{version:1,records:[{id,mode:'ai',aiLevel:'STANDARD',startedAt:1,updatedAt:2,turns:4,status:'PLAYING',winner:null,winnerReason:null}]});
+  const page={...definition,data:{...definition.data},setData(patch:any){this.data={...this.data,...patch};}};
+  assert.equal(typeof page.onShow,'function');page.onShow();assert.equal(page.data.continueRoute,`/pages/game/game?mode=ai&gameId=${id}`);
+  page.continueGame();assert.deepEqual(env.destinations,[`/pages/game/game?mode=ai&gameId=${id}`]);
+  env.storage.set('activeAiGameId','missing');page.onShow();assert.equal(page.data.continueRoute,'');
 });

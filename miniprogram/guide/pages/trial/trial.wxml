@@ -6,14 +6,17 @@
     <chess-board board="{{board}}" show-node-labels="{{true}}" bind:node="onNode" />
     <view class="trial-feedback"><view class="trial-title">{{finished ? result : (locked ? '此局已结束试玩' : '轮到你走黑棋')}}</view><view class="trial-note">{{locked ? '棋谱正在保存或已保存。保存失败可重试，确认成功后可再开新局。' : message}}</view></view>
     <view class="trial-actions"><button bindtap="resign" disabled="{{finished || locked || saving}}">认输</button><button bindtap="restart" disabled="{{saving}}">重新开始</button></view>
-    <button wx:if="{{!saved}}" class="gold-btn" bindtap="save" loading="{{saving}}" disabled="{{saving || turns == 0}}">{{saving ? '正在保存棋谱' : (locked ? '重试保存棋谱' : '保存棋谱 · 微信登录')}}</button>
+    <button wx:if="{{!saved}}" class="gold-btn" bindtap="save" loading="{{saving}}" disabled="{{saving || turns == 0}}">{{saving ? '正在保存试玩棋谱' : (locked ? '重试保存试玩棋谱' : '保存试玩棋谱 · 微信登录')}}</button>
     <button wx:else class="gold-btn" bindtap="openHistory">已保存 · 查看个人记录</button>
+    <button wx:if="{{saved}}" bindtap="startAi">新开正式入门电脑局</button>
     <view class="trial-note">保存后本次试玩结束，棋谱可从历史查看。试玩不计入正式 AI 棋力。</view>
   </block>
   <button wx:else class="gold-btn" bindtap="restart">重新开始试玩</button>
   <view wx:if="{{errorMessage}}" class="trial-error">{{errorMessage}}</view>
   <view wx:if="{{draftWarning}}" class="trial-error">{{draftWarning}}</view>
-  <button class="trial-link" bindtap="openTutorial">还不熟悉规则？先学三步</button>
+  <button class="trial-link" bindtap="openTutorial">还不熟悉规则？先练走棋、吃子与围堵</button>
   <button class="trial-link" bindtap="online">联机对战 · 微信登录</button>
   <view class="trial-note">未保存的试玩暂存在本机，退出后可继续；尚未成为个人云端记录。</view>
+  <confirm-dialog visible="{{showRestart}}" title="重新开始试玩？" message="当前未保存的试玩将被替换。可以继续当前局，或先保存棋谱。" bind:cancel="cancelRestart" bind:confirm="confirmRestart"><button bindtap="saveBeforeRestart">保存棋谱后重开 · 微信登录</button></confirm-dialog>
+  <confirm-dialog visible="{{showResign}}" title="确认认输？" message="你将认输，电脑获胜；棋谱仍可保存。" bind:cancel="cancelResign" bind:confirm="confirmResign" />
 </view>

@@ -70,7 +70,7 @@ test('templates lead with key mistakes and hide score depth and version behind d
       assert.ok(template.lastIndexOf('<expandable-details', at) > template.lastIndexOf('</expandable-details>', at), `collapse ${token}`);
     }
   }
-  assert.match(training, /反馈原因|原因：/);
+  assert.match(training, /反馈原因|原因：|解题要点/);
   assert.match(training, /推荐走法/);
   assert.ok(training.indexOf('id="training-feedback"') < training.indexOf('class="challenge-board"'));
 });

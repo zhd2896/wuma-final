@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -18,7 +19,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('history page shows real local records and routes each status to a usable destination', async () => {
   const storage = new Map<string, unknown>();
-  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
+  storage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const destinations: string[] = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
@@ -87,14 +88,14 @@ test('history page shows real local records and routes each status to a usable d
           turns: 0, winnerReason: 'RESIGN', reviewAvailable: true }], nextCursor: null,
       } } });
   };
-  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token, expiresAt: '2099-01-01T00:00:00Z' });
+  storage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token, expiresAt: '2099-01-01T00:00:00Z' });
   const legacy = makePage();
   legacy.onLoad({});
   for (let i = 0; i < 4; i++) await new Promise(resolve => setImmediate(resolve));
   assert.deepEqual(fetched, ['/api/v1/me/games']);
   assert.equal(legacy.data.records.find((item: any) => item.id === 'legacy-ai'), undefined);
   assert.equal(legacy.data.records.find((item: any) => item.id === 'current-ai')?.turns, 0);
-  assert.match(legacy.data.records.find((item: any) => item.id === 'current-ai')?.result, /玩家 B 认输/);
+  assert.match(legacy.data.records.find((item: any) => item.id === 'current-ai')?.result, /红方认输/);
   legacy.openRecord({ currentTarget: { dataset: { id: 'current-ai' } } });
   assert.equal(destinations.at(-1), '/pages/review/review?gameId=current-ai');
   (globalThis as any).wx.request = (options: any) => options.fail({ errMsg: 'offline' });

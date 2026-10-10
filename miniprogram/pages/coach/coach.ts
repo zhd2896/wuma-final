@@ -66,6 +66,7 @@ Page({
     gameId: '', gameVersion: null as number | null,
     gameState: null as IndependentCoachSnapshot['gameState'],
     humanPlayer: '', aiPlayer: '', currentPlayer: '',
+    humanPlayerText: '', currentPlayerText: '',
     board: emptyBoard,
     hints: [] as readonly CoachHintDto[],
     cards: [] as CoachCardView[],
@@ -116,15 +117,18 @@ Page({
       humanPlayer: snapshot.humanPlayer ?? '',
       aiPlayer: snapshot.aiPlayer ?? '',
       currentPlayer: snapshot.gameState?.current_player ?? '',
+      humanPlayerText: snapshot.humanPlayer === 'A' ? '黑方' : snapshot.humanPlayer === 'B' ? '红方' : '',
+      currentPlayerText: snapshot.gameState
+        ? `${snapshot.gameState.current_player === snapshot.humanPlayer ? '你' : '电脑'} · ${snapshot.gameState.current_player === 'A' ? '黑方' : '红方'}` : '',
       board: boardForHint(snapshot, selectedLevel),
       hints: snapshot.hints,
       cards: mapCards(snapshot, selectedLevel),
       selectedLevel,
       loadingLevel: snapshot.loadingLevel,
       errorMessage: snapshot.errorMessage,
-      notice: snapshot.notice,
+      notice: gameView?.gameOver ? '本局已结束，可从历史对局查看复盘。' : snapshot.notice,
       terminalText: gameView?.gameOver
-        ? `胜方 ${gameView.winner ?? '-'} 方 · ${gameView.winnerMessage}` : '',
+        ? `${gameView.winner === snapshot.humanPlayer ? '你获胜' : '电脑获胜'} · ${gameView.winnerMessage}` : '',
     });
   },
   selectHint(event: WechatMiniprogram.CustomEvent<{ level: number }>) {

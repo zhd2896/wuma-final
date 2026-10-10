@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -18,7 +19,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('online history restores active rooms and opens real review for finished games', async () => {
   const storage = new Map<string, unknown>();
-  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
+  storage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const routes: string[] = [];
   let definition: Record<string, any> | null = null;
   (globalThis as any).Page = (page: Record<string, any>) => { definition = page; };
@@ -40,7 +41,7 @@ test('online history restores active rooms and opens real review for finished ga
   const page = { ...definition!, data: { ...definition!.data },
     setData(patch: Record<string, unknown>) { this.data = { ...this.data, ...patch }; } };
   page.onLoad({});
-  assert.equal(page.data.records.find((row: any) => row.id === 'online-active').title, '远程双人');
+  assert.equal(page.data.records.find((row: any) => row.id === 'online-active').title, '联机对弈');
   page.openRecord({ currentTarget: { dataset: { id: 'online-active' } } });
   page.openRecord({ currentTarget: { dataset: { id: 'online-finished' } } });
   assert.deepEqual(routes, [
@@ -53,5 +54,5 @@ test('online history restores active rooms and opens real review for finished ga
   assert.equal(reviewable.data.records.length, 1);
   assert.equal(reviewable.data.records[0].turns, 0);
   assert.equal(reviewable.data.records[0].action, '查看复盘');
-  assert.match(reviewable.data.records[0].result, /玩家 B 认输/);
+  assert.match(reviewable.data.records[0].result, /红方认输/);
 });

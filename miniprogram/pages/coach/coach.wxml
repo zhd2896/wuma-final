@@ -11,10 +11,13 @@
     <error-state wx:elif="{{state == 'error'}}" message="{{errorMessage}}" bind:retry="retry" />
     <block wx:else>
       <view class="game-meta card">
+        <view><text>当前行棋</text><text>{{currentPlayerText}}</text></view>
+        <view><text>你的棋子</text><text>{{humanPlayerText}}</text></view>
+        <expandable-details title="棋局详情" reset-key="{{gameId + ':' + gameVersion}}">
         <view><text>棋局</text><text>{{gameId}}</text></view>
         <view><text>版本</text><text>{{gameVersion}}</text></view>
-        <view><text>当前行棋</text><text>{{currentPlayer}} 方</text></view>
-        <view><text>玩家执子</text><text>{{humanPlayer}} 方</text></view>
+        <view><text>数据执子标识</text><text>你 {{humanPlayer}} · 电脑 {{aiPlayer}}</text></view>
+        </expandable-details>
       </view>
       <view class="board-preview"><chess-board board="{{board}}" compact="{{true}}" show-node-labels="{{true}}" /></view>
       <view class="coach-intro">编号与玩法讲解一致；展开二级提示可标出候选点，展开三级提示可查看推荐路线。</view>
@@ -39,5 +42,5 @@
       <view class="review-entry ink-card" bindtap="openReview"><view><view>从复盘中继续学习</view><text>回顾关键节点 · 发现不同思路</text></view><view>›</view></view>
     </block>
   </view>
-  <bottom-nav current="coach" />
+  <bottom-nav current="learning" />
 </view>

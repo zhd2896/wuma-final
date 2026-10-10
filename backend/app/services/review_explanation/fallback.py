@@ -26,7 +26,8 @@ def fallback_move(move: MoveReview) -> MoveExplanationText:
         detail = _MOVE_TEXT[move.category]
     blockade = any(threat.type == "FORCED_BLOCKADE_AVAILABLE" for threat in move.threatsBefore)
     if blockade:
-        detail += ("这步保留了可强制完成的围堵路线。" if move.bestMoveEquivalent else
+        detail += ("这步仍可强制围堵，但收网比最佳方案慢。" if "仍能完成强制围堵" in move.engineExplanation else
+                   "这步保留了可强制完成的围堵路线。" if move.bestMoveEquivalent else
                    "走前存在可强制完成的围堵路线，这步没有及时利用。")
     return MoveExplanationText(
         headline=f"第 {move.turn} 手复盘",

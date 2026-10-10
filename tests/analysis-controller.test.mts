@@ -170,6 +170,25 @@ test('server source reads the authoritative version before requesting analysis',
   assert.equal(controller.snapshot.gameVersion, 7);
 });
 
+test('saved AI games use authoritative human seats for both analysis perspectives', async () => {
+  for (const human of ['A', 'B'] as const) for (const current of ['A', 'B'] as const) {
+    const state = createInitialGameState({ firstPlayer: current });
+    const analysis = analyzePosition(state, { maxDepth: 1, timeLimitMs: 0, now: () => 0 });
+    const controller = new IndependentAnalysisController({
+      api: {
+        getGame: async id => ({ game_id: id, version: 1, ply_count: 0, state,
+          mode: 'AI', human_player: human, ai_player: human === 'A' ? 'B' : 'A', ai_level: 'STANDARD' }),
+        analyzeGame: async id => ({ game_id: id, game_version: 1, ...analysis }),
+      },
+      readLocalGame: () => null, readActiveLocalId: () => null, onChange: () => {},
+    });
+    await controller.enter({ mode: 'remote', gameId: 'saved-ai' });
+    assert.equal(controller.snapshot.state, 'success');
+    assert.equal(controller.snapshot.view!.perspectiveLabel, current === human ? '你' : 'AI');
+    assert.equal(controller.snapshot.view!.bestScore, analysis.bestScore);
+  }
+});
+
 test('server conflict discards stale results and retry reloads the new version', async () => {
   const state = createInitialGameState();
   const analysis = analyzePosition(state,

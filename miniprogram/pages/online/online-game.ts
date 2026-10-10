@@ -9,6 +9,10 @@ import type { OnlineStorage } from '../../services/online-credentials';
 export type { OnlineStorage } from '../../services/online-credentials';
 
 export interface OnlineSnapshot {
+  readonly connection: 'connected' | 'reconnecting' | 'offline';
+  readonly lastSyncedAt: number | null;
+  readonly skippedTurns: number;
+  readonly resumeGameId: string | null;
   readonly room: OnlineRoom | null;
   readonly selectedNode: NodeId | null;
   readonly legalTargets: readonly NodeId[];
@@ -54,6 +58,7 @@ export class OnlineGameController {
   private readonly storage: OnlineStorage;
   private readonly onChange: (snapshot: OnlineSnapshot) => void;
   private state: OnlineSnapshot = {
+    connection: 'reconnecting', lastSyncedAt: null, skippedTurns: 0, resumeGameId: null,
     room: null, selectedNode: null, legalTargets: [], lastMove: null,
     lastCapture: null, busy: false, error: '', pendingMove: false,
     pendingOperation: false, isOperating: false, canRequestUndo: false,
@@ -73,13 +78,17 @@ export class OnlineGameController {
   }
 
   get snapshot(): OnlineSnapshot { return this.state; }
+  pause(): void {
+    this.invalidateRefresh();
+    this.publish({ connection: 'reconnecting', selectedNode: null, legalTargets: [] });
+  }
   private get hasPending(): boolean { return !!(this.pending || this.operation); }
 
   private publish(patch: Partial<OnlineSnapshot>): void {
     if (this.disposed) return;
     const next = { ...this.state, ...patch };
     const playable = next.room?.room_status === 'PLAYING' && next.room.state.game_status === 'PLAYING';
-    const available = !!playable && !next.busy && !this.hasPending;
+    const available = !!playable && next.connection === 'connected' && !next.busy && !this.hasPending;
     this.state = { ...next,
       pendingOperation: !!this.operation,
       canRequestUndo: available && !next.room?.pending_undo && (next.room?.ply_count ?? 0) > 0,
@@ -106,8 +115,9 @@ export class OnlineGameController {
     this.token = room.token;
     this.restoreGameId = null;
     this.invalidateRefresh();
-    this.publish({ room, selectedNode: null, legalTargets: [], lastMove: null,
-      lastCapture: null, pendingMove: false, error: '', operationNotice: '' });
+    this.publish({ room, connection: 'connected', lastSyncedAt: Date.now(), skippedTurns: 0, resumeGameId: null,
+      selectedNode: null, legalTargets: [], lastMove: room.last_turn?.move ?? null,
+      lastCapture: room.last_turn?.captures ?? null, pendingMove: false, error: '', operationNotice: '' });
     try {
       writeOnlineSeat(this.storage, room.game_id, room.token);
       this.storage.write(ACTIVE_ONLINE_KEY, room.game_id);
@@ -143,31 +153,37 @@ export class OnlineGameController {
       const gameId = id ?? this.storage.read(ACTIVE_ONLINE_KEY);
       if (typeof gameId !== 'string' || !gameId.trim()) return;
       this.restoreGameId = gameId;
+      this.publish({ resumeGameId: gameId, connection: 'reconnecting' });
       await this.begin(async () => {
         const restored = await restoreOnlineSeat(this.api, this.storage, gameId);
         return { ...restored.room, token: restored.token };
       });
-    } catch (error) { this.publish({ error: messageForApiError(error) }); }
+    } catch (error) { this.publish({ error: messageForApiError(error), connection: 'offline' }); }
   }
 
-  async refresh(requestedId?: string): Promise<void> {
+  async refresh(requestedId?: string, foreground = false): Promise<void> {
     const current = this.state.room;
     const id = requestedId ?? current?.game_id;
     if (!id || !this.token || this.state.busy || this.refreshing || this.disposed) return;
     const generation = ++this.generation;
     this.refreshing = true;
+    if (foreground || this.state.connection !== 'connected')
+      this.publish({ connection: 'reconnecting', selectedNode: null, legalTargets: [] });
     try {
       const room = requireOnlineRoom(await this.api.get(id, this.token), { game_id: id, seat: current?.seat });
       if (this.disposed || generation !== this.generation) return;
       const latest = this.state.room;
       if (latest && (latest.game_id !== room.game_id || room.version < latest.version)) return;
       const changed = latest?.version !== room.version;
-      this.publish({ room, error: this.hasPending ? this.state.error : '',
+      this.publish({ room, connection: 'connected', lastSyncedAt: Date.now(), error: this.hasPending ? this.state.error : '',
+        ...(changed ? { skippedTurns: Math.max(0, room.ply_count - (latest?.ply_count ?? room.ply_count) - 1) } : {}),
         ...(changed || room.pending_undo || room.room_status !== 'PLAYING' || room.state.game_status === 'FINISHED'
-          ? { selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null } : {}) });
+          ? { selectedNode: null, legalTargets: [], lastMove: room.last_turn?.move ?? null,
+              lastCapture: room.last_turn?.captures ?? null } : {}) });
     } catch (error) {
       if (this.disposed || generation !== this.generation) return;
-      this.publish({ error: this.hasPending && this.state.error ? this.state.error : messageForApiError(error) });
+      this.publish({ connection: 'offline', selectedNode: null, legalTargets: [],
+        error: this.hasPending && this.state.error ? this.state.error : messageForApiError(error) });
     } finally {
       if (generation === this.generation) this.refreshing = false;
     }
@@ -182,24 +198,27 @@ export class OnlineGameController {
       requireOnlineRoom(await this.api.cancel(room.game_id, this.token), room);
       this.storage.remove(ACTIVE_ONLINE_KEY);
       this.restoreGameId = null;
-      this.publish({ room: null, selectedNode: null, legalTargets: [] });
+      this.publish({ room: null, resumeGameId: null, selectedNode: null, legalTargets: [] });
     } catch (error) { this.publish({ error: messageForApiError(error) }); }
     finally { this.publish({ busy: false }); }
   }
 
   leave(): void {
     if (this.disposed || this.state.busy || this.hasPending) return;
-    this.storage.remove(ACTIVE_ONLINE_KEY);
+    const room = this.state.room;
+    const resumable = room && (room.room_status === 'PLAYING' || room.room_status === 'WAITING');
+    if (!resumable) this.storage.remove(ACTIVE_ONLINE_KEY);
     this.restoreGameId = null;
     this.token = '';
     this.invalidateRefresh();
-    this.publish({ room: null, selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
+    this.publish({ room: null, resumeGameId: resumable ? room.game_id : null,
+      selectedNode: null, legalTargets: [], lastMove: null, lastCapture: null,
       pendingMove: false, error: '', operationNotice: '' });
   }
 
   async tapNode(id: string): Promise<void> {
     const room = this.state.room;
-    if (!room || !NODE_IDS.includes(id as NodeId) || this.state.busy || this.hasPending || this.disposed ||
+    if (!room || this.state.connection !== 'connected' || !NODE_IDS.includes(id as NodeId) || this.state.busy || this.hasPending || this.disposed ||
         room.pending_undo || room.room_status !== 'PLAYING' || room.state.game_status !== 'PLAYING' ||
         room.state.current_player !== room.seat) return;
     const node = id as NodeId;
@@ -218,7 +237,8 @@ export class OnlineGameController {
       if (this.state.room?.version === room.version && this.state.selectedNode === node && !this.state.room.pending_undo)
         this.publish({ legalTargets: legal.moves.filter(move => move.from === node).map(move => move.to) });
     } catch (error) {
-      this.publish({ selectedNode: null, error: messageForApiError(error) });
+      this.publish({ connection: definitiveRejection(error) ? this.state.connection : 'offline',
+        selectedNode: null, legalTargets: [], error: messageForApiError(error) });
       resync = definitiveRejection(error);
     } finally { this.publish({ busy: false }); }
     if (resync) await this.refresh();
@@ -270,13 +290,15 @@ export class OnlineGameController {
       success = true;
       const latest = this.state.room;
       this.publish({ ...(latest && latest.version > room.version ? {} : { room }),
+        connection: 'connected', lastSyncedAt: Date.now(),
         successfulAction: this.state.successfulAction + 1,
         operationNotice: pending.action === 'requestUndo' ? '悔棋申请已发送，等待对方处理' :
           pending.action === 'acceptUndo' ? '已同意悔棋' : pending.action === 'declineUndo' ? '已拒绝悔棋' : '已认输' });
     } catch (error) {
       if (definitiveRejection(error)) this.operation = null;
       this.publish({ error: messageForApiError(error),
-        operationNotice: this.operation ? '操作结果尚未确认，请重试原请求' : '' });
+        connection: definitiveRejection(error) ? this.state.connection : 'offline',
+        operationNotice: this.operation ? '操作结果尚未确认，请点恢复操作，避免重复发起' : '' });
     } finally { this.publish({ busy: false, isOperating: false }); }
     await this.refresh();
     return success;
@@ -301,17 +323,20 @@ export class OnlineGameController {
         throw new ApiError('INVALID_GAME_RESPONSE', 502);
       }
       const updated = requireOnlineRoom({ ...room, version: result.version, ply_count: plyCount,
+        last_turn: { version: result.version, ply: plyCount, move: result.turn.move, captures: result.turn.capture },
         pending_undo: null, state: result.turn.state,
         room_status: result.turn.state.game_status === 'FINISHED' ? 'FINISHED' : 'PLAYING' }, room);
       this.pending = null;
       const latest = this.state.room;
       this.publish({ ...(latest && latest.version > result.version ? {} : { room: updated,
         lastMove: result.turn.move, lastCapture: result.turn.capture }),
+        connection: 'connected', lastSyncedAt: Date.now(), skippedTurns: 0,
         pendingMove: false, selectedNode: null, legalTargets: [],
         successfulAction: this.state.successfulAction + 1, operationNotice: '' });
     } catch (error) {
       if (definitiveRejection(error)) this.pending = null;
-      this.publish({ pendingMove: !!this.pending, error: messageForApiError(error) });
+      this.publish({ connection: definitiveRejection(error) ? this.state.connection : 'offline',
+        pendingMove: !!this.pending, error: messageForApiError(error) });
       resync = true;
     } finally { this.publish({ busy: false }); }
     if (resync) await this.refresh();

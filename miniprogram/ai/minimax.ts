@@ -9,6 +9,7 @@ export interface MinimaxOptions {
   readonly depth: number;
   readonly evaluationConfig?: EvaluationConfig;
   readonly useBlockadeExtension?: boolean;
+  readonly blockadeAttackerTurns?: 1 | 2 | 3;
 }
 
 export interface CandidateMoveScore {
@@ -54,6 +55,7 @@ export class MinimaxAI implements MoveChooser {
   private readonly depth: number;
   private readonly evaluationConfig: EvaluationConfig;
   private readonly useBlockadeExtension: boolean;
+  private readonly blockadeAttackerTurns: 1 | 2 | 3;
 
   constructor(options: MinimaxOptions) {
     if (!Number.isSafeInteger(options.depth) || options.depth < 0) {
@@ -62,6 +64,7 @@ export class MinimaxAI implements MoveChooser {
     this.depth = options.depth;
     this.evaluationConfig = options.evaluationConfig ?? DEFAULT_EVALUATION_CONFIG;
     this.useBlockadeExtension = options.useBlockadeExtension ?? true;
+    this.blockadeAttackerTurns = options.blockadeAttackerTurns ?? 3;
   }
 
   chooseMove(state: GameState): Move | null {
@@ -81,6 +84,7 @@ export class MinimaxAI implements MoveChooser {
       }
       if (remainingDepth === 0) {
         const proof = ply > 0 && this.useBlockadeExtension ? extendBlockade(position, {
+          maxAttackerTurns: this.blockadeAttackerTurns,
           onNodeVisited: () => { nodesSearched++; },
         }) : null;
         if (proof) return proof.winner === rootPlayer

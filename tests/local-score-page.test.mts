@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -20,7 +21,7 @@ test('real local Page persists exact undo branch, reload, and blocks stale-page 
  assert.deepEqual(row.localScore.moves,[{from:'P01',to:'P02'},{from:'P10',to:'P09'}]);
  p.onUnload();const reopened=make(gameDefinition);reopened.onLoad({mode:'local',gameId:id});
  assert.deepEqual(reopened.data.localSession.score,row.localScore);
- store.beginLocalSync(id,'original-owner','http://127.0.0.1:8000');
+ store.beginLocalSync(id,'original-owner',API_BASE_URLS.development);
  const snapshot=structuredClone(reopened.data.localSession),beforeCount=store.list().length;
  tap(reopened,'P02');tap(reopened,'P01');await reopened.confirmUndo();await reopened.confirmResign();
  assert.deepEqual(reopened.data.localSession,snapshot);
@@ -31,10 +32,10 @@ test('real local Page persists exact undo branch, reload, and blocks stale-page 
 
 test('real history Page exposes catchtap sync and opens linked finished rows with server ID',async()=>{
  values.clear();routes.length=0;
- values.set('wuma:wechat-session:v1:http://127.0.0.1:8000',{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
+ values.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  (globalThis as any).wx.getAccountInfoSync=()=>({miniProgram:{envVersion:'develop'}});
  const p=make(gameDefinition);p.onLoad({mode:'local'});await p.confirmResign();const id=p.data.localGameId;
- const store=createWxDeviceHistoryStore();const pending=store.beginLocalSync(id,'owner','http://127.0.0.1:8000').localSync;
+ const store=createWxDeviceHistoryStore();const pending=store.beginLocalSync(id,'owner',API_BASE_URLS.development).localSync;
  store.linkLocalSync(id,pending,'d'.repeat(32));
  await import('../miniprogram/pages/history/history.ts');const h=make(definition);h.onLoad({});
  assert.equal(h.data.records.length,1);h.openRecord({currentTarget:{dataset:{id:h.data.records[0].id}}});
@@ -50,7 +51,7 @@ const profile=(id:string)=>({id,nickname:'棋手',avatar:'piece_v1_shi',games:0,
 const tick=()=>new Promise(resolve=>setImmediate(resolve));
 
 test('history real API flow renders pending/syncing, resumes exact body after timeout, and cloud wins dedup',async()=>{
- values.clear();const key='wuma:wechat-session:v1:http://127.0.0.1:8000';values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
+ values.clear();const key=`wuma:wechat-session:v1:${API_BASE_URLS.development}`;values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  const p=make(gameDefinition);p.onLoad({mode:'local'});const id=p.data.localGameId;
  const sent:any[]=[];let importRequest:any;let cloud:any[]=[];
  (globalThis as any).wx.request=o=>{
@@ -59,11 +60,11 @@ test('history real API flow renders pending/syncing, resumes exact body after ti
   else {importRequest=o;sent.push(structuredClone(o.data));}
  };
  const h=make(historyDefinition);h.onLoad({});await tick();
- const task=h.syncRecord({currentTarget:{dataset:{localId:id}}});await tick();
+ const task=h.performSync(id);await tick();
  assert.equal(createWxDeviceHistoryStore().get(id).localSync.status,'pending');
  assert.equal(h.data.records[0].syncLabel,'同步中');
  importRequest.fail({errMsg:'timeout'});await task;
- assert.equal(h.data.records[0].syncLabel,'重试同步');
+ assert.equal(h.data.records[0].syncLabel,'重试保存');
  h.onUnload();const reopened=make(historyDefinition);reopened.onLoad({});await tick();
  const retry=reopened.syncRecord({currentTarget:{dataset:{localId:id}}});await tick();assert.deepEqual(sent[0],sent[1]);
  cloud=[{gameId:'e'.repeat(32),mode:'LOCAL',status:'PLAYING',winner:null,startedAt:'2026-10-06T00:00:00Z',finishedAt:null,turns:7,reviewAvailable:false}];
@@ -75,7 +76,7 @@ test('history real API flow renders pending/syncing, resumes exact body after ti
 });
 
 test('history ignores out-of-order account/filter responses and hidden-page results',async()=>{
- values.clear();const key='wuma:wechat-session:v1:http://127.0.0.1:8000';values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
+ values.clear();const key=`wuma:wechat-session:v1:${API_BASE_URLS.development}`;values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  const pending:any[]=[];(globalThis as any).wx.request=o=>pending.push(o);
  const h=make(historyDefinition);h.onLoad({});await tick();const old=pending.shift();
  h.setData({filter:'finished'});h.load();await tick();const fresh=pending.shift();
@@ -91,29 +92,29 @@ test('history ignores out-of-order account/filter responses and hidden-page resu
 });
 
 test('history identity lookup uses captured token, shows syncing immediately, and refuses switched session before import',async()=>{
- values.clear();const key='wuma:wechat-session:v1:http://127.0.0.1:8000';values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
+ values.clear();const key=`wuma:wechat-session:v1:${API_BASE_URLS.development}`;values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  const p=make(gameDefinition);p.onLoad({mode:'local'});const id=p.data.localGameId;
  let identity:any;const sent:any[]=[];(globalThis as any).wx.request=o=>{
  sent.push(o);if(o.url.endsWith('/me/profile'))identity=o;else if(o.url.includes('/me/games'))o.success({statusCode:200,data:{code:0,data:{items:[],nextCursor:null}}});
  };
- const h=make(historyDefinition);h.onLoad({});await tick();const syncing=h.syncRecord({currentTarget:{dataset:{localId:id}}});
+ const h=make(historyDefinition);h.onLoad({});await tick();const syncing=h.performSync(id);
  assert.equal(h.data.records[0].syncLabel,'同步中');await tick();assert.equal(identity.header.Authorization,`Bearer ${'a'.repeat(64)}`);
  values.set(key,{token:'b'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  identity.success({statusCode:200,data:{code:0,data:profile('owner-A')}});await syncing;
  assert.equal(sent.filter(o=>o.method==='POST').length,0);assert.equal(createWxDeviceHistoryStore().get(id).localSync,undefined);
- assert.equal(h.data.records[0].syncLabel,'同步棋谱');delete (globalThis as any).wx.request;
+ assert.equal(h.data.records[0].syncLabel,'转到云端继续');delete (globalThis as any).wx.request;
 });
 
 test('sync that outlives hide/show clears its busy projection when pending request times out',async()=>{
- values.clear();const key='wuma:wechat-session:v1:http://127.0.0.1:8000';values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
+ values.clear();const key=`wuma:wechat-session:v1:${API_BASE_URLS.development}`;values.set(key,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  const p=make(gameDefinition);p.onLoad({mode:'local'});const id=p.data.localGameId;let request:any;
  (globalThis as any).wx.request=o=>{
   if(o.url.endsWith('/me/profile'))o.success({statusCode:200,data:{code:0,data:profile('owner')}});
   else if(o.url.includes('/me/games'))o.success({statusCode:200,data:{code:0,data:{items:[],nextCursor:null}}});else request=o;
  };
- const h=make(historyDefinition);h.onLoad({});await tick();const task=h.syncRecord({currentTarget:{dataset:{localId:id}}});await tick();
+ const h=make(historyDefinition);h.onLoad({});await tick();const task=h.performSync(id);await tick();
  h.onHide();h.onShow();await tick();assert.equal(h.data.records[0].syncLabel,'同步中');
- request.fail({errMsg:'timeout'});await task;assert.equal(h.data.records[0].syncLabel,'重试同步');
+ request.fail({errMsg:'timeout'});await task;assert.equal(h.data.records[0].syncLabel,'重试保存');
  delete (globalThis as any).wx.request;
 });
 
@@ -122,7 +123,7 @@ test('safe new local IDs never replace a frozen record even when clock and rando
  try {
   Date.now=()=>1000000000000;Math.random=()=>0.5;
   const p=make(gameDefinition);p.onLoad({mode:'local'});const id=p.data.localGameId;
-  const store=createWxDeviceHistoryStore();store.beginLocalSync(id,'owner','http://127.0.0.1:8000');const frozen=structuredClone(store.get(id));
+  const store=createWxDeviceHistoryStore();store.beginLocalSync(id,'owner',API_BASE_URLS.development);const frozen=structuredClone(store.get(id));
   p.restartLocalGame();assert.notEqual(p.data.localGameId,id);assert.deepEqual(store.get(id),frozen);assert.equal(store.list().length,2);
  } finally {Date.now=savedNow;Math.random=savedRandom;}
 });

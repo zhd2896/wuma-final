@@ -2,10 +2,10 @@ const HOME = '/pages/index/index';
 const LOGIN = '/pages/login/login';
 let loginNavigationPending: { startedAt: number } | null = null;
 const LOGIN_NAVIGATION_TIMEOUT_MS = 3000;
-const allowedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online'];
+const allowedPages = ['index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online', 'record'];
 
 export function isPublicRoute(value: string): boolean {
-  return ['pages/index/index', 'guide/pages/rules/rules', 'guide/pages/tutorial/tutorial', 'guide/pages/trial/trial']
+  return ['pages/index/index', 'pages/learning/learning', 'guide/pages/rules/rules', 'guide/pages/tutorial/tutorial', 'guide/pages/trial/trial']
     .includes(value.replace(/^\//, '').split('?')[0]);
 }
 

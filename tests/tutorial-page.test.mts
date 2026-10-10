@@ -29,15 +29,22 @@ const make = () => ({ ...definition, data: { ...definition.data },
   setData(p: any) { this.data = { ...this.data, ...p }; } });
 const tap = (p: any, id: string) => p.onNode({ detail: { id } });
 
-test('public tutorial plays all three steps, restores checkpoints and preserves login AI target', async () => {
+test('public tutorial plays all lessons, restores checkpoints and preserves login AI target', async () => {
   await import('../miniprogram/guide/pages/tutorial/tutorial.ts');
+  const { TUTORIAL_LESSONS } = await import('../miniprogram/guide/tutorial-controller.ts');
   const p = make(); p.onLoad();
   p.startAi(); assert.equal(destinations.length, 0);
-  tap(p, 'P11'); tap(p, 'P12'); p.next();
+  tap(p, 'P11'); tap(p, 'P12');
+  assert.deepEqual(p.data.escapeRoutes, [], 'ordinary walking lesson does not list irrelevant red routes');
+  p.next();
   const resumed = make(); resumed.onLoad();
   assert.equal(resumed.data.stepIndex, 1);
   tap(resumed, 'P08'); tap(resumed, 'P13'); resumed.next();
   tap(resumed, 'P08'); tap(resumed, 'P13'); resumed.next();
+  for (let index = 3; index < TUTORIAL_LESSONS.length; index++) {
+    const move = TUTORIAL_LESSONS[index].move ?? { from: 'P07', to: 'P03' };
+    tap(resumed, move.from); tap(resumed, move.to); resumed.next();
+  }
   assert.equal(resumed.data.completed, true);
   const finished = make(); finished.onLoad();
   assert.equal(finished.data.completed, true);
@@ -48,6 +55,45 @@ test('public tutorial plays all three steps, restores checkpoints and preserves 
   assert.equal(destinations.pop(), next);
   finished.retry(); assert.equal(finished.data.stepIndex, 0);
   resumed.onLoad(); assert.equal(resumed.data.stepIndex, 0);
+});
+
+test('old completed checkpoint resumes added lessons and version two stores all progress', async () => {
+  await import('../miniprogram/guide/pages/tutorial/tutorial.ts');
+  storage.clear();
+  storage.set('wuma:tutorial:v1', { version: 1, stepIndex: 3 });
+  const p = make(); p.onLoad();
+  assert.equal(p.data.stepIndex, 3);
+  assert.equal(p.data.completed, false);
+  tap(p, 'P08'); tap(p, 'P13'); p.next();
+  assert.deepEqual(storage.get('wuma:tutorial:v2'), { version: 2, stepIndex: 4 });
+  const restored = make(); restored.onLoad();
+  assert.equal(restored.data.stepIndex, 4, 'new progress overrides legacy completion');
+  tap(restored, 'P07'); tap(restored, 'P03');
+  assert.equal(restored.data.escapeRouteCount, restored.controller.snapshot.escapeMoves.length);
+  assert.equal(restored.data.escapeRoutes.length, restored.data.escapeRouteCount, 'all real routes are available');
+  assert.ok(restored.data.beforeEscapeRouteCount > 0, 'before-blockade routes are shown for comparison');
+});
+
+test('independent exercise exposes legal destinations without a recommended answer', async () => {
+  await import('../miniprogram/guide/pages/tutorial/tutorial.ts');
+  const { TUTORIAL_LESSONS } = await import('../miniprogram/guide/tutorial-controller.ts');
+  storage.clear();
+  storage.set('wuma:tutorial:v2', { version: 2, stepIndex: TUTORIAL_LESSONS.length - 1 });
+  const p = make(); p.onLoad();
+  assert.equal(p.data.independent, true);
+  assert.equal(p.data.board.recommendedFrom, undefined);
+  assert.equal(p.data.board.recommendedTo, undefined);
+  tap(p, 'P09');
+  assert.equal(p.data.board.recommendedTo, undefined);
+  assert.ok(p.data.board.nodes.filter((node: any) => node.legalTarget).length > 1);
+  tap(p, 'P03');
+  assert.equal(p.data.passed, true);
+  p.retry(); tap(p, 'P07'); tap(p, 'P12');
+  assert.equal(p.data.needsRetry, true, 'failed attempt asks for retry after switching to red');
+  const attemptedState = p.controller.snapshot.state;
+  tap(p, 'P09'); tap(p, 'P03');
+  assert.equal(p.controller.snapshot.state, attemptedState, 'cannot play black again after turn switched');
+  p.retry(); assert.equal(p.data.needsRetry, false);
 });
 
 test('public offline tutorial bypasses API configuration, private game remains protected', async () => {

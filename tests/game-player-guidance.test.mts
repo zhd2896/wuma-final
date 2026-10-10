@@ -76,7 +76,7 @@ test('actual online page preserves seat labels and prioritizes paused or uncerta
  const page:any={...definition,data:{...definition.data},setData(p:any){Object.assign(this.data,p)}};
  const state=createInitialGameState();
  const room={game_id:'labels-real',seat:'B',state,room_status:'PLAYING',ply_count:0};
- const snapshot={room,selectedNode:null,legalTargets:[],lastMove:null,lastCapture:null,busy:false,isOperating:false,pendingMove:false,pendingOperation:false,successfulAction:0,canRequestUndo:false,canResign:true};
+ const snapshot={room,connection:'connected',lastSyncedAt:Date.now(),skippedTurns:0,resumeGameId:null,selectedNode:null,legalTargets:[],lastMove:null,lastCapture:null,busy:false,isOperating:false,pendingMove:false,pendingOperation:false,successfulAction:0,canRequestUndo:false,canResign:true};
  page.render(snapshot);
  assert.deepEqual(page.data.view.playerNames,{A:'对手',B:'你'});
  assert.match(page.data.turnGuidance,/等待对手/);

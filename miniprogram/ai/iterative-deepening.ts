@@ -90,6 +90,7 @@ export class IterativeDeepeningAI implements MoveChooser {
             depth,
             evaluationConfig: config,
             useBlockadeExtension: this.options.useBlockadeExtension,
+            blockadeAttackerTurns: this.options.blockadeAttackerTurns,
             useMoveOrdering: this.options.useMoveOrdering ?? true,
             useTranspositionTable: table !== null,
           }).search(state, rootPlayer, {
@@ -100,7 +101,7 @@ export class IterativeDeepeningAI implements MoveChooser {
             onRootCandidate: (move, score, isMate) => {
               // Keep only a terminally proved win. Partial heuristic candidates
               // remain private and cannot become comparable review scores.
-              if (isMate && config.mateScore > this.options.maxDepth + 2 &&
+              if (isMate && config.mateScore > this.options.maxDepth + 6 &&
                   (state.current_player === rootPlayer ? score > 0 : score < 0) &&
                   (!provedWin.value || (state.current_player === rootPlayer
                     ? score > provedWin.value.score : score < provedWin.value.score))) provedWin.value = { move, score };

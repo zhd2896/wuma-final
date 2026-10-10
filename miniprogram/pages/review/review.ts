@@ -24,7 +24,7 @@ type ReviewRow = GameReviewDto['moveReviews'][number] & {
 Page({
   data: {
     gameId: '', mode: '', state: 'loading', errorMessage: '', terminalText: '',
-    reviewedPlayer: 'A' as Player, perspectiveOptions: ['玩家 A', '玩家 B'], perspectiveIndex: 0,
+    reviewedPlayer: 'A' as Player, perspectiveOptions: ['黑方', '红方'], perspectiveIndex: 0,
     canSelectPerspective: false,
     review: null as GameReviewDto | null, replay: null as GameReplayDto | null,
     bestMoveRateText: '', turningText: '', rows: [] as ReviewRow[],
@@ -123,7 +123,7 @@ Page({
           review.winner !== savedFinal.winner || review.winnerReason !== savedFinal.winner_reason)
         throw new ApiError('INVALID_GAME_RESPONSE', 502);
       const terminalText = review.winnerReason === 'RESIGN'
-        ? `${review.winner === player ? '对方已认输' : '你已认输'}（玩家 ${review.winner === 'A' ? 'B' : 'A'} 认输）`
+        ? `${review.winner === player ? '对方已认输' : '你已认输'}（${review.winner === 'A' ? '红方' : '黑方'}认输）`
         : `终局 · ${ruleReasonText(review.winnerReason)}`;
       const rows = review.moveReviews.map(move => ({ ...move, engineExplanation: translateFeedback(move.engineExplanation ?? ''),
         actualText: `${move.actualMove.from} → ${move.actualMove.to}`, bestText: `${move.bestMove.from} → ${move.bestMove.to}`,
@@ -153,22 +153,33 @@ Page({
     if (!this.active || this.unloaded || !this.data.replay || !this.data.review) return;
     const view = replayView(this.data.replay, this.data.review, index);
     const row = this.data.rows.find(r => r.turn === view.replayRowTurn && r.player === this.data.reviewedPlayer);
-    this.setData({ ...view, boardMode: 'replay', replayNaturalExplanation: '',
+    this.setData({ ...view, selectedTurn: view.replayComparisonTurn, selectedRoute: 'actual', boardMode: 'replay', replayNaturalExplanation: '',
       replayExplanation: row?.reasonText ?? view.replayExplanation });
   },
   showReplay() { this.showReplayAt(this.data.replayIndex); },
+  showSelectedBefore() {
+    const row = this.data.rows.find(item => item.turn === this.data.selectedTurn);
+    if (row) this.showReviewMove(row, 'before');
+  },
+  showSelectedBest() {
+    const row = this.data.rows.find(item => item.turn === this.data.selectedTurn);
+    if (row) this.showReviewMove(row, 'best');
+  },
   previousReplay() { this.showReplayAt(this.data.replayIndex - 1); },
   nextReplay() { this.showReplayAt(this.data.replayIndex + 1); },
   startReplay() { this.showReplayAt(0); },
   endReplay() { this.showReplayAt(this.data.replayMaxIndex); },
   jumpReplay(event: WechatMiniprogram.CustomEvent<{ value: number }>) { this.showReplayAt(Number(event.detail.value)); },
-  showReviewMove(row: ReviewRow, kind: 'actual' | 'best', select = true) {
+  showReviewMove(row: ReviewRow, kind: 'actual' | 'best' | 'before', select = true) {
     if (!row.stateBefore || !this.active || this.unloaded) return;
-    const move = kind === 'actual' ? row.actualMove : row.bestMove;
+    const move = kind === 'before' ? null : kind === 'actual' ? row.actualMove : row.bestMove;
     const board = mapGameStateToView(row.stateBefore).board;
-    this.setData({ reviewBoard: highlightBoardMove(board, move),
+    const replayIndex = this.data.replay?.steps.findIndex(step => step.kind === 'MOVE' && step.ply === row.turn);
+    const savedView = select && replayIndex !== undefined && replayIndex >= 0 && this.data.replay && this.data.review
+      ? replayView(this.data.replay, this.data.review, replayIndex + 1) : {};
+    this.setData({ ...savedView, reviewBoard: highlightBoardMove(board, move),
       ...(select ? { boardMode: 'route' } : {}),
-      selectedTurn: row.turn, selectedRoute: kind, routeText: describeMove(move),
+      selectedTurn: row.turn, selectedRoute: kind, routeText: move ? describeMove(move) : '',
       previewReserveA: row.stateBefore.players.A.reserve_count, previewReserveB: row.stateBefore.players.B.reserve_count });
   },
   selectReviewMove(event: WechatMiniprogram.TouchEvent) {

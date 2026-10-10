@@ -12,3 +12,5 @@ deploy/nginx/conf.d/tls.conf
 deploy/nginx/certs/
 .worktrees/
 backend/wechat.local.toml
+results/deploy/
+results/pre-push-*

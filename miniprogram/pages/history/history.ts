@@ -25,6 +25,7 @@ interface HistoryRow {
   readonly syncLabel?: string;
   readonly syncing?: boolean;
   readonly syncReason?: string;
+  readonly archived?: boolean;
 }
 function dateText(timestamp: number): string {
   const date = new Date(timestamp);
@@ -33,39 +34,44 @@ function dateText(timestamp: number): string {
     `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 function rowForDevice(entry: DeviceHistoryEntry): HistoryRow {
+  const archived = entry.id.startsWith('trial-');
   const finished = entry.status === 'FINISHED';
   const linked = entry.localSync?.status === 'linked' ? entry.localSync : null;
   return { id: linked?.cloudGameId ?? entry.id, mode: linked ? 'remote' : entry.mode, status: entry.status,
     localId: entry.mode === 'local' ? entry.id : undefined, apiRoot: linked?.apiRoot,
     syncLabel: entry.mode !== 'local' || linked ? undefined
-      : entry.localSync?.status === 'pending' ? '重试同步' : entry.localScore ? '同步棋谱' : undefined,
+      : entry.localSync?.status === 'pending' ? '重试保存' : entry.localScore
+        ? (archived || finished ? '保存到云端' : '转到云端继续') : undefined,
     syncReason: linked ? '已同步到云端'
       : entry.localSync?.status === 'pending' ? '结果待确认，棋谱已冻结；需原账号和原服务重试'
       : entry.mode === 'local' && !entry.localScore ? '旧记录缺少完整棋谱，无法同步' : undefined,
-    title: entry.mode === 'ai' ? `AI 对弈${entry.aiLevel ? ' · ' + AI_LEVEL_LABELS[entry.aiLevel] : ''}` : entry.mode === 'online' ? '远程双人' : '本地双人',
-    result: finished ? (entry.winnerReason === 'RESIGN' && entry.winner
-      ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
-      : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
+    archived, title: archived ? '电脑试玩棋谱' : entry.mode === 'ai' ? `AI 对弈${entry.aiLevel ? ' · ' + AI_LEVEL_LABELS[entry.aiLevel] : ''}` : entry.mode === 'online' ? '联机对弈' : '同机双人',
+    result: archived ? '已归档 · 试玩结束' : finished ? (entry.winnerReason === 'RESIGN' && entry.winner
+      ? `${entry.winner === 'A' ? '红方' : '黑方'}认输 · ${entry.winner === 'A' ? '黑方' : '红方'}获胜`
+      : entry.winner ? `${entry.winner === 'A' ? '黑方' : '红方'}获胜` : '已结束') : '进行中',
     date: dateText(entry.updatedAt), updatedAt: entry.updatedAt, turns: entry.turns,
-    action: finished ? (entry.mode === 'online' || entry.mode === 'ai' || linked ? '查看复盘' : '查看终局') : '继续对弈' };
+    action: archived ? '查看棋谱' : finished ? (entry.mode === 'online' || entry.mode === 'ai' || linked ? '查看复盘' : '查看终局') : '继续对弈' };
 }
 function rowForCloud(entry: PersonalGameDto): HistoryRow {
+  const archived = entry.sourceKind === 'TRIAL';
   const finished = entry.status === 'FINISHED';
   const updatedAt = Date.parse(entry.finishedAt || entry.startedAt);
   return { id: entry.gameId, mode: entry.mode === 'AI' ? 'ai' : entry.mode === 'REMOTE' ? 'online' : 'remote',
-    status: entry.status, title: entry.mode === 'AI' ? `AI 对弈${isAiLevel(entry.aiLevel) ? ' · ' + AI_LEVEL_LABELS[entry.aiLevel] : ''}` : entry.mode === 'REMOTE' ? `远程双人 · 我的席位 ${entry.seat || ''}` : '云端双人',
-    result: finished ? (entry.winnerReason === 'RESIGN' && entry.winner
-      ? `玩家 ${entry.winner === 'A' ? 'B' : 'A'} 认输 · 玩家 ${entry.winner} 获胜`
-      : entry.winner ? `玩家 ${entry.winner} 获胜` : '已结束') : '进行中',
+    status: entry.status, archived, title: archived ? '电脑试玩棋谱' : entry.mode === 'AI' ? `AI 对弈${isAiLevel(entry.aiLevel) ? ' · ' + AI_LEVEL_LABELS[entry.aiLevel] : ''}` : entry.mode === 'REMOTE' ? `联机对弈 · 你执${entry.seat === 'B' ? '红棋' : '黑棋'}` : '同机双人 · 云端保存',
+    result: archived ? '已归档 · 试玩结束' : finished ? (entry.winnerReason === 'RESIGN' && entry.winner
+      ? `${entry.winner === 'A' ? '红方' : '黑方'}认输 · ${entry.winner === 'A' ? '黑方' : '红方'}获胜`
+      : entry.winner ? `${entry.winner === 'A' ? '黑方' : '红方'}获胜` : '已结束') : '进行中',
     date: dateText(updatedAt), updatedAt, turns: entry.turns,
-    action: finished ? '查看复盘' : '继续对弈' };
+    action: archived ? '查看棋谱' : finished ? '查看复盘' : '继续对弈' };
 }
 
 Page({
   data: { records: [] as HistoryRow[], state: 'loading', filter: 'all',
+    cloudLoading: false, cloudFailed: false,
+    filterLabels: ['全部记录', '已结束', '可复盘'], filterIndex: 0,
     errorMessage: '', emptyTitle: '还没有对局记录',
     emptySubtitle: '开始一局对弈后，这里会保存真实记录',
-    emptyAction: '开始对弈', nextCursor: null as string | null },
+    emptyAction: '开始对弈', nextCursor: null as string | null, showSyncConfirm: false, syncTargetId: '' },
   cloud: [] as PersonalGameDto[],
   loadingCloud: false,
   loadGeneration: 0, pageVisible: true,
@@ -75,7 +81,7 @@ Page({
   onLoad(options: { filter?: string }) {
     this.pageVisible = true; this.syncBusy = new Set<string>();
     this.setData({ filter: options.filter === 'finished' || options.filter === 'reviewable'
-      ? options.filter : 'all' });
+      ? options.filter : 'all', filterIndex: options.filter === 'finished' ? 1 : options.filter === 'reviewable' ? 2 : 0 });
     this.load();
   },
   onShow() { this.pageVisible = true; this.load(); },
@@ -83,7 +89,7 @@ Page({
     this.loadGeneration += 1; this.loadingCloud = false;
     try {
       this.cloud = [];
-      this.setData({ nextCursor: null });
+      this.setData({ nextCursor: null, errorMessage: '', cloudFailed: false, cloudLoading: typeof wx.request === 'function' });
       this.renderRows();
       if (typeof wx.request === 'function') void this.loadCloud(false);
     } catch {
@@ -95,13 +101,16 @@ Page({
       item.mode === 'local' || item.mode === 'online' || item.mode === 'ai').map(rowForDevice).map(row =>
         row.localId && this.syncBusy.has(row.localId) ? { ...row, syncing: true,
           syncLabel: '同步中', syncReason: '正在同步，棋谱将冻结并由云端继续' } : row);
-    const cloud = this.cloud.map(rowForCloud);
+    const cloud = this.cloud.map(rowForCloud).map(row => {
+      const archive = local.find(item => item.id === row.id && item.archived);
+      return archive ? { ...row, archived: true, title: '电脑试玩棋谱', result: '已归档 · 试玩结束', action: '查看棋谱' } : row;
+    });
     const ids = new Set(cloud.map(item => item.id));
     const records = [...local.filter(item => !ids.has(item.id)), ...cloud].filter(item => this.data.filter === 'all' ||
-      (item.status === 'FINISHED' &&
+      (!item.archived && item.status === 'FINISHED' &&
         (this.data.filter !== 'reviewable' || item.mode === 'ai' || item.mode === 'remote' || item.mode === 'online')))
       .sort((a, b) => b.updatedAt - a.updatedAt || a.id.localeCompare(b.id));
-    this.setData({ records, state: records.length ? 'success' : 'empty',
+    this.setData({ records, state: records.length ? 'success' : this.data.cloudLoading ? 'loading' : this.data.cloudFailed ? 'error' : 'empty',
       emptyTitle: this.data.filter === 'reviewable' ? '还没有可复盘的棋局'
         : this.data.filter === 'finished' ? '还没有已结束的棋局' : '还没有对局记录',
       emptySubtitle: this.data.filter === 'reviewable'
@@ -112,13 +121,16 @@ Page({
   async loadCloud(more: boolean) {
     if (this.loadingCloud) return;
     this.loadingCloud = true;
+    this.setData({ cloudLoading: true, cloudFailed: false, errorMessage: '' });
+    try { this.renderRows(); }
+    catch { this.loadingCloud = false; this.setData({ cloudLoading: false, state: 'error', errorMessage: '本机历史记录读取失败，请重试' }); return; }
     const generation = this.loadGeneration;
     let root: string;
     let token: string | null;
     try { root = getApiBaseUrl(); token = getSavedWechatToken(root); }
     catch (error) {
       this.loadingCloud = false;
-      this.setData({ errorMessage: messageForApiError(error),
+      this.setData({ cloudLoading: false, cloudFailed: true, errorMessage: messageForApiError(error),
         ...(this.data.records.length ? {} : { state: 'error' }) });
       return;
     }
@@ -129,9 +141,7 @@ Page({
       catch { return false; }
     };
     if (!more) {
-      this.cloud = [];
       this.setData({ nextCursor: null });
-      this.renderRows();
     }
     try {
       const response = await createAccountApi(createApiClient()).games(20,
@@ -141,17 +151,42 @@ Page({
       const previous = more ? this.cloud : [];
       const known = new Set(previous.map(item => item.gameId));
       this.cloud = [...previous, ...response.items.filter(item => !known.has(item.gameId))];
-      this.setData({ nextCursor: response.nextCursor, errorMessage: '' });
+      this.setData({ nextCursor: response.nextCursor, errorMessage: '', cloudLoading: false, cloudFailed: false });
       this.renderRows();
     } catch (error) {
       if (!current()) return;
       const message = messageForApiError(error);
-      this.setData({ errorMessage: message,
+      this.setData({ errorMessage: message, cloudLoading: false, cloudFailed: true,
         ...(this.data.records.length ? {} : { state: 'error' }) });
-    } finally { if (generation === this.loadGeneration) this.loadingCloud = false; }
+    } finally {
+      if (generation === this.loadGeneration) {
+        this.loadingCloud = false;
+        if (!current()) {
+          this.cloud = [];
+          this.setData({ cloudLoading: false, cloudFailed: true, nextCursor: null,
+            errorMessage: '登录状态或服务地址已变化，请重新读取云端记录。' });
+          try { this.renderRows(); } catch { this.setData({ state: 'error' }); }
+        }
+      }
+    }
   },
   async syncRecord(event: WechatMiniprogram.TouchEvent) {
     const localId = event.currentTarget.dataset.localId as string;
+    let row: DeviceHistoryEntry | null;
+    try { row = createWxDeviceHistoryStore().get(localId); }
+    catch { this.setData({ errorMessage: '本机棋谱读取失败，请重试' }); return; }
+    if (row?.status === 'PLAYING' && !row.localSync && !row.id.startsWith('trial-')) {
+      this.setData({ showSyncConfirm: true, syncTargetId: localId }); return;
+    }
+    await this.performSync(localId);
+  },
+  cancelSync() { this.setData({ showSyncConfirm: false, syncTargetId: '' }); },
+  async confirmSync() {
+    const id = this.data.syncTargetId;
+    if (!this.data.showSyncConfirm || !id) return;
+    this.cancelSync(); await this.performSync(id);
+  },
+  async performSync(localId: string) {
     if (!localId || this.syncBusy.has(localId)) return;
     this.syncBusy.add(localId);
     const generation = this.loadGeneration;
@@ -177,6 +212,13 @@ Page({
     }
   },
   more() { if (this.data.nextCursor) void this.loadCloud(true); },
+  retryCloud() { void this.loadCloud(false); },
+  changeFilter(event: WechatMiniprogram.CustomEvent<{ value: string }>) {
+    const index = Number(event.detail.value);
+    const filter = ['all', 'finished', 'reviewable'][index];
+    if (!filter || filter === this.data.filter) return;
+    this.setData({ filter, filterIndex: index }); this.load();
+  },
   back() { wx.navigateBack({ delta: 1 }); },
   startGame() { openPage('/pages/game/game'); },
   retry() { this.load(); },
@@ -188,7 +230,8 @@ Page({
       wx.showToast({ title: '请恢复棋谱同步时的服务地址后打开', icon: 'none' }); return;
     }
     const encoded = encodeURIComponent(id);
-    if (row.mode === 'online') openPage(row.status === 'FINISHED'
+    if (row.archived) openPage(`/pages/record/record?${row.mode === 'local' ? 'localId' : 'gameId'}=${encoded}`);
+    else if (row.mode === 'online') openPage(row.status === 'FINISHED'
       ? `/pages/review/review?mode=online&gameId=${encoded}`
       : `/pages/online/online?gameId=${encoded}`);
     else if (row.status === 'FINISHED' && row.mode !== 'local')

@@ -14,15 +14,17 @@ export function replayView(replay: GameReplayDto, review: GameReviewDto, request
   const mapped = mapGameStateToView(state, { selectedNode: null, legalTargets: [], lastMove, lastCapture: capture });
   const row = step?.kind === 'MOVE' && step.player === review.reviewedPlayer
     ? review.moveReviews.find(r => r.turn === step.ply && r.player === review.reviewedPlayer) : undefined;
+  const side = step?.player === 'A' ? '黑方' : '红方';
   const explanation = !step ? '初始局面，尚未走棋。' : step.kind === 'RESIGN'
-    ? `玩家 ${step.player} 认输，终局事件不增加棋步。`
-    : step.player !== review.reviewedPlayer ? `对手走法 · 玩家 ${step.player}，没有本人评价。`
+    ? `${side}认输，终局事件不增加棋步。`
+    : step.player !== review.reviewedPlayer ? `对手走法 · ${side}，没有本人评价。`
     : row ? reviewReason(row) : '本方走法，本步没有评价。';
   return { replayIndex: index, replayPly: step?.ply ?? 0, replayTotalPly: replay.ply_count,
     replayMaxIndex: replay.steps.length, replayBoard: mapped.board,
     replayCurrentPlayer: mapped.currentPlayer, replayReserveA: mapped.reserve.A, replayReserveB: mapped.reserve.B,
     replayVersion: step?.version ?? 0,
-    replayStepText: !step ? '首局面' : step.kind === 'RESIGN' ? `终局 · 玩家 ${step.player} 认输` : `第 ${step.ply} 手 · 玩家 ${step.player} · ${describeMove(step.move)}`,
+    replayStepText: !step ? '首局面' : step.kind === 'RESIGN' ? `终局 · ${side}认输` : `第 ${step.ply} 手 · ${side} · ${describeMove(step.move)}`,
+    replayComparisonTurn: step?.kind === 'MOVE' && review.moveReviews.some(r => r.turn === step.ply && r.stateBefore) ? step.ply : 0,
     replayCaptureText: !capture ? '无吃子事件' : capture.was_applied
       ? `吃子：${capture.captured_nodes.join('、')} · 备用棋使用 ${capture.reserve_used} 枚`
       : capture.failure_reason === 'NONE' ? '本手没有吃子' : `吃子未生效：${ruleReasonText(capture.failure_reason)}`,

@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -29,7 +30,7 @@ async function harness(deferred = false, payload: any = profile()) {
   await import('../miniprogram/pages/profile/profile.ts');
   const page = { ...definition, data: { ...definition.data },
     setData(patch: Record<string, unknown>) { this.data = { ...this.data, ...patch }; } };
-  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
+  storage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   return { page, requests };
 }
 const tick = () => new Promise<void>(resolve => setImmediate(resolve));

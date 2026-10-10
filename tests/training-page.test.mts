@@ -12,6 +12,31 @@ registerHooks({ resolve(specifier, context, nextResolve) {
   }
 } });
 
+test('answer route previews keep the original position and reset with the next question', async () => {
+  let definition: any;
+  (globalThis as any).wx = {};
+  (globalThis as any).Page = (page: any) => { definition = page; };
+  await import(`../miniprogram/pages/training/training.ts?preview`);
+  const page = { ...definition, data: structuredClone(definition.data), controller: {},
+    setData(patch: any, done?: () => void) { Object.assign(this.data, patch); done?.(); } };
+  const { createInitialGameState } = await import('../miniprogram/domain/index.ts');
+  const question = { id: 'q1', title: '吃子', player: 'A', stateSnapshot: createInitialGameState(), trainingTags: ['CAPTURE'],
+    difficultyTag: 'EASY', sourceKind: 'CURATED', progress: { completed: false, attemptCount: 0 } };
+  const answer = { id: 'a1', result: 'SUBOPTIMAL', bestMoveEquivalent: false,
+    submittedMove: { from: 'P01', to: 'P02' }, bestMove: { from: 'P01', to: 'P06' } };
+  const snapshot = { items: [], question, answer, selectedNode: null, legalTargets: [] };
+  page.render(snapshot);
+  assert.equal(typeof page.showAnswerRoute, 'function');
+  const saved = structuredClone(question.stateSnapshot); const pieces = structuredClone(page.data.board.pieces);
+  page.showAnswerRoute({ currentTarget: { dataset: { route: 'mine' } } });
+  assert.equal(page.data.board.recommendedTo, 'P02');
+  page.showAnswerRoute({ currentTarget: { dataset: { route: 'best' } } });
+  assert.equal(page.data.board.recommendedTo, 'P06');
+  assert.deepEqual(page.data.board.pieces, pieces); assert.deepEqual(question.stateSnapshot, saved);
+  page.render({ ...snapshot, question: { ...question, id: 'q2' }, answer: null });
+  assert.equal(page.data.board.recommendLine, undefined); assert.equal(page.data.boardPreviewRoute, 'before');
+});
+
 test('training page route and actual picker handlers send source game and filter requests', async () => {
   let definition: any;
   const urls: URL[] = [];
@@ -63,6 +88,10 @@ test('training page route and actual picker handlers send source game and filter
     difficultyCalibration: { sampleCount: 2, firstTryCorrectCount: 1, minimumSamples: 20,
       status: 'COLLECTING', suggestedDifficulty: null } };
   page.render({ ...page.controller.snapshot, items: [item] });
+  assert.equal(page.data.recommendedItem.id, item.id);
+  const attempted = { ...item, id: 'continue-1', progress: { completed: false, attemptCount: 1, latestResult: 'SUBOPTIMAL' } };
+  page.render({ ...page.controller.snapshot, items: [{ ...item, progress: { completed: true, attemptCount: 2, latestResult: 'CORRECT' } }, item, attempted] });
+  assert.equal(page.data.recommendedItem.id, attempted.id, 'unfinished practiced question comes first');
   assert.equal(page.data.items[0].tagsText, '吃子 · 残局');
   assert.equal(page.data.items[0].difficultyText, '入门（教学分级）');
   assert.match(page.data.items[0].calibrationText, /待试玩校准.*2\/20/);
@@ -85,12 +114,27 @@ test('training page route and actual picker handlers send source game and filter
   assert.equal(page.data.resultText, '还有更好的走法');
   assert.equal(page.data.answerReasonText, result.lessonExplanation);
   assert.match(page.data.bestMoveText, /P13/);
+  const before = structuredClone(q.stateSnapshot);
+  const requestCount = urls.length;
+  const pieces = structuredClone(page.data.board.pieces);
+  page.showAnswerRoute({ currentTarget: { dataset: { route: 'mine' } } });
+  assert.equal(page.data.board.recommendedTo, 'P12');
+  page.showAnswerRoute({ currentTarget: { dataset: { route: 'best' } } });
+  assert.equal(page.data.board.recommendedTo, 'P13');
+  assert.deepEqual(page.data.board.pieces, pieces);
+  assert.deepEqual(q.stateSnapshot, before);
+  assert.equal(urls.length, requestCount);
+  page.render({ ...page.controller.snapshot, question: q, answer: result });
+  assert.equal(page.data.board.recommendedTo, 'P13', 'supplementary refresh preserves chosen route');
+  page.showAnswerRoute({ currentTarget: { dataset: { route: 'before' } } });
+  assert.equal(page.data.board.recommendLine, undefined);
   assert.deepEqual(scrolls, [{ selector: '#training-feedback', duration: 250 }]);
   page.render({ ...page.controller.snapshot, question: q, answer: result });
   assert.equal(scrolls.length, 1, 'supplementary refresh does not scroll again');
   page.render({ ...page.controller.snapshot, question: null, answer: null });
   assert.equal(page.data.answerReasonText, ''); assert.equal(page.data.bestMoveText, '');
   assert.equal(page.data.recommendationNote, ''); assert.equal(page.data.resultText, '');
+  assert.equal(page.data.boardPreviewRoute, 'before');
   assert.match(wxml, /wx:if="\{\{answer\}\}" id="training-feedback"/);
   page.onUnload();
 });

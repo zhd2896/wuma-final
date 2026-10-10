@@ -42,9 +42,9 @@ export const initialPieces: BoardPiece[] = [
   ...['P01', 'P06', 'P11', 'P16', 'P21'].map((nodeId, i) => place(`B${i}`, nodeId, 'black'))
 ];
 export const homeFeatures: Feature[] = [
-  { id: 'game', title: 'AI 对弈', subtitle: '与 AI 切磋，提升棋艺', icon: '弈', theme: 'red', route: '/pages/game/game' },
-  { id: 'local', title: '双人对战', subtitle: '本地双人对弈', icon: '双', theme: 'gold', route: '/pages/game/game?mode=local' },
-  { id: 'remote', title: '远程双人', subtitle: '建房邀请或匹配对手', icon: '云', theme: 'blue', route: '/pages/online/online' },
+  { id: 'game', title: '与电脑', subtitle: '与 AI 切磋，提升棋艺', icon: '弈', theme: 'red', route: '/pages/game/game?mode=ai&new=1' },
+  { id: 'local', title: '同机双人', subtitle: '打开同机双人，一台设备轮流走棋', icon: '双', theme: 'gold', route: '/pages/game/game?mode=local' },
+  { id: 'remote', title: '联机对弈', subtitle: '建房邀请或匹配对手', icon: '云', theme: 'blue', route: '/pages/online/online' },
   { id: 'training', title: '残局挑战', subtitle: '精选残局，步步为营', icon: '局', theme: 'blue', route: '/pages/training/training?source=CURATED' },
   { id: 'coach', title: 'AI 教练', subtitle: '个性化指导，提升棋力', icon: '师', theme: 'green', route: '/pages/coach/coach' },
   { id: 'review', title: '棋局复盘', subtitle: 'AI 分析，深入解析', icon: '复', theme: 'purple', route: '/pages/history/history?filter=reviewable' }

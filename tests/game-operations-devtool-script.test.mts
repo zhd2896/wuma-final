@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
@@ -109,8 +110,8 @@ test('operation fixtures verify WeChat ownership before connecting or writing', 
 
 test('operation script seeds the verified WeChat session and restores it after a failed page load', async t => {
   t.mock.method(console, 'log', () => {});
-  const sessionKey = 'wuma:wechat-session:v1:http://127.0.0.1:8000';
-  const legacyKey = 'wuma:device-account-token:v1:http://127.0.0.1:8000';
+  const sessionKey = `wuma:wechat-session:v1:${API_BASE_URLS.development}`;
+  const legacyKey = `wuma:device-account-token:v1:${API_BASE_URLS.development}`;
   const original = { token: 'b'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' };
   const storage = new Map<string, any>([[sessionKey, original], [legacyKey, 'legacy'], ['activeAiGameId', 'original-ai']]);
   const app = {};
@@ -139,6 +140,7 @@ test('operation script seeds the verified WeChat session and restores it after a
   };
   await assert.rejects(main({ env: {
     WUMA_TEST_DATABASE_URL: 'mysql://127.0.0.1/storage_test',
+    WUMA_GAME_OPERATIONS_API: API_BASE_URLS.development,
     WUMA_GAME_OPERATIONS_PROBE_GAME_ID: 'probe',
     WUMA_GAME_OPERATIONS_WECHAT_TOKEN: 'a'.repeat(64),
     WUMA_GAME_OPERATIONS_EXPIRES_AT: '2099-01-01T00:00:00Z',

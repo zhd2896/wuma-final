@@ -10,6 +10,8 @@ import type { GameViewModel } from '../game/game-state-mapper';
 import type { BoardState } from '../../types/domain';
 import { OnlineGameController } from './online-game';
 import type { OnlineSnapshot } from './online-game';
+import { roomCountdown } from './online-presentation';
+import { describeMove } from '../../utils/board-guidance';
 
 const emptyBoard: BoardState = { nodes: boardNodes, lines: boardLines, pieces: [] };
 
@@ -24,6 +26,8 @@ Page({
     showSettings: false,
     showUndoConfirm: false,
     showResign: false,
+    showLeave: false, exitAfterResign: false,
+    connectionText: '', lastSyncedText: '', recentAction: '', waitingTime: '',
     undoMessage: '预计回退 1 或 2 手，准确手数以服务端申请结果为准。对方同意后生效。',
     operationBusy: false,
     captureText: '', turnLabel: '', turnGuidance: '',
@@ -40,7 +44,8 @@ Page({
     let api;
     try { api = createOnlineApi(createApiClient()); }
     catch {
-      this.setData({ snapshot: { room: null, selectedNode: null, legalTargets: [],
+      this.setData({ snapshot: { connection: 'offline', lastSyncedAt: null, skippedTurns: 0, resumeGameId: null,
+        room: null, selectedNode: null, legalTargets: [],
         lastMove: null, lastCapture: null, busy: false, error: '', pendingMove: false,
         pendingOperation: false, isOperating: false, canRequestUndo: false, canRespondToUndo: false,
         canResign: false, operationNotice: '', successfulAction: 0 },
@@ -58,10 +63,14 @@ Page({
   },
   onShow() {
     if (this.poller !== null || !this.controller) return;
-    void this.controller?.refresh();
-    this.poller = setInterval(() => { void this.controller?.refresh(); }, 3000) as unknown as number;
+    void this.controller?.refresh(undefined, true);
+    this.poller = setInterval(() => {
+      if (this.data.snapshot?.room?.room_status === 'WAITING')
+        this.setData({ waitingTime: roomCountdown(this.data.snapshot.room.expires_at) });
+      void this.controller?.refresh();
+    }, 3000) as unknown as number;
   },
-  onHide() { this.stopPolling(); },
+  onHide() { this.stopPolling(); this.controller?.pause(); },
   onUnload() { this.stopPolling(); this.controller?.dispose(); this.controller = null; },
   stopPolling() {
     if (this.poller !== null) { clearInterval(this.poller); this.poller = null; }
@@ -87,24 +96,36 @@ Page({
       this.lastSuccessfulAction = snapshot.successfulAction;
       vibrateForSuccessfulAction(this.data.settings);
     }
-    const turnLabel = !room || !view ? '' : view.gameOver ? view.turnTitle
+    const turnLabel = !room || !view ? '' : snapshot.connection !== 'connected' ? '棋局同步尚未完成'
+      : view.gameOver ? view.turnTitle
       : room.pending_undo ? '悔棋协商中，棋盘已暂停'
       : snapshot.busy || snapshot.isOperating ? '正在处理操作'
       : snapshot.pendingOperation || snapshot.pendingMove ? '等待确认操作结果'
       : view.turnTitle;
-    const turnGuidance = !room || !view ? '' : view.gameOver ? view.winnerMessage
+    const turnGuidance = !room || !view ? '' : snapshot.connection !== 'connected' ? '当前棋盘供查看，恢复同步后才能继续操作'
+      : view.gameOver ? view.winnerMessage
       : room.pending_undo ? '等待双方处理悔棋申请，暂时不能落子'
       : snapshot.busy || snapshot.isOperating ? '正在处理，请稍候…'
-      : snapshot.pendingOperation || snapshot.pendingMove ? '操作结果尚未确认，请重试原请求'
+      : snapshot.pendingOperation || snapshot.pendingMove ? '操作结果尚未确认，请点恢复操作'
       : view.guidanceText;
-    this.setData({ snapshot, view, turnLabel, turnGuidance, board: view?.board ?? emptyBoard,
+    const recentAction = snapshot.lastMove ? `${snapshot.skippedTurns ? `已更新 ${snapshot.skippedTurns + 1} 手，以下是最近一手：` : '最近一手：'}${describeMove(snapshot.lastMove)}` : '';
+    this.setData({ snapshot, view, turnLabel, turnGuidance, recentAction,
+      waitingTime: room ? roomCountdown(room.expires_at) : '',
+      connectionText: snapshot.connection === 'connected' ? '已同步' : snapshot.connection === 'reconnecting' ? '正在恢复同步…' : '连接中断 · 请重试',
+      lastSyncedText: snapshot.lastSyncedAt ? `上次同步 ${new Date(snapshot.lastSyncedAt).toLocaleTimeString('zh-CN', { hour12: false })}` : '尚未成功同步',
+      board: view?.board ?? emptyBoard,
       operationBusy: snapshot.busy || snapshot.isOperating,
       captureText: this.data.settings.showCaptureNotice ? view?.captureText ?? '' : '',
       ...(!snapshot.canRequestUndo ? { showUndoConfirm: false } : {}),
       ...(!snapshot.canResign ? { showResign: false } : {}),
     });
   },
-  back() { backHome(); },
+  back() {
+    if (this.data.operationBusy || this.data.snapshot?.pendingMove || this.data.snapshot?.pendingOperation) return;
+    if (this.data.snapshot?.room?.room_status === 'PLAYING' || this.data.snapshot?.room?.room_status === 'WAITING')
+      this.setData({ showLeave: true });
+    else backHome();
+  },
   openAnalysis() {
     const room = this.data.snapshot?.room;
     if (room && (room.room_status === 'PLAYING' || room.room_status === 'FINISHED'))
@@ -122,7 +143,21 @@ Page({
   },
   joinRoom() { void this.controller?.join(this.data.joinCode); },
   cancelRoom() { void this.controller?.cancel(); },
-  leaveRoom() { this.controller?.leave(); },
+  leaveRoom() {
+    if (this.data.snapshot?.room?.room_status === 'PLAYING' || this.data.snapshot?.room?.room_status === 'WAITING')
+      this.setData({ showLeave: true });
+    else this.controller?.leave();
+  },
+  cancelLeave() { this.setData({ showLeave: false }); },
+  confirmLeave() {
+    if (!this.data.showLeave || this.data.operationBusy || this.data.snapshot?.pendingMove || this.data.snapshot?.pendingOperation) return;
+    this.setData({ showLeave: false }); this.controller?.leave(); backHome();
+  },
+  resumeRoom() { void this.controller?.restore(this.data.snapshot?.resumeGameId ?? undefined); },
+  resignAndLeave() {
+    if (!this.data.snapshot?.canResign) return;
+    this.setData({ showLeave: false, showResign: true, exitAfterResign: true });
+  },
   refreshRoom() { void this.controller?.refresh(); },
   retryMove() { void this.controller?.retryMove(); },
   retryOperation() { return this.controller?.retry(); },
@@ -140,13 +175,17 @@ Page({
   declineUndo() { return this.controller?.declineUndo(); },
   resign() {
     if (!this.data.snapshot?.canResign || this.data.operationBusy) return;
-    this.setData({ showResign: true, showUndoConfirm: false });
+    this.setData({ showResign: true, showUndoConfirm: false, exitAfterResign: false });
   },
-  cancelResign() { this.setData({ showResign: false }); },
+  cancelResign() { this.setData({ showResign: false, exitAfterResign: false }); },
   async confirmResign() {
     if (!this.data.showResign || this.data.operationBusy) return;
     this.setData({ showResign: false });
-    await this.controller?.resign();
+    const exit = this.data.exitAfterResign;
+    this.setData({ exitAfterResign: false });
+    if (await this.controller?.resign()) {
+      if (exit) { this.controller?.leave(); backHome(); }
+    }
   },
   settings() { this.setData({ showSettings: !this.data.showSettings }); },
   onSettingsChange(event: WechatMiniprogram.CustomEvent<GameSettings>) {

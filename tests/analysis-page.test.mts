@@ -27,16 +27,18 @@ test('independent page analyzes saved local state offline and authoritative serv
     lastMove: null,
   }] });
   storage.set('activeLocalGameId', 'local-1');
-  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const requests: Array<{ method: string; path: string; data: any }> = [];
+  const scrolls: string[] = [];
   let pageDefinition: Record<string, any> | null = null;
   (globalThis as any).Page = (definition: Record<string, any>) => { pageDefinition = definition; };
   (globalThis as any).wx = {
     getAccountInfoSync: () => ({ miniProgram: { envVersion: 'develop' } }),
-    getStorageSync: (key: string) => storage.get(key) ?? '',
+    getStorageSync: (key: string) => key.startsWith('wuma:wechat-session:v1:')
+      ? { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' } : storage.get(key) ?? '',
     setStorageSync: (key: string, value: unknown) => { storage.set(key, value); },
     removeStorageSync: (key: string) => { storage.delete(key); },
     navigateBack: () => {}, navigateTo: () => {},
+    pageScrollTo: (options: any) => { scrolls.push(options.selector); },
     request: (options: any) => {
       const url = new URL(options.url);
       requests.push({ method: options.method, path: url.pathname, data: options.data });
@@ -54,7 +56,8 @@ test('independent page analyzes saved local state offline and authoritative serv
   await import('../miniprogram/pages/analysis/analysis.ts');
   const definition = pageDefinition!;
   const makePage = () => ({ ...definition, data: { ...definition.data },
-    setData(patch: Record<string, unknown>) { this.data = { ...this.data, ...patch }; } });
+    setData(patch: Record<string, unknown>, callback?: () => void) {
+      this.data = { ...this.data, ...patch }; callback?.(); } });
   const flush = async () => { for (let i = 0; i < 8; i++) {
     await new Promise(resolve => setImmediate(resolve));
   } };
@@ -71,6 +74,9 @@ test('independent page analyzes saved local state offline and authoritative serv
   local.selectMove({ detail: { id: candidate.id } });
   assert.equal(local.data.previewBoard.recommendedFrom, candidate.move.from);
   assert.equal(local.data.previewBoard.recommendedTo, candidate.move.to);
+  assert.equal(local.data.previewMoveId, candidate.id);
+  assert.match(local.data.previewText, /正在预览/);
+  assert.equal(scrolls.at(-1), '#analysis-board-preview');
   assert.ok(local.data.previewBoard.recommendLine);
   assert.deepEqual(local.data.previewBoard.pieces, originalBoard.pieces);
   assert.deepEqual(local.data.view.board, originalBoard);
@@ -79,6 +85,11 @@ test('independent page analyzes saved local state offline and authoritative serv
   assert.equal(local.data.previewBoard, selectedBoard);
   local.showBestMove();
   assert.equal(local.data.previewBoard.recommendedTo, local.data.view.bestMove.move.to);
+  local.clearPreview();
+  assert.equal(local.data.previewMoveId, '');
+  assert.equal(local.data.previewText, '');
+  assert.equal(local.data.previewBoard.recommendLine, undefined);
+  assert.deepEqual(local.data.previewBoard.pieces, originalBoard.pieces);
   assert.deepEqual(requests, [], 'local analysis must remain available offline');
   local.onUnload();
 
@@ -101,12 +112,14 @@ test('analysis templates bind real fields and contain no demo labels', () => {
     import.meta.url), 'utf8');
   const evaluation = readFileSync(new URL(
     '../miniprogram/components/evaluation-panel/evaluation-panel.wxml', import.meta.url), 'utf8');
-  assert.match(page, /view\.breakdown/);
+  assert.match(evaluation, /analysis\.breakdown/);
   assert.match(page, /view\.keyPieces/);
-  assert.match(page, /view\.candidates/);
-  assert.match(page, /best-score="\{\{view\.bestScore\}\}"/);
+  assert.match(page, /view\.alternatives/);
+  assert.match(page, /analysis="\{\{view\}\}"/);
+  assert.match(evaluation, /<expandable-details[\s\S]*analysis\.scoreText/);
+  assert.doesNotMatch(evaluation, /class="track"|class="marker"/);
   assert.doesNotMatch(page, /bestScore=/);
   assert.match(page, /view\.winner/);
-  assert.match(page, /view\.winnerReason/);
+  assert.match(page, /view\.presentation\.reasons/);
   assert.doesNotMatch(`${page}\n${evaluation}`, /演示数据|演示棋盘|UI 演示/);
 });

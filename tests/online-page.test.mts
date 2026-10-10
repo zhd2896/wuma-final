@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -18,7 +19,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('invite opens a real guest room page and history reopens the saved seat', async () => {
   const storage = new Map<string, unknown>();
-  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
+  storage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   const requests: any[] = [];
   const initial = createInitialGameState();
   let definition: Record<string, any> | null = null;
@@ -66,7 +67,7 @@ test('invite opens a real guest room page and history reopens the saved seat', a
 test('online page confirms real operations, uses ply count and settings, and never vibrates on polling', async () => {
   const { RuleEngine } = await import('../miniprogram/domain/index.ts');
   const storage = new Map<string, unknown>([
-    ['wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' }],
+    [`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' }],
     ['wuma:online:active', 'page-ops'], ['wuma:online:seat:page-ops', 'seat'],
     ['wuma:game-settings:v1', { version: 1, settings: {
       showLegalTargets: false, showCaptureNotice: false, vibrateOnAction: true, aiFirstPlayer: 'A' } }],

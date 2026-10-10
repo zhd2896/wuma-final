@@ -92,7 +92,7 @@ test('cloud REMOTE history opens online resume or its own seat review', async ()
     setData(patch) { Object.assign(this.data, patch); } };
   page.renderRows();
   assert.equal(page.data.records[0].mode, 'online');
-  assert.match(page.data.records[0].title, /B/);
+  assert.match(page.data.records[0].title, /红棋/);
   page.openRecord({ currentTarget: { dataset: { id: 'cloud-room' } } });
   assert.equal(urls.pop(), '/pages/online/online?gameId=cloud-room');
   page.cloud[0].status = 'FINISHED';
@@ -155,6 +155,6 @@ test('cloud finished state supersedes a stale local online row while device-only
   const authoritative = page.data.records.find(row => row.id === 'cloud-room');
   assert.equal(authoritative.status, 'FINISHED');
   assert.equal(authoritative.turns, 8);
-  assert.match(authoritative.title, /B/);
+  assert.match(authoritative.title, /红棋/);
   assert.equal(page.data.records.find(row => row.id === 'legacy-room').status, 'PLAYING');
 });

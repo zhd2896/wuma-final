@@ -52,6 +52,7 @@ export class AlphaBetaAI implements MoveChooser {
   private readonly useMoveOrdering: boolean;
   private readonly useTranspositionTable: boolean;
   private readonly useBlockadeExtension: boolean;
+  private readonly blockadeAttackerTurns: 1 | 2 | 3;
 
   constructor(options: AlphaBetaOptions) {
     if (!Number.isSafeInteger(options.depth) || options.depth < 0) {
@@ -62,6 +63,7 @@ export class AlphaBetaAI implements MoveChooser {
     this.useMoveOrdering = options.useMoveOrdering ?? false;
     this.useTranspositionTable = options.useTranspositionTable ?? false;
     this.useBlockadeExtension = options.useBlockadeExtension ?? true;
+    this.blockadeAttackerTurns = options.blockadeAttackerTurns ?? 3;
   }
 
   chooseMove(state: GameState): Move | null {
@@ -133,6 +135,7 @@ export class AlphaBetaAI implements MoveChooser {
       }
       if (remainingDepth === 0) {
         const proof = this.useBlockadeExtension ? extendBlockade(position, { checkTimeout: control.checkTimeout,
+          maxAttackerTurns: this.blockadeAttackerTurns,
           onNodeVisited: visitNode }) : null;
         if (proof) return save({ score: proof.winner === rootPlayer
           ? this.evaluationConfig.mateScore - ply - proof.maxPlies

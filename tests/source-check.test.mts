@@ -98,6 +98,26 @@ test('source checker validates subpackage routes, events and image assets', () =
     assert.equal(valid.status, 0, valid.output);
     assert.match(valid.output, /11 registered pages/);
 
+    const services = join(mini, 'services');
+    mkdirSync(services);
+    writeFileSync(join(mini, 'guide', 'progress.ts'), 'export const progress = 1;');
+    writeFileSync(join(pages, 'index', 'index.ts'), "import '../../services/continue-activity';");
+    for (const source of [
+      "import { progress } from '../guide/progress';",
+      "export { progress } from '../guide/progress';",
+      "const progress = require('../guide/progress');",
+      "const progress = import('../guide/progress');",
+    ]) {
+      writeFileSync(join(services, 'continue-activity.ts'), source);
+      const boundary = runCheck(root);
+      assert.equal(boundary.status, 1, `must reject main package runtime dependency: ${source}`);
+      assert.match(boundary.output, /subpackage dependency.*services\/continue-activity.ts.*guide\/progress/);
+    }
+    writeFileSync(join(services, 'continue-activity.ts'), "import type { Progress } from '../guide/progress';");
+    writeFileSync(join(mini, 'guide', 'progress.ts'), "import '../services/continue-activity';");
+    const safe = runCheck(root);
+    assert.equal(safe.status, 0, safe.output);
+
     writeFileSync(join(pages, 'index', 'index.ts'),
       "const route = '/guide/pages/missing/missing';");
     const missingRoute = runCheck(root);

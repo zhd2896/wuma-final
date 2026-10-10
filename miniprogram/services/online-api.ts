@@ -1,5 +1,5 @@
 import { NODE_IDS } from '../domain/index';
-import type { GameState, Move, NodeId, Player, TurnResult } from '../domain/index';
+import type { CaptureResult, GameState, Move, NodeId, Player, TurnResult } from '../domain/index';
 import { ApiError } from './api-client';
 import type { ApiClient } from './api-client';
 import { requirePlyCount } from './game-api';
@@ -22,6 +22,7 @@ export interface OnlineOperationRequest {
 }
 
 export interface OnlineRoom {
+  readonly last_turn?: { readonly version: number; readonly ply: number; readonly move: Move; readonly captures: CaptureResult } | null;
   readonly account_bound?: boolean;
   readonly game_id: string;
   readonly seat: Player;
@@ -88,6 +89,15 @@ export function requireOnlineRoom(value: OnlineRoom, expected?: { game_id: strin
     throw new ApiError('INVALID_GAME_RESPONSE', 502);
   }
   const undo = value.pending_undo;
+  const turn = value.last_turn;
+  if (turn != null && (turn.version !== value.version || turn.ply !== value.ply_count || turn.ply < 1 ||
+      !NODE_IDS.includes(turn.move?.from) || !NODE_IDS.includes(turn.move?.to) ||
+      !turn.captures || typeof turn.captures.was_applied !== 'boolean' ||
+      !integer(turn.captures.reserve_used) || !Array.isArray(turn.captures.captured_nodes) ||
+      !turn.captures.captured_nodes.every(node => NODE_IDS.includes(node)) ||
+      !Array.isArray(turn.captures.replacement_nodes) || !turn.captures.replacement_nodes.every(node => NODE_IDS.includes(node)))) {
+    throw new ApiError('INVALID_GAME_RESPONSE', 502);
+  }
   if (undo !== null && (!undo || typeof undo.id !== 'string' || !undo.id ||
       !validPlayer(undo.requester) || !validPlayer(undo.responder) || undo.requester === undo.responder ||
       !integer(undo.base_revision) || !integer(undo.anchor_turn) || undo.anchor_turn < 1 ||

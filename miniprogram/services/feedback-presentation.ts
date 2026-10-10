@@ -20,6 +20,9 @@ export function readableReason(text: string | undefined, fallback: string): stri
 }
 export function reviewReason(move: MoveReviewDto & { naturalExplanation?: string }): string {
   const types = new Set((move.threatsBefore ?? []).map(threat => threat.type));
+  if (types.has('FORCED_BLOCKADE_AVAILABLE') && move.engineExplanation?.includes('仍能完成强制围堵')) {
+    return '这步仍可围堵，但收网较慢；建议比较更快的封锁路线。';
+  }
   const fallback = types.has('FORCED_BLOCKADE_AVAILABLE')
     ? move.bestMoveEquivalent || move.category === 'GOOD'
       ? '这步保留了封锁通路，已验证可强制完成围堵；仍需根据对手应手继续收口。'

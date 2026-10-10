@@ -9,6 +9,7 @@ export interface BlockadeProof {
   readonly winnerReasons: readonly WinnerReason[];
 }
 export interface BlockadeControl {
+  readonly maxAttackerTurns?: 1 | 2 | 3;
   readonly checkTimeout?: () => void;
   readonly onNodeVisited?: () => void;
 }
@@ -58,27 +59,58 @@ function immediateFinish(state: GameState, attacker: Player, control: BlockadeCo
   }
   return null;
 }
-function everyReply(state: GameState, attacker: Player, control: BlockadeControl): BlockadeProof | null {
+function attackerFinish(state: GameState, attacker: Player, remainingTurns: number,
+                        control: BlockadeControl): BlockadeProof | null {
+  // An escape to the main board may still be a real immediate blockade.
+  // Only longer preparations require the compact temple restriction.
+  const immediate = immediateFinish(state, attacker, control);
+  if (immediate || remainingTurns <= 1) return immediate;
+  const target = compactTarget(state);
+  if (!target || target.attacker !== attacker || state.current_player !== attacker) return null;
+  // Selective preparation only: coordinate temple seals and the main entrance.
+  // Defender moves below are never filtered; escaping any branch defeats proof.
+  const stageEntrance = remainingTurns >= 3 &&
+    (target.target === 'P26' || target.target === 'P28') &&
+    state.board.occupancy.P03 === attacker && state.board.occupancy.P27 === attacker;
+  const moves = RuleEngine.getAllLegalMoves(state).filter(move =>
+    move.to === 'P03' || TEMPLE_NODES.includes(move.to) ||
+    (stageEntrance && (move.to === 'P02' || move.to === 'P04')));
+  for (const move of moves) {
+    const child = turn(state, move, control);
+    if (child.game_status !== 'PLAYING') continue;
+    const proof = everyReply(child, attacker, remainingTurns - 1, control);
+    if (proof) return { ...proof, maxPlies: 1 + proof.maxPlies,
+      lines: proof.lines.map(line => [move, ...line]) };
+  }
+  return null;
+}
+
+function everyReply(state: GameState, attacker: Player, remainingTurns: number,
+                    control: BlockadeControl): BlockadeProof | null {
+  const target = compactTarget(state);
+  if (!target || target.attacker !== attacker || state.current_player === attacker) return null;
   const replies = RuleEngine.getAllLegalMoves(state);
   if (!replies.length) return null; // Missing adjudication is not a proof.
   const lines: Move[][] = []; const reasons = new Set<WinnerReason>();
   for (const reply of replies) {
     const child = turn(state, reply, control);
     if (child.game_status !== 'PLAYING') return null;
-    const finish = immediateFinish(child, attacker, control);
+    const finish = attackerFinish(child, attacker, remainingTurns, control);
     if (!finish) return null;
-    lines.push([reply, ...finish.lines[0]]);
+    lines.push(...finish.lines.map(line => [reply, ...line]));
     finish.winnerReasons.forEach(reason => reasons.add(reason));
   }
-  return { winner: attacker, maxPlies: 2, lines, winnerReasons: [...reasons] };
+  return { winner: attacker, maxPlies: Math.max(...lines.map(line => line.length)),
+    lines, winnerReasons: [...reasons] };
 }
 
-/** Selective leaf extension: at most two plies, restricted to compact temple endgames. */
+/** Selective leaf extension: at most six plies, restricted to compact temple endgames. */
 export function extendBlockade(state: GameState, control: BlockadeControl = {}): BlockadeProof | null {
   const target = compactTarget(state);
   if (!target) return null;
   return state.current_player === target.attacker
-    ? immediateFinish(state, target.attacker, control) : everyReply(state, target.attacker, control);
+    ? attackerFinish(state, target.attacker, control.maxAttackerTurns ?? 3, control)
+    : everyReply(state, target.attacker, control.maxAttackerTurns ?? 3, control);
 }
 
 /** Verify a specific recommended preparation, including every legal opponent reply. */
@@ -90,8 +122,9 @@ export function proveBlockadeMove(state: GameState, move: Move,
   if (isBlockadeWin(child, target.attacker)) return { winner: target.attacker, maxPlies: 1,
     lines: [[move]], winnerReasons: [child.winner_reason!] };
   if (child.game_status !== 'PLAYING') return null;
-  const finish = everyReply(child, target.attacker, control);
-  return finish ? { ...finish, maxPlies: 3, lines: finish.lines.map(line => [move, ...line]) } : null;
+  const finish = everyReply(child, target.attacker, control.maxAttackerTurns ?? 3, control);
+  return finish ? { ...finish, maxPlies: 1 + finish.maxPlies,
+    lines: finish.lines.map(line => [move, ...line]) } : null;
 }
 
 /** Static sealed-region heuristic; ignores future captures and never adjudicates a game. */

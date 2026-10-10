@@ -1,0 +1,1 @@
+.record-controls{display:flex;gap:20rpx;margin:20rpx 0}.record-controls button{flex:1}

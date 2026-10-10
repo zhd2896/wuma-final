@@ -46,6 +46,7 @@ test('game settings use safe defaults and persist versioned changes', () => {
   const store = createGameSettingsStore(memory.storage);
 
   assert.deepEqual(store.read(), {
+    highContrastBoard: false, largeBoardText: false,
     showNodeLabels: false,
     showLegalTargets: true,
     showCaptureNotice: true,
@@ -59,6 +60,7 @@ test('game settings use safe defaults and persist versioned changes', () => {
   assert.deepEqual(memory.values.get('wuma:game-settings:v1'), {
     version: 1,
     settings: {
+      highContrastBoard: false, largeBoardText: false,
       showNodeLabels: false,
       showLegalTargets: false,
       showCaptureNotice: true,
@@ -75,10 +77,24 @@ test('adding node labels preserves legacy settings and persists the new preferen
     vibrateOnAction: false, aiFirstPlayer: 'B' };
   const memory = memoryStorage({ version: 1, settings: legacy });
   const store = createGameSettingsStore(memory.storage);
-  assert.deepEqual(store.read(), { ...legacy, showNodeLabels: false, defaultAiLevel: 'STANDARD' });
+  assert.deepEqual(store.read(), { ...legacy, showNodeLabels: false, defaultAiLevel: 'STANDARD', highContrastBoard: false, largeBoardText: false });
   store.write({ ...store.read(), showNodeLabels: true });
   assert.deepEqual(createGameSettingsStore(memory.storage).read(),
-    { ...legacy, showNodeLabels: true, defaultAiLevel: 'STANDARD' });
+    { ...legacy, showNodeLabels: true, defaultAiLevel: 'STANDARD', highContrastBoard: false, largeBoardText: false });
+});
+
+test('board accessibility settings persist and reject non-boolean stored or written preferences', () => {
+  const memory = memoryStorage(); const store = createGameSettingsStore(memory.storage);
+  assert.equal(store.read().highContrastBoard, false);
+  assert.equal(store.read().largeBoardText, false);
+  store.write({ ...store.read(), highContrastBoard: true, largeBoardText: true });
+  assert.equal(createGameSettingsStore(memory.storage).read().highContrastBoard, true);
+  assert.equal(createGameSettingsStore(memory.storage).read().largeBoardText, true);
+  for (const key of ['highContrastBoard', 'largeBoardText']) {
+    assert.throws(() => store.write({ ...store.read(), [key]: 'yes' } as any), /Invalid game settings/);
+    const damaged = memoryStorage({ version: 1, settings: { ...DEFAULT_GAME_SETTINGS, [key]: 'yes' } });
+    assert.deepEqual(createGameSettingsStore(damaged.storage).read(), DEFAULT_GAME_SETTINGS);
+  }
 });
 
 test('damaged, partial, and wrongly typed stored settings are replaced with defaults', () => {
@@ -164,6 +180,8 @@ test('game settings component emits a complete settings object for every control
   assert.deepEqual(definition.properties.settings.value, DEFAULT_GAME_SETTINGS);
   const base = { ...DEFAULT_GAME_SETTINGS };
   for (const [method, detail, changedKey, expected] of [
+    ['onHighContrastChange', { value: true }, 'highContrastBoard', true],
+    ['onLargeTextChange', { value: true }, 'largeBoardText', true],
     ['onNodeLabelsChange', { value: true }, 'showNodeLabels', true],
     ['onLegalTargetsChange', { value: false }, 'showLegalTargets', false],
     ['onCaptureNoticeChange', { value: false }, 'showCaptureNotice', false],
@@ -184,13 +202,13 @@ test('game settings component emits a complete settings object for every control
   }
 });
 
-test('component template contains four switches, one AI radio group, and no controller access', () => {
+test('component template contains display switches, one AI radio group, and no controller access', () => {
   const root = new URL('../miniprogram/components/game-settings/', import.meta.url);
   const wxml = readFileSync(new URL('game-settings.wxml', root), 'utf8');
   const source = readFileSync(new URL('game-settings.ts', root), 'utf8');
   const manifest = JSON.parse(readFileSync(new URL('game-settings.json', root), 'utf8'));
 
-  assert.equal((wxml.match(/<switch\b/g) ?? []).length, 4);
+  assert.equal((wxml.match(/<switch\b/g) ?? []).length, 6);
   assert.match(wxml, /<radio-group\b/);
   assert.match(wxml, /showAiFirstPlayer/);
   assert.deepEqual(manifest, { component: true });

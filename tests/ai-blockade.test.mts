@@ -82,15 +82,16 @@ test('real analysis labels a verified forced blockade and identifies the isolate
   assert.equal(proof.evidence.winnerReason, 'TEMPLE_TRAP');
 });
 
-test('review explains the missed forced win rather than recommending the historical shuffle', () => {
+test('review favors the faster blockade without calling a slower proved win a blunder', () => {
   const state = actualBlockade(); const move: Move = { from: 'P26', to: 'P03' };
   const after = RuleEngine.executeTurn(state, move).state;
   const review = analyzeReviewMove(state, after, move, { maxDepth: 1, timeLimitMs: 1000,
     candidateLimit: 3, goodMaxLoss: 0, normalMaxLoss: 30, mistakeMaxLoss: 100, now: () => 0 });
-  assert.equal(review.category, 'BLUNDER');
+  assert.equal(review.category, 'NORMAL');
   assert.ok(finishesAgainstEveryReply(state, review.bestMove));
   assert.match(review.engineExplanation, /围堵/);
-  assert.ok(review.scoreLoss > 900_000);
+  assert.equal(review.scoreLoss, 4);
+  assert.match(review.engineExplanation, /仍能/);
 });
 
 test('terminal guidance states that no legal move after switching is the reason', () => {
@@ -122,10 +123,14 @@ test('both colors close the real line and reach a real terminal without repeatin
   }
 });
 
-test('opening an existing seal is not certified, and reaching the main board is not a temple loss', async () => {
+test('a reopened seal requires a longer real proof, and the main board is not a temple loss', async () => {
   const { proveBlockadeMove } = await import('../miniprogram/ai/blockade.ts');
   const state = actualBlockade();
-  assert.equal(proveBlockadeMove(state, { from: 'P26', to: 'P03' }), null);
+  const move: Move = { from: 'P26', to: 'P03' };
+  assert.equal(proveBlockadeMove(state, move, { maxAttackerTurns: 1 }), null);
+  const recovered = proveBlockadeMove(state, move);
+  assert.ok(recovered); assert.equal(recovered.maxPlies, 7);
+  for (const line of recovered.lines) assert.equal(line.reduce((s, m) => RuleEngine.executeTurn(s,m).state, state).winner, 'B');
   const occupancy = { ...state.board.occupancy, P28: null, P03: 'A' as const };
   const escaped = { ...state, board: { occupancy } };
   assert.equal(proveBlockadeMove(escaped, { from: 'P05', to: 'P04' }), null);
@@ -202,10 +207,13 @@ test('review retains completed scores when a deeper winning proof is interrupted
     Object.assign(state.players.B, { reserve_count: 4 });
     const move: Move = { from: 'P05', to: 'P03' };
     const after = RuleEngine.executeTurn(state, move).state;
-    const review = analyzeReviewMove(state, after, move, { maxDepth: 4, timeLimitMs: 500,
+    // Disable selective extension here so the proof first appears in a deeper
+    // ordinary layer even when the tactical horizon is enlarged in the future.
+    const review = analyzeReviewMove(state, after, move, { maxDepth: 6, timeLimitMs: 500,
+      useBlockadeExtension: false,
       candidateLimit: 29, goodMaxLoss: 0, normalMaxLoss: 30, mistakeMaxLoss: 100, now: () => clock });
     assert.equal(review.timedOut, true);
-    assert.equal(review.searchDepth, 2);
+    assert.equal(review.searchDepth, 4);
     assert.equal(review.bestCandidateMoves.length, RuleEngine.getAllLegalMoves(state).length);
     const actual = review.bestCandidateMoves.find(candidate => candidate.move.from === move.from && candidate.move.to === move.to);
     assert.ok(actual);

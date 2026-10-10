@@ -9,14 +9,17 @@ import type { TrainingSnapshot } from './training-controller';
 import type { TrainingFilters } from '../../services/training-api';
 import { trainingPresentation } from './training-presentation';
 import { answerFeedback } from '../../services/feedback-presentation';
-import { describeMove } from '../../utils/board-guidance';
+import { describeMove, highlightBoardMove } from '../../utils/board-guidance';
+
+type TrainingItemView = { id: string; title: string; sourceText: string; difficultyText: string;
+  progressText: string; tagsText: string; calibrationText: string };
 
 const emptyBoard: BoardState = { nodes: boardNodes, lines: boardLines, pieces: [] };
 
 Page({
   data: {
-    items: [] as { id: string; title: string; sourceText: string; difficultyText: string;
-      progressText: string; tagsText: string; calibrationText: string }[],
+    items: [] as TrainingItemView[], recommendedItem: null as TrainingItemView | null,
+    boardPreviewRoute: 'before',
     sourceOptions: ['精选残局', '我的复盘'], sourceIndex: 0,
     categoryOptions: ['全部类别', '失误', '严重失误'], categoryIndex: 0,
     difficultyOptions: ['全部难度', '入门', '进阶', '复杂', '待校准'], difficultyIndex: 0,
@@ -54,20 +57,26 @@ Page({
     const answer = snapshot.answer;
     const feedback = answerFeedback(answer);
     const showFeedback = answer && answer.id !== this.data.answer?.id;
+    const sameAnswer = question?.id === this.data.question?.id && answer?.id === this.data.answer?.id;
+    const boardPreviewRoute = sameAnswer && answer ? this.data.boardPreviewRoute : 'before';
     const view = question ? mapGameStateToView(question.stateSnapshot, {
       selectedNode: snapshot.selectedNode, legalTargets: snapshot.legalTargets,
-      lastMove: answer?.submittedMove ?? null,
+      lastMove: null,
     }) : null;
-    this.setData({
-      items: snapshot.items.map(item => ({ id: item.id, title: item.title,
+    const items = snapshot.items.map(item => ({ id: item.id, title: item.title,
         sourceText: item.sourceKind === 'CURATED' ? '精选残局'
           : `复盘第 ${item.sourceTurn} 手 · ${item.sourceCategory === 'BLUNDER' ? '严重失误' : '失误'}`,
         ...trainingPresentation(item),
         progressText: `${item.progress.completed ? '已完成' : '未完成'} · 已答 ${item.progress.attemptCount} 次` +
           (item.progress.latestResult ? ` · 最近${item.progress.latestResult === 'CORRECT' ? '正确' : '尚可改进'}` : ''),
-        })),
+        }));
+    const recommended = snapshot.items.find(item => !item.progress.completed && item.progress.attemptCount > 0)
+      ?? snapshot.items.find(item => !item.progress.completed) ?? snapshot.items[0];
+    this.setData({
+      items, recommendedItem: items.find(item => item.id === recommended?.id) ?? null, boardPreviewRoute,
       noticeMessage: snapshot.noticeMessage,
-      total: snapshot.total, question, answer, board: view?.board ?? emptyBoard,
+      total: snapshot.total, question, answer, board: view ? highlightBoardMove(view.board, answer
+        ? boardPreviewRoute === 'mine' ? answer.submittedMove : boardPreviewRoute === 'best' ? answer.bestMove : null : null) : emptyBoard,
       questionDifficultyText: question ? trainingPresentation(question).difficultyText : '',
       questionTagsText: question ? trainingPresentation(question).tagsText : '',
       questionCalibrationText: question ? trainingPresentation(question).calibrationText : '',
@@ -114,6 +123,15 @@ Page({
   openQuestion(event: WechatMiniprogram.TouchEvent) {
     const id = event.currentTarget.dataset.id as string;
     if (id) void this.controller?.open(id);
+  },
+  showAnswerRoute(event: WechatMiniprogram.TouchEvent) {
+    const { question, answer } = this.data;
+    if (!question || !answer || !this.controller) return;
+    const route = event.currentTarget.dataset.route;
+    if (route !== 'mine' && route !== 'best' && route !== 'before') return;
+    const board = mapGameStateToView(question.stateSnapshot).board;
+    this.setData({ boardPreviewRoute: route,
+      board: highlightBoardMove(board, route === 'mine' ? answer.submittedMove : route === 'best' ? answer.bestMove : null) });
   },
   onNode(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
     void this.controller?.tapNode(event.detail.id);

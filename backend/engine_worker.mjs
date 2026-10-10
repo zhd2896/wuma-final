@@ -85,6 +85,7 @@ function dispatch(command, payload) {
     }
     case 'analyze_position':
       return analyzePosition(payload.state, {
+        ...(payload.scoring_config_version === 2 ? { blockadeAttackerTurns: 1 } : {}),
         ...(payload.scoring_config_version === 1 ? {
           useBlockadeExtension: false,
           evaluationConfig: { ...DEFAULT_EVALUATION_CONFIG, blockadeWeight: 0, loneMobilityScale: 1 },
@@ -95,6 +96,7 @@ function dispatch(command, payload) {
       });
     case 'review_move':
       return analyzeReviewMove(payload.state_before, payload.state_after, payload.actual_move, {
+        ...(payload.config.version === 2 ? { blockadeAttackerTurns: 1 } : {}),
         // Saved training items keep their original scoring policy. New reviews
         // use v2, so old bestScore and answer equivalence are never silently mixed.
         ...(payload.config.version === 1 ? {

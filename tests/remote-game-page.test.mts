@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -22,7 +23,7 @@ test('existing game page renders remote server state, saves ID, restores and kee
   let serverState = initial;
   let storedId: string | null = null;
   const otherStorage = new Map<string, unknown>();
-  otherStorage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
+  otherStorage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   let creates = 0;
   const requests: Array<{ method: string; url: string; data?: unknown }> = [];
   let pageDefinition: Record<string, any> | null = null;

@@ -28,6 +28,7 @@ export interface SkillProfileDto {
 }
 
 export interface PersonalGameDto {
+  readonly sourceKind?: 'TRIAL' | 'LOCAL';
   readonly gameId: string;
   readonly aiLevel?: AiLevel | null;
   readonly mode: 'AI' | 'LOCAL' | 'REMOTE';

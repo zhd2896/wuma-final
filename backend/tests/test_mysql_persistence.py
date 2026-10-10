@@ -964,7 +964,7 @@ def test_review_persists_atomic_ordered_rows_and_reuses_same_config(client, db):
     assert created.status_code == 200, created.text
     review = created.json()["data"]
     assert [item["turn"] for item in review["moveReviews"]] == [1, 3]
-    assert review["reviewConfigVersion"] == 2
+    assert review["reviewConfigVersion"] == 3
     assert review["winnerReason"] == "CAPTURE_ALL"
     assert client.post(f"/api/v1/game/{game_id}/review", json={}).json()["data"] == review
     assert client.get(f"/api/v1/game/{game_id}/review").json()["data"] == review
@@ -1057,7 +1057,7 @@ def test_coach_persists_three_levels_and_keeps_game_immutable(client, db):
         rows = session.scalars(select(CoachHintModel).where(
             CoachHintModel.game_id == game_id).order_by(CoachHintModel.hint_level)).all()
         assert [row.hint_level for row in rows] == [1, 2, 3]
-        assert all(row.game_version == 0 and row.prompt_version == "coach_hint_v2"
+        assert all(row.game_version == 0 and row.prompt_version == "coach_hint_v3"
                    for row in rows)
         assert all(row.fallback_used and row.provider == "fallback" for row in rows)
     with pytest.raises(IntegrityError):

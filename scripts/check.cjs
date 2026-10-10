@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const ts = require('typescript');
 
 const root = process.env.WUMA_CHECK_ROOT
   ? path.resolve(process.env.WUMA_CHECK_ROOT)
@@ -10,6 +11,47 @@ const subPackages = app.subPackages || app.subpackages || [];
 const pageRoutes = [...app.pages, ...subPackages.flatMap(pkg =>
   pkg.pages.map(route => `${pkg.root.replace(/\/$/, '')}/${route}`))];
 const errors = [];
+// A regular subpackage may use the main package; the reverse cannot load at startup.
+const packageRoots = subPackages.map(pkg => ({ ...pkg, absolute: path.resolve(mini, pkg.root) }));
+const packageOf = file => packageRoots.find(pkg =>
+  file.startsWith(`${pkg.absolute}${path.sep}`));
+function checkDependencies(dir) {
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const file = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (!['node_modules', 'miniprogram_npm'].includes(entry.name)) checkDependencies(file);
+      continue;
+    }
+    if (!/\.(ts|js)$/.test(file) || /\.d\.ts$/.test(file)) continue;
+    const source = ts.createSourceFile(file, fs.readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true);
+    const owner = packageOf(file);
+    function visit(node) {
+      let specifier;
+      if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+        if (node.isTypeOnly || node.importClause?.isTypeOnly) return;
+        const bindings = node.importClause?.namedBindings || node.exportClause;
+        if (!node.importClause?.name && bindings?.elements?.length &&
+            bindings.elements.every(element => element.isTypeOnly)) return;
+        specifier = node.moduleSpecifier;
+      } else if (ts.isCallExpression(node) &&
+          (node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+            ts.isIdentifier(node.expression) && node.expression.text === 'require')) {
+        specifier = node.arguments[0];
+      }
+      if (specifier && ts.isStringLiteralLike(specifier) && /^[./]/.test(specifier.text)) {
+        const target = specifier.text.startsWith('/')
+          ? path.resolve(mini, specifier.text.slice(1)) : path.resolve(dir, specifier.text);
+        const destination = packageOf(target);
+        if (destination && destination !== owner || owner?.independent && destination !== owner) {
+          errors.push(`invalid subpackage dependency: ${path.relative(mini, file).replaceAll('\\', '/')} -> ${path.relative(mini, target).replaceAll('\\', '/')}`);
+        }
+      }
+      ts.forEachChild(node, visit);
+    }
+    visit(source);
+  }
+}
+checkDependencies(mini);
 const expectedPages = ['login', 'index', 'game', 'analysis', 'review', 'coach', 'training', 'history', 'profile', 'online'];
 const seenPages = pageRoutes.map(route => route.split('/').pop());
 for (const name of expectedPages) if (!seenPages.includes(name)) errors.push(`missing page: ${name}`);
@@ -73,4 +115,4 @@ if (errors.length) {
   console.error(errors.join('\n'));
   process.exit(1);
 }
-console.log(`Checked ${pageRoutes.length} registered pages and ${checked - pageRoutes.length} components: JSON, WXML tags, events, local assets, navigation routes.`);
+console.log(`Checked ${pageRoutes.length} registered pages and ${checked - pageRoutes.length} components: JSON, WXML tags, events, local assets, navigation routes, subpackage dependencies.`);

@@ -1,24 +1,27 @@
 <view class="page online-page">
-  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>远程双人<text class="topbar-tag">双设备联机</text></view>
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>联机对弈<text class="topbar-tag">双设备联机</text></view>
   <view class="online-inner">
     <view wx:if="{{!snapshot.room}}" class="online-lobby">
       <view class="online-title">开启联机对局</view>
       <view class="online-desc">每台设备控制一方。建房后把房间码发给朋友，或者直接匹配。</view>
+      <view wx:if="{{snapshot.resumeGameId}}" class="waiting-card"><view>你暂离的房间仍可继续</view><button loading="{{snapshot.busy}}" bindtap="resumeRoom">继续房间</button></view>
       <button id="online-create" loading="{{snapshot.busy}}" bindtap="createPrivate">创建私人房间</button>
       <button id="online-match" loading="{{snapshot.busy}}" bindtap="matchPublic">匹配对手</button>
       <view class="join-row"><input id="online-code" maxlength="8" placeholder="输入 8 位房间码" value="{{joinCode}}" bindinput="codeInput" /><button id="online-join" loading="{{snapshot.busy}}" bindtap="joinRoom">加入房间</button></view>
     </view>
     <view wx:else>
-      <view class="room-strip">房间码 <text>{{snapshot.room.invite_code}}</text><button wx:if="{{snapshot.room.room_status == 'WAITING'}}" size="mini" bindtap="copyCode">复制</button><button wx:if="{{snapshot.room.room_status == 'WAITING'}}" size="mini" open-type="share">邀请</button></view>
+      <view wx:if="{{!snapshot.room.public}}" class="room-strip">房间码 <text>{{snapshot.room.invite_code}}</text><button wx:if="{{snapshot.room.room_status == 'WAITING'}}" size="mini" bindtap="copyCode">复制</button><button wx:if="{{snapshot.room.room_status == 'WAITING'}}" size="mini" open-type="share">邀请</button></view>
       <view class="seat-strip">你执 {{snapshot.room.seat == 'A' ? '黑方' : '红方'}} · 第 {{snapshot.room.ply_count}} 手</view>
-      <view wx:if="{{snapshot.room.room_status == 'WAITING'}}" class="waiting-card"><view>等待另一台设备加入…</view><view>房间 30 分钟内有效</view><button wx:if="{{snapshot.room.seat == 'A'}}" bindtap="cancelRoom">取消等待</button></view>
-      <view wx:elif="{{snapshot.room.room_status == 'CANCELLED' || snapshot.room.room_status == 'EXPIRED'}}" class="waiting-card">房间已关闭，请返回首页重新建房</view>
+      <view class="connection-status {{snapshot.connection != 'connected' ? 'connection-alert' : ''}}" aria-role="status"><view>{{connectionText}} · {{lastSyncedText}}</view><button wx:if="{{snapshot.connection != 'connected'}}" size="mini" disabled="{{operationBusy}}" bindtap="retryOperation">{{snapshot.pendingOperation || snapshot.pendingMove ? '恢复操作' : '重新同步'}}</button></view>
+      <view wx:if="{{snapshot.room.room_status == 'WAITING'}}" class="waiting-card"><view>{{snapshot.room.public ? '正在寻找对手…' : '等待朋友加入…'}}</view><view>{{snapshot.room.public ? '匹配成功后自动开始，无需发送房间码' : '把房间码发给朋友，加入后自动开始'}}</view><view>{{waitingTime}}</view><button wx:if="{{snapshot.room.seat == 'A'}}" bindtap="cancelRoom">取消等待</button></view>
+      <view wx:elif="{{snapshot.room.room_status == 'CANCELLED' || snapshot.room.room_status == 'EXPIRED'}}" class="waiting-card"><view>房间已关闭</view><button loading="{{snapshot.busy}}" bindtap="{{snapshot.room.public ? 'matchPublic' : 'createPrivate'}}">{{snapshot.room.public ? '重新匹配' : '重新创建房间'}}</button></view>
       <view wx:else>
         <view class="versus ink-card"><player-card name="{{view.playerNames.A}}" level="黑方" pieces="五马" avatar="棋" side="human" /><view class="vs">VS</view><player-card name="{{view.playerNames.B}}" level="红方" pieces="五马" avatar="友" side="human" /></view>
         <view class="reserve-row"><text>{{view.playerNames.A}}（黑方）备用棋 {{view.reserve.A}}</text><text>{{view.playerNames.B}}（红方）备用棋 {{view.reserve.B}}</text></view>
         <view class="turn-status turn-priority" aria-role="status"><view class="status-title">{{turnLabel}}</view><view class="status-sub">{{turnGuidance}}</view></view>
         <view wx:if="{{captureText}}" class="capture-notice">{{captureText}}</view>
-        <view class="board-area"><chess-board board="{{board}}" show-node-labels="{{settings.showNodeLabels}}" show-guidance="{{true}}" bind:node="onNode" /></view>
+        <view wx:if="{{recentAction}}" class="recent-action">{{recentAction}}</view>
+        <view class="board-area"><chess-board high-contrast="{{settings.highContrastBoard}}" large-text="{{settings.largeBoardText}}" board="{{board}}" show-node-labels="{{settings.showNodeLabels}}" show-guidance="{{true}}" bind:node="onNode" /></view>
         <view wx:if="{{snapshot.room.pending_undo}}" class="undo-request-card">
           <view wx:if="{{snapshot.room.pending_undo.responder == snapshot.room.seat}}">
             <view>对方申请悔棋，将回退 {{snapshot.room.pending_undo.revert_count}} 手</view>
@@ -33,11 +36,12 @@
       <view class="operation-heading">辅助操作<text>落子请直接点选棋盘</text></view>
       <view class="operation-actions"><button id="online-request-undo" disabled="{{operationBusy || !snapshot.canRequestUndo}}" bindtap="requestUndo">申请悔棋</button><button id="online-resign" disabled="{{operationBusy || !snapshot.canResign}}" bindtap="resign">认输</button><button id="online-settings" bindtap="settings">设置</button></view>
       <view wx:if="{{showSettings}}" class="settings-area"><game-settings settings="{{settings}}" bind:change="onSettingsChange" /></view>
-      <view class="room-actions"><button disabled="{{operationBusy}}" bindtap="refreshRoom">刷新棋局</button><button disabled="{{operationBusy || snapshot.pendingOperation || snapshot.pendingMove}}" bindtap="leaveRoom">返回房间大厅</button></view>
+      <view class="room-actions"><button disabled="{{operationBusy}}" bindtap="refreshRoom">刷新棋局</button><button disabled="{{operationBusy || snapshot.pendingOperation || snapshot.pendingMove}}" bindtap="leaveRoom">{{snapshot.room.room_status == 'PLAYING' || snapshot.room.room_status == 'WAITING' ? '暂时离开' : '返回房间大厅'}}</button></view>
     </view>
-    <view wx:if="{{snapshot.error}}" class="online-error">{{snapshot.error}}<button size="mini" disabled="{{operationBusy}}" bindtap="retryOperation">{{snapshot.pendingOperation || snapshot.pendingMove ? '重试原请求' : '刷新重试'}}</button></view>
+    <view wx:if="{{snapshot.error}}" class="online-error">{{snapshot.error}}<button size="mini" disabled="{{operationBusy}}" bindtap="retryOperation">{{snapshot.pendingOperation || snapshot.pendingMove ? '恢复操作' : '刷新重试'}}</button></view>
     <view wx:if="{{message}}" class="online-error">{{message}}</view>
   </view>
   <confirm-dialog visible="{{showUndoConfirm}}" title="申请悔棋？" message="{{undoMessage}}" bind:cancel="cancelUndo" bind:confirm="confirmUndo" />
   <confirm-dialog visible="{{showResign}}" title="确认认输？" message="你将认输，对方获得胜利。" bind:cancel="cancelResign" bind:confirm="confirmResign" />
+  <confirm-dialog visible="{{showLeave}}" title="暂时离开房间？" message="对局不会结束，对手仍可能等待。你可以从首页继续。等待中的房间可先取消等待；进行中的对局可认输结束。" confirm-text="暂时离开" bind:cancel="cancelLeave" bind:confirm="confirmLeave"><button wx:if="{{snapshot.canResign}}" bindtap="resignAndLeave">认输并退出</button></confirm-dialog>
 </view>

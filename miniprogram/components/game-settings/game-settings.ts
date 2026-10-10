@@ -7,6 +7,12 @@ Component({
     showAiFirstPlayer: { type: Boolean, value: true },
   },
   methods: {
+    onHighContrastChange(event: WechatMiniprogram.SwitchChange) {
+      this.emitChange({ highContrastBoard: event.detail.value });
+    },
+    onLargeTextChange(event: WechatMiniprogram.SwitchChange) {
+      this.emitChange({ largeBoardText: event.detail.value });
+    },
     emitChange(patch: Partial<GameSettings>) {
       const settings = this.properties.settings as GameSettings;
       this.triggerEvent('change', { ...settings, ...patch });

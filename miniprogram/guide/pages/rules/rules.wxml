@@ -28,6 +28,7 @@
     <view class="rules-tip">① 己方 P05→P03，保留 P26、P27 的封锁。</view>
     <view class="rules-tip">② 对方只剩 P28→P29 这一合法应手。</view>
     <view class="rules-tip">③ 己方 P03→P28；换手后，对方 P29 的通路均被堵，判为庙困。</view>
+    <view class="rules-tip">如果目前只封住 P27，还要先调棋接应入口：保留封口棋，准备另一枚棋补回 P03，再逐步封住两翼。孤棋先走侧翼时，收网需要更多回合，不能只看下一手。</view>
     <view class="rules-tip">每一步都要检查对手全部合法走法和吃子后的棋盘。仍有逃路就不能判胜；围堵也不需要消耗备用棋。</view>
   </view>
   <image id="rules-diagram" class="rules-diagram" src="../../assets/wuma-rules.png"
@@ -36,6 +37,7 @@
   <view wx:if="{{imageFailed}}" class="rules-image-error">图示暂时无法显示，请返回后重新进入</view>
   <view class="rules-footer">
     <text>走棋不越子 · 夹吃一枚 · 挑吃两枚</text>
-    <button id="rules-start-game" class="gold-btn" bindtap="startGame">开始 AI 对弈</button>
+    <button wx:if="{{continueRoute}}" bindtap="continueGame">继续当前电脑对局</button>
+    <button id="rules-start-game" class="gold-btn" bindtap="startGame">新开入门电脑局 · 你执黑棋先走</button>
   </view>
 </view>

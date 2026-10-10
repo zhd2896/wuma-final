@@ -10,6 +10,8 @@ export function openPage(route: string): void {
   if (!requiresLogin(route)) wx.navigateTo({ url: route });
 }
 export function openTab(route: string): void {
+  const pages = getCurrentPages();
+  if (pages[pages.length - 1]?.route === route.replace(/^\//, '') && !route.includes('?')) return;
   if (!requiresLogin(route)) wx.reLaunch({ url: route });
 }
 export function backHome(): void { wx.reLaunch({ url: '/pages/index/index' }); }

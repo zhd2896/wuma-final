@@ -2,7 +2,9 @@
   <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>历史对局<text class="topbar-tag">个人记录</text></view>
   <view class="page-inner">
     <view class="history-head"><view>棋路有迹，弈路可循</view><text>回顾云端与本机保存的对局</text></view>
-    <view wx:if="{{errorMessage && state == 'success'}}" class="history-notice">{{errorMessage}}</view>
+    <picker range="{{filterLabels}}" value="{{filterIndex}}" bindchange="changeFilter"><view class="history-notice">显示：{{filterLabels[filterIndex]}} ▾</view></picker>
+    <view wx:if="{{cloudLoading && state == 'success'}}" class="history-notice">本机记录已显示，正在读取云端记录…</view>
+    <view wx:if="{{errorMessage && state == 'success'}}" class="history-notice">{{errorMessage}}<button wx:if="{{cloudFailed}}" size="mini" bindtap="retryCloud">重试云端记录</button></view>
     <loading-state wx:if="{{state == 'loading'}}" message="正在读取对局记录..." />
     <error-state wx:elif="{{state == 'error'}}" message="{{errorMessage}}" bind:retry="retry" />
     <empty-state wx:elif="{{state == 'empty'}}" title="{{emptyTitle}}" subtitle="{{emptySubtitle}}" action="{{emptyAction}}" bind:action="startGame" />
@@ -21,5 +23,5 @@
       </view>
       <view wx:if="{{nextCursor}}" class="link-card card" bindtap="more">加载更多云端对局 ›</view>
     </view>
-  </view>
+  </view><confirm-dialog visible="{{showSyncConfirm}}" title="转到云端继续？" message="棋谱将保存到当前微信账号。同步后，本机这份棋谱不能再落子；从历史中的云端记录继续。结果未确认时请重试保存，保留原棋谱。" bind:cancel="cancelSync" bind:confirm="confirmSync" />
 </view>

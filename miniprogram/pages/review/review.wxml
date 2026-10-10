@@ -5,9 +5,9 @@
     <view wx:elif="{{state == 'error'}}" class="review-status card"><text>{{errorMessage}}</text><button size="mini" bindtap="retry">重试</button></view>
     <block wx:else>
       <view class="match-summary card">
-        <view class="match-title">玩家 {{review.reviewedPlayer}} · 棋局复盘</view>
+        <view class="match-title">{{review.reviewedPlayer == 'A' ? '黑方' : '红方'}} · 棋局复盘</view>
         <picker wx:if="{{canSelectPerspective}}" range="{{perspectiveOptions}}" value="{{perspectiveIndex}}" bindchange="changePerspective"><view class="perspective-picker">复盘视角：{{perspectiveOptions[perspectiveIndex]}} ▾</view></picker>
-        <view class="match-meta"><text>胜方 {{review.winner}}</text><text>{{terminalText}}</text><text>{{rows.length}} 手已分析</text></view>
+        <view class="match-meta"><text>胜方 {{review.winner == 'A' ? '黑方' : '红方'}}</text><text>{{terminalText}}</text><text>{{rows.length}} 手已分析</text></view>
       </view>
       <view class="review-key-summary card">
         <view class="review-key-title">关键失误</view>
@@ -20,12 +20,16 @@
         </view>
       </view>
             <view id="review-board-panel" class="review-board-panel">
-        <view class="review-mode-actions"><button size="mini" bindtap="showReplay">实际局面回放</button><text>{{boardMode == 'route' ? '走前路线对照' : '实际局面回放'}}</text></view>
+        <view class="review-mode-actions">
+          <button wx:if="{{selectedTurn}}" size="mini" bindtap="showSelectedBefore">走前局面</button>
+          <button size="mini" bindtap="showReplay">实际走后</button>
+          <button wx:if="{{selectedTurn}}" size="mini" bindtap="showSelectedBest">推荐预览</button>
+        </view>
         <block wx:if="{{boardMode == 'replay' && replayBoard}}">
           <view class="review-preview-title">{{replayStepText}}</view>
           <view class="review-preview-note">当前步骤 {{replayIndex}} / {{replayMaxIndex}} · 有效棋步 {{replayPly}} / {{replayTotalPly}}</view>
           <chess-board board="{{replayBoard}}" compact="{{true}}" show-node-labels="{{true}}" />
-          <view class="review-preview-note">行动方 {{replayCurrentPlayer}} · 备用棋 A {{replayReserveA}} 枚 · B {{replayReserveB}} 枚</view>
+          <view class="review-preview-note">当前轮到{{replayCurrentPlayer == 'A' ? '黑方' : '红方'}} · 备用棋 黑方 {{replayReserveA}} 枚 · 红方 {{replayReserveB}} 枚</view>
           <view class="review-preview-note">{{replayCaptureText}}</view>
           <view class="review-explanation">{{replayExplanation}}</view>
           <view wx:if="{{replayNaturalExplanation}}" class="review-natural-move">{{replayNaturalExplanation}}</view>
@@ -40,10 +44,10 @@
         <slider wx:if="{{replayMaxIndex}}" min="0" max="{{replayMaxIndex}}" step="1" value="{{replayIndex}}" show-value="{{true}}" bindchange="jumpReplay" />
         <block wx:if="{{boardMode == 'route' && reviewBoard}}">
         <view class="review-preview-title">走前路线对照 · 第 {{selectedTurn}} 手落子前局面</view>
-        <view class="review-preview-note">{{selectedRoute == 'actual' ? '实际走法' : '最佳走法'}}：{{routeText}}</view>
+        <view wx:if="{{selectedRoute != 'before'}}" class="review-preview-note">{{selectedRoute == 'actual' ? '实际路线' : '推荐路线'}}：{{routeText}}</view>
         <chess-board board="{{reviewBoard}}" compact="{{true}}" show-node-labels="{{true}}" />
-        <view class="review-preview-note">走前备用棋：A {{previewReserveA}} 枚 · B {{previewReserveB}} 枚</view>
-        <view class="review-preview-note">金色标出起点，蓝色标出终点；这是走前预览，实际走后局面请切回回放。</view>
+        <view class="review-preview-note">走前备用棋：黑方 {{previewReserveA}} 枚 · 红方 {{previewReserveB}} 枚</view>
+        <view class="review-preview-note">{{selectedRoute == 'before' ? '本手尚未落子，可与实际走后和推荐预览对照。' : '金色标出起点，蓝色标出终点；预览只标路线，不执行棋步。'}}</view>
         </block>
       </view>
       <view wx:if="{{rows.length && !reviewBoard}}" class="review-metric card">本次复盘暂未包含走前棋盘，可重新读取复盘，或先查看点位对照图。<button size="mini" bindtap="openRules">查看点位对照</button></view>

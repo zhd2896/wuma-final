@@ -1,4 +1,12 @@
 <view class="game-settings">
+  <view class="setting-row">
+    <view class="setting-copy"><view class="setting-title">简洁高对比棋盘</view><view class="setting-description">减少背景纹理，用清晰颜色和文字区分黑红</view></view>
+    <switch checked="{{settings.highContrastBoard}}" color="#a83a30" bindchange="onHighContrastChange" />
+  </view>
+  <view class="setting-row">
+    <view class="setting-copy"><view class="setting-title">棋盘大字</view><view class="setting-description">放大点位编号、起终点和可走提示</view></view>
+    <switch checked="{{settings.largeBoardText}}" color="#a83a30" bindchange="onLargeTextChange" />
+  </view>
   <view wx:if="{{showAiFirstPlayer}}" class="setting-row">
     <view class="setting-copy"><view class="setting-title">AI 难度</view><view class="setting-description">下一局 AI 对弈生效</view></view>
     <picker range="{{aiLevelLabels}}" value="{{settings.defaultAiLevel == 'BEGINNER' ? 0 : settings.defaultAiLevel == 'ADVANCED' ? 2 : 1}}" bindchange="onAiLevelChange"><text>{{settings.defaultAiLevel == 'BEGINNER' ? '入门' : settings.defaultAiLevel == 'ADVANCED' ? '进阶' : '标准'}}</text></picker>

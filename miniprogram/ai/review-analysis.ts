@@ -3,6 +3,7 @@ import type { GameState, Move, Player } from '../domain/index';
 import { evaluatePosition } from './evaluation';
 import type { EvaluationConfig, EvaluationResult } from './evaluation';
 import { analyzePosition } from './position-analysis';
+import { proveBlockadeMove } from './blockade';
 import type { CandidateAnalysis, ThreatInfo } from './position-analysis';
 
 export interface ReviewSearchConfig {
@@ -16,6 +17,7 @@ export interface ReviewSearchConfig {
   readonly now?: () => number;
   readonly evaluationConfig?: EvaluationConfig;
   readonly useBlockadeExtension?: boolean;
+  readonly blockadeAttackerTurns?: 1 | 2 | 3;
 }
 
 export type MoveCategory = 'GOOD' | 'NORMAL' | 'MISTAKE' | 'BLUNDER';
@@ -79,7 +81,8 @@ export function analyzeReviewMove(stateBefore: GameState, stateAfter: GameState,
   // candidateLimit only limits the public result. Request all exact root scores here.
   const analysis = analyzePosition(stateBefore, { maxDepth: config.maxDepth,
     timeLimitMs: config.timeLimitMs, candidateLimit: Number.MAX_SAFE_INTEGER, now: config.now,
-    evaluationConfig: config.evaluationConfig, useBlockadeExtension: config.useBlockadeExtension });
+    evaluationConfig: config.evaluationConfig, useBlockadeExtension: config.useBlockadeExtension,
+    blockadeAttackerTurns: config.blockadeAttackerTurns });
   if (analysis.searchDepth === 0 || !analysis.bestMove) {
     throw new ReviewAnalysisError('REVIEW_INCOMPLETE', 'No complete search depth for this move');
   }
@@ -105,8 +108,11 @@ export function analyzeReviewMove(stateBefore: GameState, stateAfter: GameState,
     : missedWin ? `该走法错过了直接获胜机会，搜索评分损失 ${scoreLoss}。`
       : `该走法比最佳方案的搜索评分低 ${scoreLoss}。`;
   const forcedBlockade = analysis.threats.find(threat => threat.type === 'FORCED_BLOCKADE_AVAILABLE');
+  const slowerBlockade = forcedBlockade && !bestMoveEquivalent
+    ? proveBlockadeMove(stateBefore, actualMove, { maxAttackerTurns: config.blockadeAttackerTurns }) : null;
   const blockadeExplanation = forcedBlockade ? bestMoveEquivalent
     ? '这步保留封锁通路，已验证对手任意合法应手后均可完成围堵。'
+    : slowerBlockade ? '这步仍能完成强制围堵，但比最佳方案需要更多棋步；应比较更快的收网路线。'
     : '这步错过了可强制完成的围堵；应保留封口棋，调入另一枚棋收紧通路。' : '';
   const engineExplanation = legacyBlockade
     ? `历史棋谱按原记录保留，评价使用现行规则。${blockadeExplanation}${searchExplanation}`

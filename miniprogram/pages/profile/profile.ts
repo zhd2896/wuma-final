@@ -1,4 +1,4 @@
-import { growthPresentation } from './growth-presentation';
+import { growthPresentation, skillNextAction } from './growth-presentation';
 import { logoutWechat, getSavedWechatToken } from '../../services/device-auth';
 import { getApiBaseUrl } from '../../config/api';
 import { PROFILE_AVATARS, isProfileAvatar, validNickname } from '../../services/profile-fields';
@@ -16,7 +16,7 @@ const emptyProfile = {
   wins: 0, losses: 0, reviewedGames: 0, remoteGames: 0, remoteWins: 0, remoteLosses: 0,
   accuracy: '数据不足', skillProfile: null as SkillProfileDto | null,
   abilities: [] as { key: string; label: string; hasValue: boolean; valueText: string;
-    progress: number; sampleText: string; description: string }[],
+    progress: number; sampleText: string; description: string; actionText: string; url: string; note: string }[],
 };
 Page({
   data: {
@@ -64,6 +64,7 @@ Page({
           ? `${Math.round(profile.correct / profile.trainingAttempts * 100)}%` : '数据不足',
         skillProfile: profile.skillProfile,
         abilities: profile.skillProfile.metrics.map(metric => ({
+          ...skillNextAction(metric),
           key: metric.key, label: metric.label, hasValue: metric.value !== null,
           valueText: metric.value === null ? '数据不足' : `${metric.value} 分`,
           progress: metric.value === null ? 0 : metric.value,
@@ -127,6 +128,12 @@ Page({
     const task = this.data.growthTasks.find(item => item.theme === event.currentTarget.dataset.theme);
     if (task) openPage(task.url);
   },
+  openSkillAction(event: WechatMiniprogram.TouchEvent) {
+    if (this.data.state !== 'success') return;
+    const item = this.data.abilities.find(ability => ability.key === event.currentTarget.dataset.key);
+    if (item?.url) openPage(item.url);
+  },
+  basicTraining() { openPage('/pages/training/training?source=CURATED'); },
   openHistory() { openPage('/pages/history/history'); },
-  openGame() { openPage('/pages/game/game'); }
+  openGame() { openPage('/pages/game/game?mode=ai&new=1'); }
 });

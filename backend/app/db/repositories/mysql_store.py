@@ -173,13 +173,18 @@ class MySQLGameStore:
                 rows = session.scalars(query.order_by(GameModel.created_at.desc(),
                                                        GameModel.id.desc()).limit(limit + 1)).all()
                 selected = rows[:limit]
+                trial_ids = set(session.scalars(select(LocalGameImportModel.game_id).where(
+                    LocalGameImportModel.user_id == user_id,
+                    LocalGameImportModel.game_id.in_([row.id for row in selected]),
+                    LocalGameImportModel.client_game_id.like("trial-%"))).all()) if selected else set()
                 rooms = {room.game_id: room for room in session.scalars(select(RemoteRoomModel).where(
                     RemoteRoomModel.game_id.in_([row.id for row in selected]))).all()} if selected else {}
                 reviews = set(session.execute(select(GameReviewModel.game_id, GameReviewModel.reviewed_player).where(
                     GameReviewModel.game_id.in_([row.id for row in selected]))).all()) if selected else set()
                 result = []
                 for row in selected:
-                    result.append({"gameId": row.id, "mode": row.mode, "aiLevel": row.ai_level,
+                    result.append({"gameId": row.id, "mode": row.mode,
+                        **({"sourceKind": "TRIAL" if row.id in trial_ids else "LOCAL"} if row.mode == "LOCAL" else {}), "aiLevel": row.ai_level,
                                    "seat": self._personal_seat(rooms.get(row.id), user_id),
                                    "status": row.status, "winner": row.winner,
                                    "winnerReason": row.winner_reason,

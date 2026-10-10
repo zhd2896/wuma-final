@@ -52,6 +52,28 @@ async function harness(config:{mode?:string;ai?:string;seat?:string;zero?:boolea
 }
 const settle=async()=>{for(let i=0;i<8;i++) await new Promise(r=>setImmediate(r));};
 
+test('selected recommendation anchors actual replay and navigation at its saved move after-state', async()=>{
+  const {page,f,requests}=await harness(); await page.load('g1');
+  const saved=structuredClone(f.replay); const count=requests.length;
+  page.selectReviewMove({currentTarget:{dataset:{turn:2,kind:'best'}}});
+  assert.equal(page.data.replayIndex,2);
+  assert.equal(page.data.boardMode,'route');
+  assert.ok(page.data.reviewBoard.pieces.some((p:any)=>p.nodeId==='P05'));
+  page.showSelectedBefore();
+  assert.equal(page.data.selectedRoute,'before');
+  assert.equal(page.data.reviewBoard.recommendLine,undefined);
+  page.showSelectedBest();
+  assert.equal(page.data.reviewBoard.recommendedFrom,'P05');
+  page.showReplay();
+  assert.equal(page.data.replayIndex,2);
+  assert.ok(page.data.replayBoard.pieces.some((p:any)=>p.nodeId==='P04'));
+  page.selectReviewMove({currentTarget:{dataset:{turn:2,kind:'best'}}});
+  page.previousReplay(); assert.equal(page.data.replayIndex,1);
+  page.selectReviewMove({currentTarget:{dataset:{turn:2,kind:'best'}}});
+  page.nextReplay(); assert.equal(page.data.replayIndex,3);
+  assert.deepEqual(f.replay,saved); assert.equal(requests.length,count);
+});
+
 test('real review page replays saved after states and distinct before-route, native navigation and terminal count',async()=>{
   const {page,f}=await harness(); await page.load('g1');
   assert.equal(page.data.state,'success'); assert.equal(page.data.canSelectPerspective,true);
@@ -174,4 +196,11 @@ test('B missing review and explanation are created with B bodies instead of defa
   await page.load('g1');page.changePerspective({detail:{value:'1'}});await settle();
   assert.equal(page.data.review.reviewedPlayer,'B');assert.equal(page.data.gameExplanation.overall_summary,'summary B');
   for(const suffix of ['/review','/explain'])assert.ok(requests.some(({u,o})=>u.pathname.endsWith(suffix)&&o.method==='POST'&&o.data.reviewed_player==='B'));
+});
+test('moving through actual replay updates the comparison controls to the current turn',async()=>{
+ const {page}=await harness();await page.load('g1');
+ page.selectReviewMove({currentTarget:{dataset:{turn:1,kind:'best'}}});
+ page.showReplay();page.nextReplay();assert.equal(page.data.selectedTurn,2);
+ page.showSelectedBefore();assert.equal(page.data.selectedTurn,2);assert.equal(page.data.selectedRoute,'before');
+ page.startReplay();assert.equal(page.data.selectedTurn,0);
 });

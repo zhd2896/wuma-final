@@ -10,7 +10,7 @@ from backend.app.engine_adapter.node_worker import NodeEngineAdapter
 from backend.app.schemas.game import GameReview, GameReplay, LegalMovesResponse, Move
 from backend.app.services.game_service import GameService
 from backend.app.schemas.remote import (CreateRoomRequest, JoinRoomRequest,
-                                         MatchRoomRequest, PendingUndoResponse,
+                                         LastTurnResponse, MatchRoomRequest, PendingUndoResponse,
                                          RemoteMoveRequest, RemoteMoveResponse,
                                          RemoteOperationRequest, RemoteRoomResponse)
 from backend.app.services.game_store import GameStore, StoredRemoteRoom
@@ -57,7 +57,12 @@ class RemoteService:
     async def _view(self, room: StoredRemoteRoom, token: str,
                     new_token: str | None = None, user_id: str | None = None) -> RemoteRoomResponse:
         seat = self._seat(room, token, user_id)
-        game = await self.store.get_snapshot(room.game_id)
+        game, moves = await self.store.read_replay(room.game_id)
+        latest = moves[-1] if moves else None
+        last_turn = None
+        if latest and latest.created_revision == game.version and latest.turn_number == game.ply_count:
+            last_turn = LastTurnResponse(version=game.version, ply=game.ply_count,
+                                        move=latest.turn.move, captures=latest.turn.captures)
         status = room.status
         if status == "WAITING" and room.expires_at <= utc_now():
             status = "EXPIRED"
@@ -78,7 +83,7 @@ class RemoteService:
                                   public=room.public, expires_at=room.expires_at,
                                   version=game.version, ply_count=game.ply_count,
                                   state=game.state,
-                                  token=new_token, pending_undo=pending_response)
+                                  token=new_token, pending_undo=pending_response, last_turn=last_turn)
 
     async def create(self, body: CreateRoomRequest, user_id: str | None = None) -> RemoteRoomResponse:
         state = await self.adapter.initialize("A")
@@ -189,7 +194,7 @@ class RemoteService:
             self._seat(room, token, user_id)
             await self.store.create_remote_undo(
                 game_id, token_hash(token or ""), body, user_id)
-            return await self._view(room, token or "", user_id=user_id)
+        return await self._view(room, token or "", user_id=user_id)
 
     async def resolve_undo(self, game_id: str, request_id: str,
                            token: str | None, body: RemoteOperationRequest,
@@ -200,7 +205,7 @@ class RemoteService:
             self._seat(room, token, user_id)
             await self.store.resolve_remote_undo(
                 game_id, request_id, token_hash(token or ""), body, action, user_id)
-            return await self._view(room, token or "", user_id=user_id)
+        return await self._view(room, token or "", user_id=user_id)
 
     async def resign(self, game_id: str, token: str | None,
                      body: RemoteOperationRequest, user_id: str | None = None) -> RemoteRoomResponse:
@@ -210,7 +215,7 @@ class RemoteService:
             self._seat(room, token, user_id)
             await self.store.commit_remote_resign(
                 game_id, token_hash(token or ""), body, user_id)
-            return await self._view(room, token or "", user_id=user_id)
+        return await self._view(room, token or "", user_id=user_id)
 
     async def _authorize_replay(self, game_id: str, token: str | None, user_id: str | None) -> None:
         room = await self.store.get_remote_room(game_id)

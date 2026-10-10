@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -16,7 +17,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 } });
 
 
-const root = 'http://127.0.0.1:8000';
+const root = API_BASE_URLS.development;
 const key = `wuma:wechat-session:v1:${root}`;
 let definition: any;
 (globalThis as any).Page = (page: any) => { definition = page; };

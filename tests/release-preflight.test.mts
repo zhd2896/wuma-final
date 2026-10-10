@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -37,7 +38,7 @@ test('public configuration build writes only target root with its prefix and rej
     assert.equal(valid.status, 0, valid.stderr);
     const config = readFileSync(join(temp, 'miniprogram/config/api-roots.ts'), 'utf8');
     assert.match(config, /"test": "https:\/\/api.example.com\/wuma"/);
-    assert.match(config, /"production": ""/); assert.match(config, /http:\/\/127.0.0.1:8000/);
+    assert.match(config, /"production": ""/); assert.ok(config.includes(JSON.stringify(API_BASE_URLS.development)));
     assert.equal(readFileSync(join(temp, 'project.config.json'), 'utf8'), project);
     const invalid = spawnSync(process.execPath, [script, 'release', '--api-root', 'https://user:PRIVATE@example.com'], { encoding: 'utf8' });
     assert.notEqual(invalid.status, 0); assert.doesNotMatch(invalid.stdout + invalid.stderr, /PRIVATE/);

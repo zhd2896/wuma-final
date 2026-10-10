@@ -1,11 +1,14 @@
 import { hasWechatSession } from '../../../services/device-auth';
 import { showLogin } from '../../../services/auth-navigation';
+import { readContinueActivities } from '../../../services/continue-activity';
 
 const rulesImage = '/guide/assets/wuma-rules.png';
 const nodeImage = '/guide/assets/wuma-node-reference.png';
 
 Page({
-  data: { imageFailed: false },
+  data: { imageFailed: false, continueRoute: '' },
+  onShow() { this.setData({ continueRoute: readContinueActivities().find(card => card.route.includes('mode=ai&gameId='))?.route ?? '' }); },
+  continueGame() { if (this.data.continueRoute) wx.navigateTo({ url: this.data.continueRoute }); },
   openTutorial() { wx.navigateTo({ url: '/guide/pages/tutorial/tutorial' }); },
   previewing: false,
   back() {
@@ -40,7 +43,8 @@ Page({
   imageLoaded() { this.setData({ imageFailed: false }); },
   imageError() { this.setData({ imageFailed: true }); },
   startGame() {
-    if (hasWechatSession()) wx.navigateTo({ url: '/pages/game/game' });
-    else showLogin('/pages/game/game');
+    const route = '/pages/game/game?mode=ai&level=BEGINNER&first=human&new=1';
+    if (hasWechatSession()) wx.navigateTo({ url: route });
+    else showLogin(route);
   },
 });

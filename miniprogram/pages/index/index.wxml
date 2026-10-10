@@ -8,15 +8,17 @@
     <view class="hero-note">一局入境 · 于方寸间见谋略</view>
   </view>
   <view class="home-content">
+    <view class="card continue-card" wx:for="{{continuations}}" wx:key="id"><view class="history-title">{{item.title}}</view><view class="continue-detail">{{item.detail}}</view><button class="gold-btn" data-id="{{item.id}}" bindtap="continueActivity">继续</button></view>
+    <button wx:if="{{!continuations.length}}" id="tutorial-primary" class="gold-btn" bindtap="openTutorial">第一次玩？亲手学会走棋、吃子与围堵</button>
+    <button id="guest-trial" class="gold-btn" bindtap="openTrial">免登录电脑试玩</button>
     <view wx:if="{{!loggedIn}}" class="guest-welcome">
       <view class="guest-title">先走一局，再决定登录</view>
       <view class="guest-note">教学和电脑试玩免登录；保存棋谱、联机对战时再登录微信。</view>
-      <button id="guest-trial" class="gold-btn" bindtap="openTrial">免登录电脑试玩</button>
       <button class="guest-login" bindtap="login">微信登录 · 保存记录与联机</button>
     </view>
     <view id="tutorial-entry" class="rules-link" bindtap="openTutorial">
       <view class="rules-seal">练</view>
-      <view class="rules-copy"><view class="rules-title">新手实操</view><view class="rules-sub">走棋 → 夹吃 → 挑吃 → 入门 AI</view></view>
+      <view class="rules-copy"><view class="rules-title">新手实操</view><view class="rules-sub">走棋 → 吃子 → 围堵 → 独立练习</view></view>
       <text class="rules-arrow">开始练习 ›</text>
     </view>
     <view id="rules-entry" class="rules-link" bindtap="openRules">

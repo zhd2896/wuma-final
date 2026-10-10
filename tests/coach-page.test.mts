@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { existsSync, readFileSync } from 'node:fs';
 import { createInitialGameState } from '../miniprogram/domain/index.ts';
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 
 registerHooks({ resolve(specifier, context, nextResolve) {
   try { return nextResolve(specifier, context); }
@@ -20,7 +21,7 @@ test('independent coach loads the active AI game and reveals three real hint lev
   const state = createInitialGameState();
   const storage = new Map<string, unknown>([
     ['activeAiGameId', 'ai-real'],
-    ['wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' }],
+    [`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' }],
   ]);
   const requests: Array<{ method: string; path: string; data: any }> = [];
   const navigations: string[] = [];
@@ -74,6 +75,8 @@ test('independent coach loads the active AI game and reveals three real hint lev
   assert.equal(page.data.state, 'ready');
   assert.equal(page.data.gameId, 'ai-real');
   assert.equal(page.data.gameVersion, 6);
+  assert.equal(page.data.currentPlayerText, '你 · 黑方');
+  assert.equal(page.data.humanPlayerText, '黑方');
   assert.equal(page.data.board.pieces.length, 10);
   assert.equal(page.data.cards[0].locked, false);
   assert.equal(page.data.cards[1].locked, true);
@@ -128,6 +131,10 @@ test('independent coach loads the active AI game and reveals three real hint lev
   assert.equal(page.data.board.nodes.some((node: any) => node.focused), false);
   assert.equal(requests.at(-1)?.method, 'GET');
   assert.equal(requests.at(-1)?.path, '/api/v1/game/ai-real');
+  page.render({ ...page.controller.snapshot, state: 'unavailable', notice: '本局已结束，胜方 B 方',
+    gameState: { ...state, game_status: 'FINISHED', winner: 'B', winner_reason: 'RESIGN' } });
+  assert.doesNotMatch(page.data.notice, /胜方 B 方/);
+  assert.match(page.data.terminalText, /电脑获胜/);
   page.onUnload();
 });
 
@@ -140,6 +147,8 @@ test('coach page and card bind real state without demo explanation or fixed move
   assert.match(page, /chess-board/);
   assert.match(page, /cards/);
   assert.match(page, /gameVersion/);
+  assert.match(page, /<expandable-details[^>]*title="棋局详情"/);
+  assert.match(page, /currentPlayerText/);
   assert.match(pageTs, /hint\?\.hintText/);
   assert.match(pageTs, /hint\.focusTopics/);
   assert.match(pageTs, /hint\.candidateFromNodes/);

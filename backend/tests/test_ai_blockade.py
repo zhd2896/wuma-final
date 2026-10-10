@@ -136,7 +136,7 @@ def test_legacy_review_cache_is_preserved_but_new_review_uses_current_strategy(c
     fresh = client.post(path + "/review", json={"reviewed_player": "B"})
     assert fresh.status_code == 200, fresh.text
     assert fresh.json()["data"]["id"] != legacy.id
-    assert fresh.json()["data"]["reviewConfigVersion"] == 2
+    assert fresh.json()["data"]["reviewConfigVersion"] == ReviewConfig().version
     assert store._reviews[(game_id, "B", 1)] == legacy
 
 @pytest.mark.parametrize("text", ["这步围堵后一定获胜", "这步能保证围堵成功", "这步必然形成庙困"])

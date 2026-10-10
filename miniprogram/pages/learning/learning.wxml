@@ -1,0 +1,9 @@
+<view class="page learning-page">
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>学习五马棋</view>
+  <view class="page-inner">
+    <view class="card"><view class="learning-title">从会走棋，到知道怎样获胜</view><text>先亲手练习，再下一局。教学和试玩无需登录。</text><button class="gold-btn" bindtap="openTutorial">新手实操 · 走棋、吃子与围堵</button></view>
+    <view class="card"><view class="learning-title">查规则</view><text>备用棋不足、全方无路可走、庙内围堵，都有说明。</text><button bindtap="openRules">查看图解规则</button></view>
+    <view class="card"><view class="learning-title">试一局</view><text>你执黑棋，电脑随机走合法棋步，退出后可继续。</text><button bindtap="openTrial">离线电脑试玩</button></view>
+    <view class="card"><view class="learning-title">练习与教练</view><text>登录后保存练习进度；当前电脑对局可以逐级查看提示。</text><button bindtap="openTraining">吃子、防守与孤棋练习</button><button bindtap="openCoach">当前棋局教练</button></view>
+  </view><bottom-nav current="learning" />
+</view>

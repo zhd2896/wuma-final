@@ -19,7 +19,7 @@
       </view>
       <view class="growth-note">主题正确率依据最近28天作答；可以复习旧题，同一题在7天内只计一次完成。</view>
     </view>
-    <view wx:else class="card growth-empty">成长记录暂不可用，请升级服务后重试。</view>
+    <view wx:else class="card growth-empty">成长记录暂不可用，可以稍后重试或先练基础题。<button bindtap="retry">重新读取</button><button bindtap="basicTraining">基础练习</button></view>
     <section-title title="近期训练趋势" subtitle="最近14天 · 来自当前账号答题记录" />
     <view wx:if="{{growthTrend}}" class="card growth-trend">
       <view class="growth-title">{{growthTrend.completionText}}</view>
@@ -27,10 +27,10 @@
       <view wx:if="{{!growthTrend.hasActivity}}" class="growth-empty">还没有近期训练记录，先从上面的基础任务开始。</view>
       <view wx:else class="growth-bars">
         <view wx:for="{{growthTrend.days}}" wx:key="date" class="growth-day">
-          <view class="growth-count">{{item.completed}}</view><view class="growth-bar-track"><view class="growth-bar {{item.recent ? 'growth-bar-recent' : ''}}" style="height:{{item.height}}%"></view></view><text>{{item.label}}</text>
+          <view class="growth-count" aria-label="{{item.date}}，尝试{{item.attempted}}题，解出{{item.completed}}题">{{item.attempted}}/{{item.completed}}</view><view class="growth-bar-track"><view class="growth-bar growth-attempt" style="height:{{item.attemptedHeight}}%"></view><view class="growth-bar {{item.recent ? 'growth-bar-recent' : ''}}" style="height:{{item.height}}%"></view></view><text>{{item.label}}</text>
         </view>
       </view>
-      <view class="growth-note">柱高表示每日完成的不同题数量；浅色为前7天，深色为最近7天。</view>
+      <view class="growth-note">数字为尝试／解出题数；底色表示尝试，绿色表示解出。每天同一题只计一次，浅绿色为前7天。</view>
       <view class="growth-note">{{growthTrend.disclaimer}}</view>
     </view>
     <view class="stat-card card"><view><text>云端对局</text><view>{{cloudGames}}</view></view><view><text>本机对局</text><view>{{localGames}}</view></view><view><text>训练完成</text><view>{{training}}</view></view></view>
@@ -43,6 +43,7 @@
       <view wx:for="{{abilities}}" wx:key="key" class="skill-metric">
         <view class="ability-row"><text>{{item.label}}</text><text class="ability-value">{{item.valueText}}</text></view>
         <view class="skill-samples">{{item.sampleText}}</view><view class="skill-description">{{item.description}}</view>
+        <view wx:if="{{item.url}}" class="skill-description">{{item.note}}<button size="mini" data-key="{{item.key}}" bindtap="openSkillAction">{{item.actionText}}</button></view>
       </view>
       <view class="skill-disclaimer">{{skillProfile.disclaimer}}</view>
     </view>

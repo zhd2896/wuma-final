@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
@@ -18,7 +19,7 @@ registerHooks({ resolve(specifier, context, nextResolve) {
 
 test('game page records and resumes real local games and indexes server games', async () => {
   const storage = new Map<string, unknown>();
-  storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000', { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
+  storage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`, { token: 'a'.repeat(64), expiresAt: '2099-01-01T00:00:00Z' });
   let failHistoryWrite = false;
   let failActiveWrite = false;
   const navigations: string[] = [];

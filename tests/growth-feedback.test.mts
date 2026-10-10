@@ -1,3 +1,4 @@
+import { API_BASE_URLS } from '../miniprogram/config/api-roots.ts';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync,readFileSync } from 'node:fs';
@@ -10,7 +11,7 @@ test('profile growth tasks navigate to actual theme and level and clear on hide'
  let definition:any;const urls:string[]=[];const storage=new Map();
  (globalThis as any).Page=(d:any)=>definition=d;
  (globalThis as any).wx={getStorageSync:(k:string)=>storage.get(k)??'',setStorageSync:(k:string,v:any)=>storage.set(k,v),getAccountInfoSync:()=>({miniProgram:{envVersion:'develop'}}),navigateTo:({url}:any)=>urls.push(url),request:(o:any)=>o.success({statusCode:200,data:{code:0,data:{...profile(),growth:growth()}}})};
- storage.set('wuma:wechat-session:v1:http://127.0.0.1:8000',{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
+ storage.set(`wuma:wechat-session:v1:${API_BASE_URLS.development}`,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  await import('../miniprogram/pages/profile/profile.ts');
  const page:any={...definition,data:{...definition.data},setData(p:any){Object.assign(this.data,p)}};
  await page.load();
@@ -31,7 +32,7 @@ test('profile growth tasks navigate to actual theme and level and clear on hide'
 test('training route synchronizes theme and difficulty pickers and backend filters',async()=>{
  let definition:any;const requests:string[]=[];
  (globalThis as any).Page=(d:any)=>definition=d;
- const storage=new Map([['wuma:wechat-session:v1:http://127.0.0.1:8000',{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'}]]);
+ const storage=new Map([[`wuma:wechat-session:v1:${API_BASE_URLS.development}`,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'}]]);
  (globalThis as any).wx={getStorageSync:(k:string)=>storage.get(k)??'',getAccountInfoSync:()=>({miniProgram:{envVersion:'develop'}}),request:(o:any)=>{requests.push(o.url);o.success({statusCode:200,data:{code:0,data:{items:[],total:0,limit:20,offset:0}}})}};
  await import('../miniprogram/pages/training/training.ts');
  const make=()=>({...definition,data:{...definition.data},setData(p:any){Object.assign(this.data,p)}});
@@ -66,7 +67,7 @@ test('growth rejects inconsistent totals and uses raw ratios for borderline prac
 
 test('late growth responses never repopulate a hidden or switched account; old servers stay usable',async()=>{
  let definition:any;const requests:any[]=[];
- const storage=new Map();const tokenKey='wuma:wechat-session:v1:http://127.0.0.1:8000';
+ const storage=new Map();const tokenKey=`wuma:wechat-session:v1:${API_BASE_URLS.development}`;
  storage.set(tokenKey,{token:'a'.repeat(64),expiresAt:'2099-01-01T00:00:00Z'});
  (globalThis as any).Page=(d:any)=>definition=d;
  (globalThis as any).wx={getStorageSync:(k:string)=>storage.get(k)??'',removeStorageSync:(k:string)=>storage.delete(k),getAccountInfoSync:()=>({miniProgram:{envVersion:'develop'}}),reLaunch:()=>{},request:(o:any)=>requests.push(o)};

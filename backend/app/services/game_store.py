@@ -327,7 +327,11 @@ class InMemoryGameStore:
             (room.status == "WAITING" and room.expires_at > datetime.now(timezone.utc).replace(tzinfo=None)))
 
     def _personal_row(self, date: datetime, game: StoredGame, user_id: str) -> dict:
-        return {"gameId": game.game_id, "mode": game.mode, "aiLevel": game.ai_level, "seat": self._personal_seat(game.game_id, user_id), "status": game.state.game_status,
+        trial = game.mode == "LOCAL" and any(owner == user_id and client.startswith("trial-") and imported[0] == game.game_id
+            for (owner, client), imported in self._local_imports.items())
+        return {"gameId": game.game_id, "mode": game.mode,
+                **({"sourceKind": "TRIAL" if trial else "LOCAL"} if game.mode == "LOCAL" else {}),
+                "aiLevel": game.ai_level, "seat": self._personal_seat(game.game_id, user_id), "status": game.state.game_status,
                 "winner": game.state.winner, "winnerReason": game.state.winner_reason,
                 "startedAt": date.isoformat(),
                 "finishedAt": None, "turns": game.ply_count,

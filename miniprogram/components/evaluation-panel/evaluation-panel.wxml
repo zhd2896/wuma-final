@@ -1,1 +1,44 @@
-<view class="panel"><view class="head"><text>局面评分</text><text>{{perspective}} 方视角</text></view><view class="score">{{score}}</view><view class="adv">最佳搜索评分 {{bestScore}}</view><view class="track"><view class="marker"></view></view><view class="trend">正分有利于 {{perspective}} 方，负分有利于对手</view></view>
+<view wx:if="{{analysis}}" class="panel">
+  <view class="head"><text>{{analysis.presentation.basisLabel}}</text><text>{{analysis.perspectiveLabel}}的视角</text></view>
+  <view class="verdict {{analysis.presentation.tone}}">{{analysis.presentation.title}}</view>
+  <view class="reasons"><view wx:for="{{analysis.presentation.reasons}}" wx:key="*this" class="reason">{{item}}</view></view>
+  <view class="quality">{{analysis.presentation.quality}}</view>
+  <view wx:if="{{analysis.presentation.outlook}}" class="outlook">{{analysis.presentation.outlook}}</view>
+  <view wx:if="{{analysis.bestMove}}" class="recommendation">
+    <view class="section-label">{{analysis.perspectiveLabel}}的推荐走法</view>
+    <button class="move-button primary" data-id="{{analysis.bestMove.id}}" bindtap="selectMove">
+      <view>{{analysis.bestMove.notation}} <text>推荐尝试</text></view>
+      <view class="move-purpose">{{analysis.bestMove.purpose}}</view>
+      <view class="move-detail">{{analysis.bestMove.detail}}</view>
+      <view class="move-action">点击在棋盘上查看路线</view>
+    </button>
+    <block wx:for="{{analysis.alternatives}}" wx:key="id">
+      <button class="move-button" data-id="{{item.id}}" bindtap="selectMove">
+        <view>{{item.notation}} <text>{{item.assessment}}</text></view>
+        <view class="move-purpose">{{item.purpose}}</view>
+        <view class="move-detail">{{item.detail}}</view>
+      </button>
+    </block>
+  </view>
+  <expandable-details title="分析依据" reset-key="{{resetKey}}">
+    <view class="detail-note">以下分数以{{analysis.perspectiveLabel}}为视角，正分有利，负分不利；分数是引擎参考值，不能换算成胜率。</view>
+    <view class="metric-row"><text>当前棋盘评分</text><text>{{analysis.scoreText}}</text></view>
+    <view class="detail-note">只根据当前棋盘计算，下面分项解释此评分。</view>
+    <block wx:if="{{!analysis.terminal}}">
+      <view class="metric-row"><text>推荐路线搜索评分</text><text>{{analysis.bestScoreText}}</text></view>
+      <view class="detail-note">考虑后续走法和对手应手后的估计；未完成搜索时沿用当前棋盘评分。</view>
+      <view class="section-label">当前棋盘评分分项</view>
+      <view class="detail-note">数值保留一位小数，分项和总分均由完整精度计算。</view>
+      <view wx:for="{{analysis.breakdown}}" wx:key="key" class="metric-row"><view><view>{{item.label}}</view><view class="detail-note">{{item.basis}}</view></view><text>{{item.scoreText}}</text></view>
+      <view class="detail-note">分项为“双方指标差 × 权重”。子力按盘上棋子数；备用子按备用棋数；机动性按合法走法数，孤棋残局降低权重；庙宇控制按庙内棋子数。</view>
+      <view class="detail-note">捕获机会按下一手可吃目标数；易受攻击按有效吃子走法数；孤棋风险随合法走法减少而增加；围堵进度比较封锁边界与孤棋可活动区域，不能单独作为胜负依据。</view>
+      <view class="detail-note">展示分档：绝对评分小于 150 为局面接近，150 至不足 400 为稍占优势或劣势，400 及以上为明显优势或劣势；尚未经过胜率校准。</view>
+      <view class="section-label">候选路线搜索评分</view>
+      <view wx:for="{{analysis.candidates}}" wx:key="id" class="metric-row"><text>{{item.notation}}</text><text>{{item.scoreText}}</text></view>
+      <view wx:if="{{analysis.threats.length}}" class="section-label">检测到的局面信号</view>
+      <view wx:for="{{analysis.threats}}" wx:key="id" class="detail-note">{{item.label}} {{item.move}}</view>
+      <view class="search-meta">完成搜索 {{analysis.searchDepth}} 层 · {{analysis.thinkingTimeText}} · {{analysis.nodesSearched}} 个节点{{analysis.timedOut ? ' · 达到时间限制' : ''}}</view>
+    </block>
+    <view wx:else class="detail-note">终局使用独立的胜负分值，实际结果由规则引擎判定。</view>
+  </expandable-details>
+</view>

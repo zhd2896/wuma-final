@@ -25,7 +25,7 @@ test('first page is home and public pages work without API config or implicit lo
   let app:any; (globalThis as any).App = (d:any) => app=d;
   await import('../miniprogram/app.ts');
   envVersion='trial'; routes.length=0;
-  for (const page of ['pages/index/index', 'guide/pages/tutorial/tutorial', 'guide/pages/trial/trial', 'pages/login/login']) {
+  for (const page of ['pages/index/index', 'pages/learning/learning', 'guide/pages/tutorial/tutorial', 'guide/pages/trial/trial', 'pages/login/login']) {
     current=page; app.onShow({ path: page, query: {} });
   }
   assert.deepEqual(routes, []);

@@ -3,6 +3,7 @@ import { gameService } from '../../services/index';
 import type { BoardState } from '../../types/domain';
 import { boardLines, boardNodes } from '../../mock/game';
 import { openPage, backHome } from '../../utils/navigation';
+import { aiUndoCount } from '../../utils/ai-undo-preview';
 import {
   createLocalGameSession, getLocalBoardView, resignLocalGame,
   tapLocalGameNode, undoLocalGame,
@@ -22,6 +23,7 @@ import { createWxDeviceHistoryStore } from '../../services/device-history';
 import type { GameIdStorage } from './remote-game';
 import { mapPositionAnalysis } from '../analysis/analysis-view-model';
 import type { AnalysisViewModel } from '../analysis/analysis-view-model';
+import { highlightBoardMove } from '../../utils/board-guidance';
 import {
   DEFAULT_GAME_SETTINGS, createWxGameSettingsStore, vibrateForSuccessfulAction,
 } from '../../services/game-settings';
@@ -79,13 +81,15 @@ Page({
     localGameId: '', localTurns: 0, localErrorMessage: '', localWinnerMessage: '',
     remoteState: null as RemoteGameSnapshot | null, remoteView: null as GameViewModel | null,
     remoteReady: false, aiState: null as AiGameSnapshot | null,
-    aiView: null as GameViewModel | null, aiReady: false,
+    aiView: null as GameViewModel | null, aiReady: false, aiUndoPlies: 0,
     aiAName: '你', aiBName: 'AI', aiLevelLabel: '',
     remoteCaptureText: '', aiCaptureText: '',
     localView: null as GameViewModel | null, aiGuidanceText: '',
     aiAnalysisView: null as AnalysisViewModel | null,
+    analysisPreviewId: '', analysisPreviewText: '', analysisPreviewPurpose: '',
     mode: 'ai', thinking: false,
-    showUndoConfirm: false, showResign: false, showSettings: false,
+    showUndoConfirm: false, showResign: false, showSettings: false, showRestart: false,
+    undoMessage: '撤销最近一手。', resignMessage: '', restartMessage: '',
     operationBusy: false, resigned: false,
     settings: { ...DEFAULT_GAME_SETTINGS } as GameSettings },
   remoteController: null as RemoteGameController | null,
@@ -96,7 +100,10 @@ Page({
     try { settings = createWxGameSettingsStore().read(); }
     catch { wx.showToast({ title: '设置读取失败，已使用默认设置', icon: 'none' }); }
     this.setData({ settings });
-    if (options.mode === 'local') this.enterLocalGame(options.gameId);
+    if (options.mode === 'local') {
+      if (options.new === '1' && !options.gameId) this.restartLocalGame();
+      else this.enterLocalGame(options.gameId);
+    }
     else if (options.mode === 'remote') {
       this.setData({ mode: 'remote', board: emptyBoard, remoteReady: false,
         thinking: false, showResign: false, showSettings: false });
@@ -183,12 +190,14 @@ Page({
       lastCapture: this.data.settings.showCaptureNotice ? snapshot.lastCapture : null,
     }, snapshot.humanPlayer) : null;
     const analysisView = snapshot.analysis && snapshot.gameState
-      ? mapPositionAnalysis(snapshot.gameState, snapshot.analysis) : null;
+      ? mapPositionAnalysis(snapshot.gameState, snapshot.analysis, snapshot.humanPlayer ?? undefined) : null;
     if (previous?.gameId === snapshot.gameId && snapshot.plyCount > previous.plyCount &&
         snapshot.lastMove) vibrateForSuccessfulAction(this.data.settings);
     this.setData({ aiState: snapshot, aiView: view,
+      aiUndoPlies: aiUndoCount(snapshot.gameState, snapshot.plyCount, snapshot.humanPlayer),
       operationBusy: snapshot.isOperating,
       aiAnalysisView: analysisView,
+      analysisPreviewId: '', analysisPreviewText: '', analysisPreviewPurpose: '',
       aiGuidanceText: view?.guidanceText.replace(/对手/g, 'AI') ?? '',
       aiCaptureText: this.data.settings.showCaptureNotice
         ? view?.captureText.replace(/对手/g, 'AI') ?? ''
@@ -204,6 +213,21 @@ Page({
       lastMove: session.lastMove, lastCapture: this.data.settings.showCaptureNotice ? session.lastCapture : null });
   },
   back() { backHome(); },
+  selectAnalysisMove(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
+    const analysis = this.data.aiAnalysisView;
+    const move = analysis?.candidates.find(candidate => candidate.id === event.detail.id)
+      ?? (analysis?.bestMove?.id === event.detail.id ? analysis.bestMove : null);
+    if (!move || this.data.operationBusy || this.data.aiState?.isAiThinking) return;
+    this.setData({ board: highlightBoardMove(this.data.board, move.move),
+      analysisPreviewId: move.id, analysisPreviewText: `正在预览 ${move.notation}`,
+      analysisPreviewPurpose: move.purpose || '当前分析尚未确认这条路线的具体战术目的。' },
+      () => wx.pageScrollTo({ selector: '#game-board-preview', duration: 240 }));
+  },
+  clearAnalysisPreview() {
+    if (!this.data.analysisPreviewId) return;
+    this.setData({ board: this.data.aiView?.board ?? highlightBoardMove(this.data.board, null),
+      analysisPreviewId: '', analysisPreviewText: '', analysisPreviewPurpose: '' });
+  },
   onNode(event: WechatMiniprogram.CustomEvent<{ id: string }>) {
     if (this.data.operationBusy) return;
     if (this.data.mode === 'ai') {
@@ -259,16 +283,33 @@ Page({
     else if (action === 'analysis') this.openAnalysis();
     else if (action === 'review') this.openReview();
     else if (action === 'resign') this.resign();
-    else if (action === 'restart') {
-      if (this.data.mode === 'remote') this.restartRemoteGame();
-      else if (this.data.mode === 'ai') this.restartAiGame();
-      else this.restartLocalGame();
-    }
+    else if (action === 'restart') this.requestRestart();
     else if (action === 'settings') this.settings();
   },
   historyTurns(id: string): number {
     try { return createWxDeviceHistoryStore().get(id)?.turns ?? 0; }
     catch { return 0; }
+  },
+  requestRestart() {
+    if (this.data.operationBusy) return;
+    const state = this.data.mode === 'local' ? this.data.localSession?.gameState
+      : this.data.mode === 'ai' ? this.data.aiState?.gameState : this.data.remoteState?.gameState;
+    const turns = this.data.mode === 'local' ? this.data.localTurns
+      : this.data.mode === 'ai' ? this.data.aiState?.plyCount : this.data.remoteState?.plyCount;
+    if (state?.game_status === 'PLAYING' && (turns ?? 0) > 0) {
+      this.setData({ showRestart: true, restartMessage: '保留当前棋局并新开一局。旧局可以从历史记录继续。' +
+        (this.data.mode === 'ai' ? `下一局：${AI_LEVEL_LABELS[this.data.settings.defaultAiLevel]}，${this.data.settings.aiFirstPlayer === 'A' ? '你' : '电脑'}先走。` : '') });
+    } else this.startAnotherGame();
+  },
+  cancelRestart() { this.setData({ showRestart: false }); },
+  confirmRestart() {
+    if (!this.data.showRestart || this.data.operationBusy) return;
+    this.setData({ showRestart: false }); this.startAnotherGame();
+  },
+  startAnotherGame() {
+    if (this.data.mode === 'remote') this.restartRemoteGame();
+    else if (this.data.mode === 'ai') this.restartAiGame();
+    else this.restartLocalGame();
   },
   saveHistory(id: string, mode: 'local' | 'remote' | 'ai',
               state: LocalGameSession['gameState'], turns: number,
@@ -372,15 +413,19 @@ Page({
   retryAiGame() { void this.aiController?.retry(this.aiFirstPlayer); },
   undo() {
     if (this.data.operationBusy || !this.localMutationAllowed()) return;
+    this.setData({ undoMessage: '撤销最近一手，回到落子前的局面。' });
     if (this.data.mode === 'ai') {
       const snapshot = this.data.aiState as AiGameSnapshot | null;
       if (!snapshot || snapshot.gameState?.game_status !== 'PLAYING') {
         wx.showToast({ title: '对局已结束，无法悔棋', icon: 'none' }); return;
       }
-      if (snapshot.plyCount === 0) {
-        wx.showToast({ title: '当前没有可悔的棋步', icon: 'none' }); return;
+      const count = aiUndoCount(snapshot.gameState, snapshot.plyCount, snapshot.humanPlayer);
+      if (!count) {
+        wx.showToast({ title: '你还未落子，当前无法悔棋', icon: 'none' }); return;
       }
-      this.setData({ showUndoConfirm: true, showResign: false }); return;
+      this.setData({ showUndoConfirm: true, showResign: false, undoMessage: count === 2
+        ? '回退 2 手：撤销你最近一步及电脑随后的回应，回到你落子前的局面。'
+        : '回退 1 手：撤销你最近一步。电脑尚未回应，回到你落子前的局面。' }); return;
     }
     if (this.data.mode === 'remote') {
       const snapshot = this.data.remoteState as RemoteGameSnapshot | null;
@@ -467,6 +512,9 @@ Page({
   },
   resign() {
     if (this.data.operationBusy || !this.localMutationAllowed()) return;
+    const player = this.data.mode === 'local' ? this.data.localSession?.gameState.current_player : this.data.remoteState?.gameState?.current_player;
+    this.setData({ resignMessage: this.data.mode === 'ai' ? '你将认输，电脑获胜。'
+      : `${player === 'B' ? '红方' : '黑方'}将认输，另一方获胜。` });
     if (this.data.mode === 'local') {
       const session = this.data.localSession as LocalGameSession | null;
       if (!session || session.gameState.game_status !== 'PLAYING') {

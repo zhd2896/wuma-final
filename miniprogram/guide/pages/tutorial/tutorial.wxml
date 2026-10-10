@@ -1,31 +1,37 @@
 <view class="page tutorial-page">
-  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>新手实操<text class="topbar-tag">亲手走三步</text></view>
+  <view class="topbar"><text class="topbar-back" bindtap="back">‹</text>新手实操<text class="topbar-tag">走棋 · 吃子 · 围堵</text></view>
   <view class="steps">
-    <view class="step {{stepIndex == 0 ? 'active' : 'done'}}">{{stepIndex > 0 ? '✓' : '1'}} 走棋</view>
-    <view class="step {{stepIndex == 1 ? 'active' : (stepIndex > 1 ? 'done' : '')}}">{{stepIndex > 1 ? '✓' : '2'}} 夹吃</view>
-    <view class="step {{stepIndex == 2 ? 'active' : (stepIndex > 2 ? 'done' : '')}}">{{stepIndex > 2 ? '✓' : '3'}} 挑吃</view>
+    <view wx:for="{{steps}}" wx:key="index" class="step {{stepIndex == item.index ? 'active' : (stepIndex > item.index ? 'done' : '')}}">{{stepIndex > item.index ? '✓' : item.index + 1}} {{item.title}}</view>
   </view>
   <block wx:if="{{!completed}}">
     <view class="lesson-card">
-      <view class="lesson-eyebrow">第 {{stepNumber}} 关 · 教学局面</view>
+      <view class="lesson-eyebrow">第 {{stepNumber}} / {{lessonCount}} 关 · {{independent ? '独立练习' : '教学局面'}}</view>
       <view class="lesson-title">{{title}}</view>
       <view class="lesson-instruction">{{instruction}}</view>
       <view class="legend"><text>● 黑棋：你</text><text class="red-side">● 红棋：对方</text><text>备用黑棋 {{reserve}} 枚</text></view>
     </view>
     <chess-board board="{{board}}" show-node-labels="{{true}}" bind:node="onNode" />
     <view class="feedback {{passed ? 'success' : ''}}">
-      <view class="feedback-title">{{passed ? '✓ 本关完成' : '点黑棋，再点标记的空位'}}</view>
-      <view class="feedback-text">{{message || '跟随棋盘标记亲手试一试。走错也没关系，可以继续尝试。'}}</view>
+      <view class="feedback-title">{{passed ? '✓ 本关完成' : (needsRetry ? '尚未获胜 · 重练后再试' : (independent ? '自行选黑棋，再选合法落点' : '点黑棋，再点标记的空位'))}}</view>
+      <view class="feedback-text">{{message || (independent ? '目标：换手后让所有红棋无合法走法。你可以尝试不同黑棋。' : '跟随棋盘标记亲手试一试。走错也没关系，可以继续尝试。')}}</view>
+      <view wx:if="{{showEscapeRoutes}}" class="escape-routes">
+        <view class="escape-title">走前红方有 {{beforeEscapeRouteCount}} 条合法路线；{{escapeStage}}共有 {{escapeRouteCount}} 条</view>
+        <text wx:for="{{escapeRoutes}}" wx:key="*this" class="escape-route">{{item}}</text>
+        <view class="feedback-text">{{escapeRouteCount ? '以上是红方全部合法路线。只要还剩一条，围堵就未完成。' : '红方所有在场棋子都没有合法走法。'}}</view>
+      </view>
     </view>
-    <button wx:if="{{passed}}" id="tutorial-next" class="gold-btn" bindtap="next">{{stepIndex == 2 ? '完成教学' : '下一关'}}</button>
+    <button wx:if="{{passed}}" id="tutorial-next" class="gold-btn" bindtap="next">{{stepIndex == lessonCount - 1 ? '完成教学' : '下一关'}}</button>
     <button class="retry-button" bindtap="retry">重练本关</button>
   </block>
   <view wx:else class="completion-card">
     <view class="completion-seal">学</view>
-    <view class="lesson-title">三步入门，准备开局</view>
+    <view class="lesson-title">完成入门，准备开局</view>
     <view class="completion-line">✓ 沿直线走棋，不越过其他棋子</view>
     <view class="completion-line">✓ 夹吃：两枚己方棋夹住一枚对方棋</view>
     <view class="completion-line">✓ 挑吃：己方棋走到两枚对方棋中间</view>
+    <view class="completion-line">✓ 备用棋不足：走棋保留，吃子取消，不消耗备用棋</view>
+    <view class="completion-line">✓ 围堵：换手后，对方所有在场棋子都没有合法走法才获胜</view>
+    <view class="completion-line">✓ 独立判断多子全堵，堵住部分棋子还不算赢</view>
     <view class="completion-note">吃子还需整条直线没有其他棋子、备用棋足够。被吃的位置由备用棋替换。对方最后一子不能夹吃，只剩两子不能挑吃。</view>
     <button class="gold-btn" bindtap="openTrial">免登录电脑试玩</button>
     <button id="tutorial-start-ai" class="retry-button" bindtap="startAi" loading="{{startingAi}}" disabled="{{startingAi}}">开始正式入门 AI · 微信登录</button>

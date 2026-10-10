@@ -9,7 +9,7 @@ import { proveBlockadeMove } from './blockade';
 import { getPlayerNodes, TEMPLE_NODES } from '../domain/index';
 
 export interface AnalyzePositionOptions extends Pick<IterativeDeepeningOptions,
-  'maxDepth' | 'timeLimitMs' | 'now' | 'evaluationConfig' | 'useBlockadeExtension'> {
+  'maxDepth' | 'timeLimitMs' | 'now' | 'evaluationConfig' | 'useBlockadeExtension' | 'blockadeAttackerTurns'> {
   readonly candidateLimit?: number;
 }
 
@@ -53,7 +53,7 @@ export interface PositionAnalysis {
 }
 
 function collectThreats(state: GameState, player: Player,
-                        evaluation: EvaluationResult, bestMove: Move | null): ThreatInfo[] {
+                        evaluation: EvaluationResult, bestMove: Move | null, blockadeAttackerTurns?: 1 | 2 | 3): ThreatInfo[] {
   const threats: ThreatInfo[] = [];
   for (const info of orderMoves(state)) {
     if (info.category === MoveOrderCategory.IMMEDIATE_WIN) {
@@ -76,7 +76,7 @@ function collectThreats(state: GameState, player: Player,
     threats.push({ type: 'LONE_PIECE_MOBILITY_RISK', player,
       evidence: { relativeLonePieceRisk: evaluation.breakdown.trapRisk.rawValue } });
   }
-  const proof = bestMove ? proveBlockadeMove(state, bestMove) : null;
+  const proof = bestMove ? proveBlockadeMove(state, bestMove, { maxAttackerTurns: blockadeAttackerTurns }) : null;
   if (proof && proof.maxPlies > 1) {
     const defender = player === 'A' ? 'B' : 'A';
     const seals = TEMPLE_NODES.filter(node => state.board.occupancy[node] === player);
@@ -120,5 +120,5 @@ export function analyzePosition(state: GameState,
     thinkingTimeMs: search.thinkingTimeMs, algorithm: search.algorithm,
     ttHits: search.ttHits, timedOut: search.timedOut,
     threats: collectThreats(state, analyzedPlayer, evaluationBefore,
-      options.useBlockadeExtension === false ? null : search.bestMove), terminal: false };
+      options.useBlockadeExtension === false ? null : search.bestMove, options.blockadeAttackerTurns), terminal: false };
 }

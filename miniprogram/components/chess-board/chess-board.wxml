@@ -1,4 +1,4 @@
-<view class="board-wrap {{compact ? 'compact' : ''}}">
+<view class="board-wrap {{compact ? 'compact' : ''}} {{highContrast || storedHighContrast ? 'high-contrast' : ''}} {{largeText || storedLargeText ? 'large-text' : ''}}">
   <view class="board-frame">
     <image class="board-landscape" src="../../assets/ink-landscape.jpg" mode="aspectFill" />
     <view class="grain"></view>
@@ -9,17 +9,20 @@
     <view class="corner bottom-left"></view><view class="corner bottom-right"></view>
     <view wx:for="{{board.lines}}" wx:key="id" class="line" style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.width}}%;transform:rotate({{item.angle}}deg)"></view>
     <view wx:if="{{board.recommendLine}}" class="recommend-line" style="left:{{board.recommendLine.x}}%;top:{{board.recommendLine.y}}%;width:{{board.recommendLine.width}}%;transform:rotate({{board.recommendLine.angle}}deg)"><view class="arrow-head"></view></view>
-    <block wx:for="{{board.nodes}}" wx:key="id">
-      <view wx:if="{{!item.visualOnly}}" class="node-hit {{item.id == board.recommendedTo ? 'last-target' : ''}} {{item.captured || item.replacement ? 'capture-spot' : ''}}" style="left:{{item.x}}%;top:{{item.y}}%" data-id="{{item.id}}" bindtap="onNode">
+    <block wx:for="{{hitNodes}}" wx:key="id">
+      <view class="node-hit {{item.id == board.recommendedTo ? 'last-target' : ''}} {{item.captured || item.replacement ? 'capture-spot' : ''}}" style="left:{{item.x}}%;top:{{item.y}}%;width:{{item.hitWidth}}%;height:{{item.hitHeight}}%" data-id="{{item.id}}" bindtap="onNode" aria-role="button" aria-label="{{item.ariaLabel}}">
         <view class="node-dot {{item.id == board.recommendedTo ? 'target' : ''}} {{item.id == board.recommendedFrom ? 'source' : ''}} {{item.legalTarget ? 'legal-target' : ''}} {{item.captured ? 'capture-hit' : ''}} {{item.replacement ? 'replacement-hit' : ''}}"></view>
       </view>
     </block>
-    <view wx:for="{{board.pieces}}" wx:key="id" class="piece-position" style="left:{{item.x}}%;top:{{item.y}}%" data-id="{{item.nodeId}}" bindtap="onNode"><chess-piece side="{{item.side}}" state="{{item.nodeId == board.selectedId ? 'selected' : item.state}}" /></view>
-    <block wx:if="{{showNodeLabels}}">
+    <view wx:for="{{board.pieces}}" wx:key="id" class="piece-position" style="left:{{item.x}}%;top:{{item.y}}%" aria-hidden="{{true}}">
+      <view wx:if="{{highContrast || storedHighContrast}}" class="plain-piece {{item.side}} {{item.nodeId == board.selectedId ? 'selected' : item.state}}">{{item.side == 'black' ? '黑' : '红'}}</view>
+      <chess-piece wx:else side="{{item.side}}" state="{{item.nodeId == board.selectedId ? 'selected' : item.state}}" />
+    </view>
+    <block wx:if="{{showNodeLabels || board.recommendedFrom || board.recommendedTo}}">
       <block wx:for="{{board.nodes}}" wx:key="id">
-      <view wx:if="{{!item.visualOnly}}"
-        class="node-label {{item.id == board.recommendedFrom ? 'label-source' : ''}} {{item.id == board.recommendedTo ? 'label-target' : ''}} {{item.focused ? 'label-focus' : ''}}"
-        style="left:{{item.x}}%;top:{{item.y}}%">{{item.id}}</view>
+      <view wx:if="{{!item.visualOnly && (showNodeLabels || item.id == board.recommendedFrom || item.id == board.recommendedTo)}}"
+        class="node-label {{item.x >= 75 ? 'label-at-right' : ''}} {{item.id == board.recommendedFrom ? 'label-source' : ''}} {{item.id == board.recommendedTo ? 'label-target' : ''}} {{item.focused ? 'label-focus' : ''}}"
+        style="left:{{item.x}}%;top:{{item.y}}%">{{item.id}}<text wx:if="{{item.id == board.recommendedFrom || item.id == board.recommendedTo}}" class="endpoint-label">{{item.id == board.recommendedFrom ? '起点' : '终点'}}</text></view>
       </block>
     </block>
     <block wx:if="{{showGuidance}}" wx:for="{{board.nodes}}" wx:key="id">
